@@ -1,6 +1,10 @@
+import { useEffect } from "react";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
+import { LEVELS } from "../LEVELS";
+import { TOTAL_TRIALS } from "../game/index";
 import { StarsDisplay } from "./StarsDisplay";
+import { updateLevelRecord } from "../storage/levelStats";
 
 type Props = { state: Finished };
 
@@ -11,22 +15,24 @@ export function FinishedScreen({ state }: Props) {
 
   const { correctInTime, levelCompleted, stars, results, config } = state;
   const totalAttempts = results.length;
-
   const isLastLevel = config.levelNumber >= 150;
 
+  // Persist best record
+  useEffect(() => {
+    const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
+    updateLevelRecord(config.levelNumber, { stars, totalTime });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   function playNext() {
-    const nextKey = String(config.levelNumber + 1);
-    // We import lazily to avoid circular deps — the caller holds the level ref
-    import("../LEVELS").then(({ LEVELS }) => {
-      const nextLevel = (LEVELS as Record<string, typeof config.level>)[nextKey];
-      if (nextLevel) {
-        load({
-          levelNumber: config.levelNumber + 1,
-          level: nextLevel,
-          totalTrials: config.totalTrials,
-        });
-      }
-    });
+    const nextKey = String(config.levelNumber + 1) as keyof typeof LEVELS;
+    const nextLevel = LEVELS[nextKey];
+    if (nextLevel) {
+      load({
+        levelNumber: config.levelNumber + 1,
+        level: nextLevel,
+        totalTrials: TOTAL_TRIALS,
+      });
+    }
   }
 
   return (
@@ -45,7 +51,13 @@ export function FinishedScreen({ state }: Props) {
       {levelCompleted && <StarsDisplay stars={stars} />}
 
       <p className="text-center text-lg">
-        <span className={levelCompleted ? "text-[#4ade80] font-bold text-2xl" : "text-[#f87171] font-bold text-2xl"}>
+        <span
+          className={
+            levelCompleted
+              ? "text-[#4ade80] font-bold text-2xl"
+              : "text-[#f87171] font-bold text-2xl"
+          }
+        >
           {correctInTime}
         </span>
         <span className="text-[#a0a0c0]"> / {totalAttempts} correct in time</span>
