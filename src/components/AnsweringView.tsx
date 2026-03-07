@@ -17,7 +17,7 @@ export function AnsweringView({ state }: Props) {
   const advance = useGame((s) => s.advance);
 
   const playingState = state.playingState;
-  const operation = state.operations[state.currentTrial];
+  const operation = state.currentOperation;
   const solveTime = operation.solveTime();
 
   const [answer, setAnswer] = useState("");
@@ -31,7 +31,7 @@ export function AnsweringView({ state }: Props) {
     answerRef.current = "";
     setPressedKey(null);
     setRemaining(solveTime);
-  }, [state.currentTrial, solveTime]);
+  }, [state.trialId, solveTime]);
 
   // Countdown timer — only active while answering
   const startedAt =
@@ -125,7 +125,7 @@ export function AnsweringView({ state }: Props) {
       {/* Header */}
       <div className="flex justify-between items-center text-sm text-[#a0a0c0]">
         <span>
-          Trial {state.currentTrial + 1} / {state.operations.length}
+          Trial {state.trialsConsumed + 1} / {state.config.totalTrials}
         </span>
         {/* Fade out seconds when reviewing so it doesn't tick to 0 */}
         <span className={`transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}>

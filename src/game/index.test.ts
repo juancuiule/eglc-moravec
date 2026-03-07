@@ -1,0 +1,275 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  starsForScore,
+  trialCounts,
+  createGameStore,
+  LEVEL_COMPLETE_THRESHOLD,
+  TOTAL_TRIALS,
+} from "./index";
+import type { TrialResult } from "./index";
+import { Addition } from "../operations/operation";
+import { LEVELS } from "../LEVELS";
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+const level1 = LEVELS["1"];
+
+function makeConfig(overrides: Partial<{ levelNumber: number; totalTrials: number }> = {}) {
+  return {
+    levelNumber: overrides.levelNumber ?? 1,
+    level: level1,
+    totalTrials: overrides.totalTrials ?? TOTAL_TRIALS,
+  };
+}
+
+/** Build a fake TrialResult without needing a real Operation. */
+function makeResult(
+  correct: boolean,
+  timeExceeded: boolean,
+): TrialResult {
+  const op = Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
+  return {
+    operation: op,
+    answer: correct ? op.result() : 0,
+    correct,
+    timeExceeded,
+    timeTaken: timeExceeded ? op.solveTime() + 1 : op.solveTime() - 1,
+  };
+}
+
+// ─── starsForScore ─────────────────────────────────────────────────────────────
+
+describe("starsForScore", () => {
+  it("returns 0 for fewer than 15", () => {
+    expect(starsForScore(0)).toBe(0);
+    expect(starsForScore(14)).toBe(0);
+  });
+
+  it("returns 1 for 15–16", () => {
+    expect(starsForScore(15)).toBe(1);
+    expect(starsForScore(16)).toBe(1);
+  });
+
+  it("returns 2 for 17–19", () => {
+    expect(starsForScore(17)).toBe(2);
+    expect(starsForScore(19)).toBe(2);
+  });
+
+  it("returns 3 for 20", () => {
+    expect(starsForScore(20)).toBe(3);
+  });
+});
+
+// ─── trialCounts ───────────────────────────────────────────────────────────────
+
+describe("trialCounts", () => {
+  it("counts a wrong answer", () => {
+    expect(trialCounts(makeResult(false, false))).toBe(true);
+  });
+
+  it("counts a timed-out answer", () => {
+    expect(trialCounts(makeResult(false, true))).toBe(true);
+  });
+
+  it("counts a correct-in-time answer", () => {
+    expect(trialCounts(makeResult(true, false))).toBe(true);
+  });
+
+  it("does NOT count a correct-but-late answer", () => {
+    expect(trialCounts(makeResult(true, true))).toBe(false);
+  });
+});
+
+// ─── Constants ─────────────────────────────────────────────────────────────────
+
+describe("constants", () => {
+  it("LEVEL_COMPLETE_THRESHOLD is 15", () => {
+    expect(LEVEL_COMPLETE_THRESHOLD).toBe(15);
+  });
+
+  it("TOTAL_TRIALS is 20", () => {
+    expect(TOTAL_TRIALS).toBe(20);
+  });
+});
+
+// ─── Game store ────────────────────────────────────────────────────────────────
+
+describe("createGameStore", () => {
+  let store: ReturnType<typeof createGameStore>;
+
+  beforeEach(() => {
+    store = createGameStore();
+    vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+  });
+
+  it("starts in loading state", () => {
+    expect(store.getState().state.type).toBe("loading");
+  });
+
+  it("transitions to playing after load()", () => {
+    store.getState().load(makeConfig());
+    const s = store.getState().state;
+    expect(s.type).toBe("playing");
+  });
+
+  it("ignores load() while already playing", () => {
+    store.getState().load(makeConfig());
+    const before = store.getState().state;
+    store.getState().load(makeConfig({ levelNumber: 2 }));
+    expect(store.getState().state).toBe(before);
+  });
+
+  describe("while playing", () => {
+    beforeEach(() => {
+      store.getState().load(makeConfig());
+    });
+
+    it("submitAnswer moves to reviewing", () => {
+      const s = store.getState().state;
+      if (s.type !== "playing") throw new Error("not playing");
+      const correct = s.currentOperation.result();
+      store.getState().submitAnswer(correct);
+      const next = store.getState().state;
+      expect(next.type).toBe("playing");
+      if (next.type !== "playing") return;
+      expect(next.playingState.type).toBe("reviewing");
+    });
+
+    it("timeUp moves to reviewing with correct=false and timeExceeded=true", () => {
+      store.getState().timeUp();
+      const s = store.getState().state;
+      if (s.type !== "playing" || s.playingState.type !== "reviewing") throw new Error("unexpected");
+      expect(s.playingState.result.correct).toBe(false);
+      expect(s.playingState.result.timeExceeded).toBe(true);
+      expect(s.playingState.result.answer).toBeNull();
+    });
+
+    it("submitAnswer records timeExceeded=true when answer is late", () => {
+      const s = store.getState().state;
+      if (s.type !== "playing") throw new Error("not playing");
+      const solveTime = s.currentOperation.solveTime();
+      // answer submitted 1ms after solveTime
+      vi.spyOn(Date, "now").mockReturnValue(1_000_000 + solveTime + 1);
+      store.getState().submitAnswer(s.currentOperation.result());
+      const next = store.getState().state;
+      if (next.type !== "playing" || next.playingState.type !== "reviewing") throw new Error();
+      expect(next.playingState.result.correct).toBe(true);
+      expect(next.playingState.result.timeExceeded).toBe(true);
+    });
+
+    it("advance after wrong answer increments trialsConsumed", () => {
+      const s = store.getState().state;
+      if (s.type !== "playing") throw new Error();
+      store.getState().submitAnswer(s.currentOperation.result() + 99);
+      store.getState().advance();
+      const next = store.getState().state;
+      if (next.type !== "playing") throw new Error();
+      expect(next.trialsConsumed).toBe(1);
+    });
+
+    it("advance after correct-in-time increments trialsConsumed", () => {
+      const s = store.getState().state;
+      if (s.type !== "playing") throw new Error();
+      store.getState().submitAnswer(s.currentOperation.result());
+      store.getState().advance();
+      const next = store.getState().state;
+      if (next.type !== "playing") throw new Error();
+      expect(next.trialsConsumed).toBe(1);
+    });
+
+    it("advance after correct-but-late does NOT increment trialsConsumed", () => {
+      const s = store.getState().state;
+      if (s.type !== "playing") throw new Error();
+      const solveTime = s.currentOperation.solveTime();
+      vi.spyOn(Date, "now").mockReturnValue(1_000_000 + solveTime + 1);
+      store.getState().submitAnswer(s.currentOperation.result());
+      store.getState().advance();
+      const next = store.getState().state;
+      if (next.type !== "playing") throw new Error();
+      expect(next.trialsConsumed).toBe(0);
+    });
+  });
+
+  describe("finishing a game", () => {
+    function playTrials(
+      n: number,
+      correct: boolean,
+      late = false,
+    ) {
+      for (let i = 0; i < n; i++) {
+        const s = store.getState().state;
+        if (s.type !== "playing") throw new Error("not playing at trial " + i);
+        const solveTime = s.currentOperation.solveTime();
+        if (late) {
+          vi.spyOn(Date, "now").mockReturnValue(1_000_000 + solveTime + 1);
+        } else {
+          vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+        }
+        if (correct) {
+          store.getState().submitAnswer(s.currentOperation.result());
+        } else {
+          store.getState().submitAnswer(s.currentOperation.result() + 99);
+        }
+        // Advance from reviewing
+        const after = store.getState().state;
+        if (after.type === "playing" && after.playingState.type === "reviewing") {
+          store.getState().advance();
+        }
+      }
+    }
+
+    it("transitions to finished after 20 counting trials", () => {
+      store.getState().load(makeConfig());
+      playTrials(20, true);
+      expect(store.getState().state.type).toBe("finished");
+    });
+
+    it("computes correctInTime correctly", () => {
+      store.getState().load(makeConfig());
+      playTrials(15, true);   // 15 correct in time
+      playTrials(5, false);   // 5 wrong
+      const s = store.getState().state;
+      expect(s.type).toBe("finished");
+      if (s.type !== "finished") return;
+      expect(s.correctInTime).toBe(15);
+      expect(s.levelCompleted).toBe(true);
+      expect(s.stars).toBe(1);
+    });
+
+    it("levelCompleted=false when correctInTime < 15", () => {
+      store.getState().load(makeConfig());
+      playTrials(14, true);
+      playTrials(6, false);
+      const s = store.getState().state;
+      if (s.type !== "finished") throw new Error();
+      expect(s.levelCompleted).toBe(false);
+      expect(s.stars).toBe(0);
+    });
+
+    it("correct-but-late trials are not counted toward correctInTime", () => {
+      store.getState().load(makeConfig());
+      // Play 20 counting trials: 10 correct-in-time, 10 wrong
+      // Also interleave some late-correct (which don't consume slots)
+      playTrials(10, true, false);   // 10 correct-in-time
+      playTrials(10, false, false);  // 10 wrong (completes the 20 slots)
+      const s = store.getState().state;
+      if (s.type !== "finished") throw new Error("expected finished, got " + s.type);
+      expect(s.correctInTime).toBe(10);
+    });
+
+    it("replay() restarts from finished", () => {
+      store.getState().load(makeConfig());
+      playTrials(20, false);
+      expect(store.getState().state.type).toBe("finished");
+      store.getState().replay();
+      expect(store.getState().state.type).toBe("playing");
+    });
+
+    it("reset() returns to loading", () => {
+      store.getState().load(makeConfig());
+      playTrials(20, false);
+      store.getState().reset();
+      expect(store.getState().state.type).toBe("loading");
+    });
+  });
+});

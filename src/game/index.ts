@@ -5,24 +5,44 @@ import { Operation } from "../operations/operation";
 // ─── Config ────────────────────────────────────────────────────────────────────
 
 export type GameConfig = {
+  levelNumber: number;
   level: Level;
-  nTrials: number;
+  totalTrials: number; // always 20 for levelled play
 };
+
+// ─── Scoring ───────────────────────────────────────────────────────────────────
+
+export const LEVEL_COMPLETE_THRESHOLD = 15;
+export const TOTAL_TRIALS = 20;
+
+export function starsForScore(correctInTime: number): 0 | 1 | 2 | 3 {
+  if (correctInTime >= 20) return 3;
+  if (correctInTime >= 17) return 2;
+  if (correctInTime >= 15) return 1;
+  return 0;
+}
 
 // ─── Trial result ──────────────────────────────────────────────────────────────
 
 export type TrialResult = {
   operation: Operation;
-  answer: number | null; // null means timed out
+  answer: number | null; // null = timed out
   correct: boolean;
+  timeExceeded: boolean; // true if timeTaken > operation.solveTime()
   timeTaken: number; // ms
 };
+
+// A trial only consumes a slot when it's wrong, or correct-within-time.
+// Correct-but-late = the player must retry the same slot.
+export function trialCounts(result: TrialResult): boolean {
+  return !(result.correct && result.timeExceeded);
+}
 
 // ─── Playing nested states ─────────────────────────────────────────────────────
 
 export type Answering = {
   type: "answering";
-  startedAt: number; // Date.now() when trial began
+  startedAt: number;
 };
 
 export type Reviewing = {
@@ -34,25 +54,25 @@ export type PlayingState = Answering | Reviewing;
 
 // ─── Top-level states ──────────────────────────────────────────────────────────
 
-// Initial state: waiting for load() to be called with a config
 export type Loading = { type: "loading" };
 
-// Active game: holds all mutable trial state
 export type Playing = {
   type: "playing";
   config: GameConfig;
-  operations: Operation[];
-  currentTrial: number;       // index into operations[]
-  results: TrialResult[];     // completed trial results
-  playingState: PlayingState; // nested state machine
+  currentOperation: Operation; // current trial's operation
+  trialsConsumed: number;       // slots used: increments on wrong + correct-in-time
+  trialId: number;              // monotonically increasing, used to reset UI between trials
+  results: TrialResult[];       // all submitted results
+  playingState: PlayingState;
 };
 
-// Terminal state: all trials completed
 export type Finished = {
   type: "finished";
   config: GameConfig;
-  operations: Operation[];
   results: TrialResult[];
+  correctInTime: number;
+  levelCompleted: boolean; // correctInTime >= LEVEL_COMPLETE_THRESHOLD
+  stars: 0 | 1 | 2 | 3;
 };
 
 export type GameState = Loading | Playing | Finished;
@@ -63,8 +83,7 @@ export type GameStore = {
   state: GameState;
 
   /**
-   * Generate operations and start the game.
-   * Valid from: Loading
+   * Start a level. Valid from: Loading, Finished.
    */
   load: (config: GameConfig) => void;
 
@@ -75,22 +94,42 @@ export type GameStore = {
   submitAnswer: (answer: number) => void;
 
   /**
-   * Mark the current trial as timed out (no answer given).
+   * Mark the current trial as timed out.
    * Valid from: Playing › Answering
    */
   timeUp: () => void;
 
   /**
-   * Advance from the result screen to the next trial, or finish the game.
+   * Advance after the result is shown.
    * Valid from: Playing › Reviewing
    */
   advance: () => void;
 
   /**
-   * Reset back to the loading state to start a new game.
+   * Replay the same level immediately.
+   * Valid from: Finished
+   */
+  replay: () => void;
+
+  /**
+   * Return to level selection.
    */
   reset: () => void;
 };
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+function startPlaying(config: GameConfig, trialId = 0): Playing {
+  return {
+    type: "playing",
+    config,
+    currentOperation: createRandomOperation(config.level),
+    trialsConsumed: 0,
+    trialId,
+    results: [],
+    playingState: { type: "answering", startedAt: Date.now() },
+  };
+}
 
 // ─── Factory ───────────────────────────────────────────────────────────────────
 
@@ -100,22 +139,8 @@ export function createGameStore() {
 
     load(config) {
       const { state } = get();
-      if (state.type !== "loading") return;
-
-      const operations: Operation[] = Array.from({ length: config.nTrials }, () =>
-        createRandomOperation(config.level),
-      );
-
-      set({
-        state: {
-          type: "playing",
-          config,
-          operations,
-          currentTrial: 0,
-          results: [],
-          playingState: { type: "answering", startedAt: Date.now() },
-        },
-      });
+      if (state.type !== "loading" && state.type !== "finished") return;
+      set({ state: startPlaying(config) });
     },
 
     submitAnswer(answer) {
@@ -124,18 +149,20 @@ export function createGameStore() {
       if (state.playingState.type !== "answering") return;
 
       const { startedAt } = state.playingState;
-      const operation = state.operations[state.currentTrial];
+      const { currentOperation } = state;
       const timeTaken = Date.now() - startedAt;
-      const correct = answer === operation.result();
+      const correct = answer === currentOperation.result();
+      const timeExceeded = timeTaken > currentOperation.solveTime();
 
-      const result: TrialResult = { operation, answer, correct, timeTaken };
+      const result: TrialResult = {
+        operation: currentOperation,
+        answer,
+        correct,
+        timeExceeded,
+        timeTaken,
+      };
 
-      set({
-        state: {
-          ...state,
-          playingState: { type: "reviewing", result },
-        },
-      });
+      set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
 
     timeUp() {
@@ -143,24 +170,16 @@ export function createGameStore() {
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
 
-      const operation = state.operations[state.currentTrial];
+      const { currentOperation } = state;
       const result: TrialResult = {
-        operation,
+        operation: currentOperation,
         answer: null,
         correct: false,
-        timeTaken: operation.solveTime(),
+        timeExceeded: true,
+        timeTaken: currentOperation.solveTime(),
       };
 
-      set({
-        state: {
-          ...state,
-          playingState: { type: "reviewing", result },
-        },
-      });
-    },
-
-    reset() {
-      set({ state: { type: "loading" } });
+      set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
 
     advance() {
@@ -168,29 +187,47 @@ export function createGameStore() {
       if (state.type !== "playing") return;
       if (state.playingState.type !== "reviewing") return;
 
-      const results = [...state.results, state.playingState.result];
-      const nextTrial = state.currentTrial + 1;
-      const isLastTrial = nextTrial >= state.operations.length;
+      const { result } = state.playingState;
+      const results = [...state.results, result];
+      const newTrialsConsumed =
+        state.trialsConsumed + (trialCounts(result) ? 1 : 0);
 
-      if (isLastTrial) {
+      if (newTrialsConsumed >= state.config.totalTrials) {
+        const correctInTime = results.filter(
+          (r) => r.correct && !r.timeExceeded,
+        ).length;
         set({
           state: {
             type: "finished",
             config: state.config,
-            operations: state.operations,
             results,
+            correctInTime,
+            levelCompleted: correctInTime >= LEVEL_COMPLETE_THRESHOLD,
+            stars: starsForScore(correctInTime),
           },
         });
       } else {
         set({
           state: {
             ...state,
-            currentTrial: nextTrial,
+            currentOperation: createRandomOperation(state.config.level),
+            trialsConsumed: newTrialsConsumed,
+            trialId: state.trialId + 1,
             results,
             playingState: { type: "answering", startedAt: Date.now() },
           },
         });
       }
+    },
+
+    replay() {
+      const { state } = get();
+      if (state.type !== "finished") return;
+      set({ state: startPlaying(state.config) });
+    },
+
+    reset() {
+      set({ state: { type: "loading" } });
     },
   }));
 }

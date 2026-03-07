@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useGame } from "../game/store";
 import { LEVELS } from "../LEVELS";
+import { TOTAL_TRIALS } from "../game/index";
 
 const LEVEL_KEYS = Object.keys(LEVELS) as (keyof typeof LEVELS)[];
 
@@ -10,10 +11,13 @@ const inputCls =
 export function StartScreen() {
   const load = useGame((s) => s.load);
   const [levelKey, setLevelKey] = useState(LEVEL_KEYS[0]);
-  const [nTrials, setNTrials] = useState(10);
 
   function handleStart() {
-    load({ level: LEVELS[levelKey], nTrials });
+    load({
+      levelNumber: parseInt(levelKey),
+      level: LEVELS[levelKey],
+      totalTrials: TOTAL_TRIALS,
+    });
   }
 
   return (
@@ -33,18 +37,6 @@ export function StartScreen() {
             </option>
           ))}
         </select>
-      </label>
-
-      <label className="flex flex-col gap-1.5 text-sm text-[#a0a0c0] font-medium">
-        Number of trials
-        <input
-          className={inputCls}
-          type="number"
-          min={1}
-          max={50}
-          value={nTrials}
-          onChange={(e) => setNTrials(Math.max(1, parseInt(e.target.value) || 1))}
-        />
       </label>
 
       <button
