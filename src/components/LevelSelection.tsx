@@ -30,7 +30,9 @@ function LevelStars({ stars }: { stars: 0 | 1 | 2 | 3 }) {
   );
 }
 
-export function LevelSelection() {
+type Props = { onShowStats: () => void };
+
+export function LevelSelection({ onShowStats }: Props) {
   const load = useGame((s) => s.load);
   const [stats, setStats] = useState<PersistedLevelStats>({});
 
@@ -49,7 +51,15 @@ export function LevelSelection() {
 
   return (
     <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-6 w-full max-w-[480px] flex flex-col gap-4">
-      <h1 className="text-2xl font-bold tracking-tight text-center">Mental Math</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Mental Math</h1>
+        <button
+          onClick={onShowStats}
+          className="text-sm text-[#a0a0c0] hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-[#2e2e42]"
+        >
+          Stats →
+        </button>
+      </div>
 
       <div className="grid grid-cols-5 gap-1.5 max-h-[60dvh] overflow-y-auto pr-1">
         {LEVEL_KEYS.map((n) => {

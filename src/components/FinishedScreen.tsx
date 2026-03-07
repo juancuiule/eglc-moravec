@@ -5,10 +5,11 @@ import { LEVELS } from "../LEVELS";
 import { TOTAL_TRIALS } from "../game/index";
 import { StarsDisplay } from "./StarsDisplay";
 import { updateLevelRecord } from "../storage/levelStats";
+import { appendTrials } from "../storage/trialHistory";
 
-type Props = { state: Finished };
+type Props = { state: Finished; onBack: () => void };
 
-export function FinishedScreen({ state }: Props) {
+export function FinishedScreen({ state, onBack }: Props) {
   const reset = useGame((s) => s.reset);
   const replay = useGame((s) => s.replay);
   const load = useGame((s) => s.load);
@@ -17,10 +18,20 @@ export function FinishedScreen({ state }: Props) {
   const totalAttempts = results.length;
   const isLastLevel = config.levelNumber >= 150;
 
-  // Persist best record
+  // Persist best record and trial history
   useEffect(() => {
     const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
     updateLevelRecord(config.levelNumber, { stars, totalTime });
+    appendTrials(
+      results.map((r) => ({
+        levelNumber: config.levelNumber,
+        categoryCodename: r.operation.categoryCodename(),
+        correct: r.correct,
+        timeExceeded: r.timeExceeded,
+        timeTaken: r.timeTaken,
+        playedAt: new Date().toISOString(),
+      })),
+    );
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function playNext() {
@@ -80,7 +91,7 @@ export function FinishedScreen({ state }: Props) {
         </button>
         <button
           className="cursor-pointer text-[#a0a0c0] w-full rounded-lg px-5 py-2 font-medium hover:text-white transition-colors"
-          onClick={reset}
+          onClick={() => { reset(); onBack(); }}
         >
           Back to menu
         </button>

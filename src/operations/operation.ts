@@ -10,6 +10,7 @@ export abstract class Operation {
   abstract solveTime(): number;
   abstract result(): number;
   abstract humanReadable(): string;
+  abstract categoryCodename(): string;
   hint(): string | undefined {
     return undefined;
   }
@@ -47,6 +48,10 @@ export class Addition extends Operation {
 
   result(): number {
     return this.leftOperand + this.rightOperand;
+  }
+
+  categoryCodename(): string {
+    return this.category.codename;
   }
 
   humanReadable(): string {
@@ -97,6 +102,10 @@ export class Multiplication extends Operation {
     return this.leftOperand * this.rightOperand;
   }
 
+  categoryCodename(): string {
+    return this.category.codename;
+  }
+
   humanReadable(): string {
     return `${this.leftOperand} x ${this.rightOperand}`;
   }
@@ -132,6 +141,10 @@ export class Squaring extends Operation {
 
   result(): number {
     return Math.pow(this.operand, 2);
+  }
+
+  categoryCodename(): string {
+    return this.category.codename;
   }
 
   humanReadable(): string {
