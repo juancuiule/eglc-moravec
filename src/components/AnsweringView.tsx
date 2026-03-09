@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Playing } from "../game/index";
 import { useGame } from "../game/store";
+import { HintCard } from "./HintCard";
 
 type Props = { state: Playing };
 
@@ -15,10 +16,12 @@ export function AnsweringView({ state }: Props) {
   const submitAnswer = useGame((s) => s.submitAnswer);
   const timeUp = useGame((s) => s.timeUp);
   const advance = useGame((s) => s.advance);
+  const requestHint = useGame((s) => s.requestHint);
 
   const playingState = state.playingState;
   const operation = state.currentOperation;
   const solveTime = operation.solveTime();
+  const hint = operation.hint();
 
   const [answer, setAnswer] = useState("");
   const [pressedKey, setPressedKey] = useState<string | null>(null);
@@ -114,11 +117,16 @@ export function AnsweringView({ state }: Props) {
   const isReviewing = playingState.type === "reviewing";
   const result = isReviewing ? playingState.result : null;
 
-  // Freeze the ratio at the moment of submission — bar fades out, never jumps to 0
   const ratio = remaining / solveTime;
   const timerColor =
     ratio > 0.5 ? "#4ade80" : ratio > 0.25 ? "#facc15" : "#f87171";
   const seconds = Math.ceil(remaining / 1000);
+
+  const hintDisabled =
+    !hint.hasHint() ||
+    state.hintVisible ||
+    (state.hintsRemaining === 0 && !state.hintVisible) ||
+    isReviewing;
 
   return (
     <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-6 w-full max-w-[380px] flex flex-col gap-5">
@@ -127,13 +135,26 @@ export function AnsweringView({ state }: Props) {
         <span>
           Trial {state.trialsConsumed + 1} / {state.config.totalTrials}
         </span>
-        {/* Fade out seconds when reviewing so it doesn't tick to 0 */}
         <span className={`transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}>
           {seconds}s
         </span>
+        {/* Hint budget */}
+        <button
+          disabled={hintDisabled}
+          onClick={requestHint}
+          className={[
+            "text-xs font-medium px-2 py-1 rounded-lg transition-all",
+            hintDisabled
+              ? "text-[#3e3e52] cursor-not-allowed"
+              : "text-[#5a5af0] hover:bg-[#2e2e42] cursor-pointer",
+          ].join(" ")}
+          title="Show hint"
+        >
+          Hint {state.hintsRemaining}/3
+        </button>
       </div>
 
-      {/* Timer bar — fades out on submit instead of jumping to 0 */}
+      {/* Timer bar */}
       <div className={`h-1.5 bg-[#2e2e42] rounded-full overflow-hidden transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}>
         <div
           className="h-full rounded-full transition-[width] duration-100 ease-linear"
@@ -146,15 +167,17 @@ export function AnsweringView({ state }: Props) {
         {operation.humanReadable()}
       </div>
 
-      {/* Calculator section — always rendered to prevent layout shift.
-          Feedback overlay sits on top via absolute positioning. */}
+      {/* Hint card — shown when hint is requested */}
+      {state.hintVisible && !isReviewing && (
+        <HintCard steps={hint.getSteps()} />
+      )}
+
+      {/* Calculator section */}
       <div className="relative flex flex-col gap-3">
-        {/* Answer display */}
         <div className="bg-[#0f0f13] border border-[#2e2e42] rounded-xl px-4 py-3 text-right text-3xl font-mono min-h-[3.5rem] flex items-center justify-end select-none">
           {answer || <span className="text-[#3e3e52]">0</span>}
         </div>
 
-        {/* Keypad */}
         <div className="grid grid-cols-3 gap-2">
           {ROWS.flat().map((key) => {
             const isAction = key === "C" || key === "⌫";
@@ -178,7 +201,6 @@ export function AnsweringView({ state }: Props) {
           })}
         </div>
 
-        {/* Submit */}
         <button
           className="cursor-pointer bg-[#5a5af0] text-white w-full rounded-xl py-3 font-semibold text-lg hover:opacity-90 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
           disabled={!answer}
@@ -187,7 +209,7 @@ export function AnsweringView({ state }: Props) {
           Submit
         </button>
 
-        {/* Feedback overlay — absolute over the calculator, no layout shift */}
+        {/* Feedback overlay */}
         {isReviewing && result && (
           <div
             className={[

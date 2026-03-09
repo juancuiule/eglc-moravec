@@ -4,6 +4,10 @@ import {
   SquaringCategory,
 } from "./category";
 import { createRandomOperand, OperandOptions } from "./operand";
+import type { Hint } from "./hints/Hint";
+import { NoHint } from "./hints/NoHint";
+import { MultiplicationHint } from "./hints/MultiplicationHint";
+import { SquaringHint } from "./hints/SquaringHint";
 
 export abstract class Operation {
   static readonly restrictions: OperandOptions;
@@ -11,8 +15,8 @@ export abstract class Operation {
   abstract result(): number;
   abstract humanReadable(): string;
   abstract categoryCodename(): string;
-  hint(): string | undefined {
-    return undefined;
+  hint(): Hint {
+    return new NoHint();
   }
 }
 
@@ -106,6 +110,10 @@ export class Multiplication extends Operation {
     return this.category.codename;
   }
 
+  hint(): Hint {
+    return new MultiplicationHint(this.leftOperand, this.rightOperand);
+  }
+
   humanReadable(): string {
     return `${this.leftOperand} x ${this.rightOperand}`;
   }
@@ -147,11 +155,11 @@ export class Squaring extends Operation {
     return this.category.codename;
   }
 
-  humanReadable(): string {
-    return `${this.operand}²`;
+  hint(): Hint {
+    return new SquaringHint(this.operand);
   }
 
-  hint() {
-    return "TODO: implement squaring hint";
+  humanReadable(): string {
+    return `${this.operand}²`;
   }
 }

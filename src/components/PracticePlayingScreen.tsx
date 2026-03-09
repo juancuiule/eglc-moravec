@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { PracticePlaying } from "../practice/index";
 import { usePractice } from "../practice/store";
+import { HintCard } from "./HintCard";
 
 type Props = { state: PracticePlaying };
 
@@ -16,10 +17,12 @@ export function PracticePlayingScreen({ state }: Props) {
   const timeUp = usePractice((s) => s.timeUp);
   const advance = usePractice((s) => s.advance);
   const stop = usePractice((s) => s.stop);
+  const requestHint = usePractice((s) => s.requestHint);
 
   const playingState = state.playingState;
   const operation = state.currentOperation;
   const solveTime = operation.solveTime();
+  const hint = operation.hint();
 
   const [answer, setAnswer] = useState("");
   const [pressedKey, setPressedKey] = useState<string | null>(null);
@@ -127,12 +130,28 @@ export function PracticePlayingScreen({ state }: Props) {
         <span className={`transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}>
           {seconds}s
         </span>
-        <button
-          onClick={stop}
-          className="text-[#f87171] hover:text-white transition-colors text-xs font-medium cursor-pointer"
-        >
-          Stop
-        </button>
+        <div className="flex items-center gap-2">
+          {hint.hasHint() && (
+            <button
+              disabled={state.hintVisible || isReviewing}
+              onClick={requestHint}
+              className={[
+                "text-xs font-medium px-2 py-1 rounded-lg transition-all",
+                state.hintVisible || isReviewing
+                  ? "text-[#3e3e52] cursor-not-allowed"
+                  : "text-[#5a5af0] hover:bg-[#2e2e42] cursor-pointer",
+              ].join(" ")}
+            >
+              Hint
+            </button>
+          )}
+          <button
+            onClick={stop}
+            className="text-[#f87171] hover:text-white transition-colors text-xs font-medium cursor-pointer"
+          >
+            Stop
+          </button>
+        </div>
       </div>
 
       {/* Timer bar */}
@@ -154,6 +173,11 @@ export function PracticePlayingScreen({ state }: Props) {
       <div className="text-5xl font-bold text-center tracking-tight py-1">
         {operation.humanReadable()}
       </div>
+
+      {/* Hint card */}
+      {state.hintVisible && !isReviewing && (
+        <HintCard steps={hint.getSteps()} />
+      )}
 
       {/* Calculator */}
       <div className="relative flex flex-col gap-3">

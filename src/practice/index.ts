@@ -17,6 +17,7 @@ export type PracticeTrialResult = {
   correct: boolean;
   timeExceeded: boolean;
   timeTaken: number;
+  hintShown: boolean;
 };
 
 // ─── States ────────────────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ export type PracticePlaying = {
   trialId: number;
   results: PracticeTrialResult[];
   playingState: Answering | Reviewing;
+  hintVisible: boolean;
 };
 
 export type PracticeStopped = {
@@ -60,6 +62,9 @@ export type PracticeStore = {
   /** Advance to next trial. Valid from: playing › reviewing. */
   advance: () => void;
 
+  /** Show the hint for the current trial (unlimited in practice). Valid from: playing › answering. */
+  requestHint: () => void;
+
   /** Stop the session and show summary. Valid from: playing. */
   stop: () => void;
 
@@ -77,6 +82,7 @@ function startPlaying(config: PracticeConfig, trialId = 0): PracticePlaying {
     trialId,
     results: [],
     playingState: { type: "answering", startedAt: Date.now() },
+    hintVisible: false,
   };
 }
 
@@ -105,6 +111,7 @@ export function createPracticeStore() {
         correct,
         timeExceeded,
         timeTaken,
+        hintShown: state.hintVisible,
       };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
@@ -122,6 +129,7 @@ export function createPracticeStore() {
         correct: false,
         timeExceeded: true,
         timeTaken: currentOperation.solveTime(),
+        hintShown: state.hintVisible,
       };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
@@ -142,8 +150,18 @@ export function createPracticeStore() {
           trialId: state.trialId + 1,
           results,
           playingState: { type: "answering", startedAt: Date.now() },
+          hintVisible: false,
         },
       });
+    },
+
+    requestHint() {
+      const { state } = get();
+      if (state.type !== "playing") return;
+      if (state.playingState.type !== "answering") return;
+      if (!state.currentOperation.hint().hasHint()) return;
+      if (state.hintVisible) return;
+      set({ state: { ...state, hintVisible: true } });
     },
 
     stop() {

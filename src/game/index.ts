@@ -30,6 +30,7 @@ export type TrialResult = {
   correct: boolean;
   timeExceeded: boolean; // true if timeTaken > operation.solveTime()
   timeTaken: number; // ms
+  hintShown: boolean;
 };
 
 // A trial only consumes a slot when it's wrong, or correct-within-time.
@@ -56,14 +57,19 @@ export type PlayingState = Answering | Reviewing;
 
 export type Loading = { type: "loading" };
 
+export const HINTS_PER_LEVEL = 3;
+
 export type Playing = {
   type: "playing";
   config: GameConfig;
   currentOperation: Operation; // current trial's operation
+  seenOperations: Set<string>; // humanReadable() strings shown this level
   trialsConsumed: number;       // slots used: increments on wrong + correct-in-time
   trialId: number;              // monotonically increasing, used to reset UI between trials
   results: TrialResult[];       // all submitted results
   playingState: PlayingState;
+  hintsRemaining: number;
+  hintVisible: boolean;
 };
 
 export type Finished = {
@@ -106,6 +112,12 @@ export type GameStore = {
   advance: () => void;
 
   /**
+   * Show the hint for the current trial (costs one hint if not yet shown this trial).
+   * Valid from: Playing › Answering
+   */
+  requestHint: () => void;
+
+  /**
    * Replay the same level immediately.
    * Valid from: Finished
    */
@@ -119,15 +131,30 @@ export type GameStore = {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+function pickFreshOperation(level: Level, seen: Set<string>): Operation {
+  for (let i = 0; i < 50; i++) {
+    const op = createRandomOperation(level);
+    if (!seen.has(op.humanReadable())) return op;
+  }
+  // Fallback: all (or nearly all) combinations exhausted
+  return createRandomOperation(level);
+}
+
 function startPlaying(config: GameConfig, trialId = 0): Playing {
+  const seen = new Set<string>();
+  const firstOp = createRandomOperation(config.level);
+  seen.add(firstOp.humanReadable());
   return {
     type: "playing",
     config,
-    currentOperation: createRandomOperation(config.level),
+    currentOperation: firstOp,
+    seenOperations: seen,
     trialsConsumed: 0,
     trialId,
     results: [],
     playingState: { type: "answering", startedAt: Date.now() },
+    hintsRemaining: HINTS_PER_LEVEL,
+    hintVisible: false,
   };
 }
 
@@ -160,6 +187,7 @@ export function createGameStore() {
         correct,
         timeExceeded,
         timeTaken,
+        hintShown: state.hintVisible,
       };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
@@ -177,6 +205,7 @@ export function createGameStore() {
         correct: false,
         timeExceeded: true,
         timeTaken: currentOperation.solveTime(),
+        hintShown: state.hintVisible,
       };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
@@ -207,17 +236,41 @@ export function createGameStore() {
           },
         });
       } else {
+        const nextOp = pickFreshOperation(state.config.level, state.seenOperations);
+        const newSeen = new Set(state.seenOperations);
+        newSeen.add(nextOp.humanReadable());
         set({
           state: {
             ...state,
-            currentOperation: createRandomOperation(state.config.level),
+            currentOperation: nextOp,
+            seenOperations: newSeen,
             trialsConsumed: newTrialsConsumed,
             trialId: state.trialId + 1,
             results,
             playingState: { type: "answering", startedAt: Date.now() },
+            hintVisible: false,
           },
         });
       }
+    },
+
+    requestHint() {
+      const { state } = get();
+      if (state.type !== "playing") return;
+      if (state.playingState.type !== "answering") return;
+      if (!state.currentOperation.hint().hasHint()) return;
+      if (state.hintVisible) return; // already showing
+
+      const cost = state.hintsRemaining > 0 ? 1 : 0;
+      if (cost === 0 && state.hintsRemaining === 0) return; // no hints left
+
+      set({
+        state: {
+          ...state,
+          hintVisible: true,
+          hintsRemaining: state.hintsRemaining - cost,
+        },
+      });
     },
 
     replay() {

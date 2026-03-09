@@ -46,10 +46,25 @@ export function FinishedScreen({ state, onBack }: Props) {
     }
   }
 
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "n" || e.key === "N") {
+        if (levelCompleted && !isLastLevel) playNext();
+      } else if (e.key === "r" || e.key === "R") {
+        replay();
+      } else if (e.key === "m" || e.key === "M") {
+        reset();
+        onBack();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [levelCompleted, isLastLevel]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div
       className={[
-        "border rounded-2xl p-8 w-full max-w-[480px] flex flex-col gap-6",
+        "border rounded-2xl p-8 w-full max-w-120 flex flex-col gap-6",
         levelCompleted
           ? "bg-[#0d2b1a] border-[#166534]"
           : "bg-[#2b0d0d] border-[#7f1d1d]",
@@ -71,7 +86,10 @@ export function FinishedScreen({ state, onBack }: Props) {
         >
           {correctInTime}
         </span>
-        <span className="text-[#a0a0c0]"> / {totalAttempts} correct in time</span>
+        <span className="text-[#a0a0c0]">
+          {" "}
+          / {totalAttempts} correct in time
+        </span>
       </p>
 
       <div className="flex flex-col gap-2">
@@ -80,20 +98,23 @@ export function FinishedScreen({ state, onBack }: Props) {
             className="cursor-pointer bg-[#166534] text-white w-full rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 active:scale-[0.97] transition-opacity"
             onClick={playNext}
           >
-            Play next level
+            Play next level (N)
           </button>
         )}
         <button
           className="cursor-pointer bg-[#5a5af0] text-white w-full rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 active:scale-[0.97] transition-opacity"
           onClick={replay}
         >
-          {levelCompleted ? "Replay" : "Try again"}
+          {levelCompleted ? "Replay (R)" : "Try again (R)"}
         </button>
         <button
           className="cursor-pointer text-[#a0a0c0] w-full rounded-lg px-5 py-2 font-medium hover:text-white transition-colors"
-          onClick={() => { reset(); onBack(); }}
+          onClick={() => {
+            reset();
+            onBack();
+          }}
         >
-          Back to menu
+          Back to menu (M)
         </button>
       </div>
     </div>

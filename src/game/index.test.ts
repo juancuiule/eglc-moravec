@@ -34,6 +34,7 @@ function makeResult(
     correct,
     timeExceeded,
     timeTaken: timeExceeded ? op.solveTime() + 1 : op.solveTime() - 1,
+    hintShown: false,
   };
 }
 
@@ -175,6 +176,54 @@ describe("createGameStore", () => {
       const next = store.getState().state;
       if (next.type !== "playing") throw new Error();
       expect(next.trialsConsumed).toBe(1);
+    });
+
+    it("requestHint sets hintVisible and decrements hintsRemaining", () => {
+      // Fresh store guaranteed to use multiplication (which has a hint)
+      const multStore = createGameStore();
+      multStore.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
+      const s = multStore.getState().state;
+      if (s.type !== "playing") throw new Error();
+      expect(s.hintsRemaining).toBe(3);
+      multStore.getState().requestHint();
+      const after = multStore.getState().state;
+      if (after.type !== "playing") throw new Error();
+      expect(after.hintVisible).toBe(true);
+      expect(after.hintsRemaining).toBe(2);
+    });
+
+    it("requestHint is idempotent — second call doesn't decrement again", () => {
+      const multStore = createGameStore();
+      multStore.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
+      multStore.getState().requestHint();
+      multStore.getState().requestHint();
+      const s = multStore.getState().state;
+      if (s.type !== "playing") throw new Error();
+      expect(s.hintsRemaining).toBe(2); // only decremented once
+    });
+
+    it("hintVisible resets to false after advance", () => {
+      store.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
+      store.getState().requestHint();
+      const s = store.getState().state;
+      if (s.type !== "playing") throw new Error();
+      store.getState().submitAnswer(s.currentOperation.result() + 99);
+      store.getState().advance();
+      const after = store.getState().state;
+      if (after.type !== "playing") throw new Error();
+      expect(after.hintVisible).toBe(false);
+    });
+
+    it("hintShown is recorded in TrialResult", () => {
+      const multStore = createGameStore();
+      multStore.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
+      multStore.getState().requestHint();
+      const s = multStore.getState().state;
+      if (s.type !== "playing") throw new Error();
+      multStore.getState().submitAnswer(s.currentOperation.result());
+      const reviewing = multStore.getState().state;
+      if (reviewing.type !== "playing" || reviewing.playingState.type !== "reviewing") throw new Error();
+      expect(reviewing.playingState.result.hintShown).toBe(true);
     });
 
     it("advance after correct-but-late does NOT increment trialsConsumed", () => {
