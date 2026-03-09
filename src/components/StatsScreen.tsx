@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { loadTrialHistory } from "../storage/trialHistory";
 import { computeStats } from "../stats/computeStats";
+import { CategoryStatsDetail } from "./CategoryStatsDetail";
 
 type Props = { onBack: () => void };
 
@@ -27,8 +28,14 @@ function EffBar({ value }: { value: number }) {
 }
 
 export function StatsScreen({ onBack }: Props) {
-  const stats = useMemo(() => computeStats(loadTrialHistory()), []);
+  const [selected, setSelected] = useState<string | null>(null);
+  const trials = useMemo(() => loadTrialHistory(), []);
+  const stats = useMemo(() => computeStats(trials), [trials]);
   const hasAnyData = stats.some((s) => s.total > 0);
+
+  if (selected !== null) {
+    return <CategoryStatsDetail codename={selected} trials={trials} onBack={() => setSelected(null)} />;
+  }
 
   return (
     <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-6 w-full max-w-[480px] flex flex-col gap-4">
@@ -58,7 +65,11 @@ export function StatsScreen({ onBack }: Props) {
           {stats.map((row) => (
             <div
               key={row.codename}
-              className="grid grid-cols-[6rem_1fr_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-[#0f0f13]"
+              onClick={() => row.total > 0 && setSelected(row.codename)}
+              className={[
+                "grid grid-cols-[6rem_1fr_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-[#0f0f13]",
+                row.total > 0 ? "cursor-pointer hover:bg-[#1a1a2e]" : "",
+              ].join(" ")}
             >
               <span className="font-mono text-sm text-[#e8e8f0]">
                 {row.codename}

@@ -15,6 +15,7 @@ function trial(
     timeExceeded,
     timeTaken,
     playedAt: new Date().toISOString(),
+    keystrokes: [],
   };
 }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { PracticePlaying } from "../practice/index";
+import type { Keystroke } from "../game/index";
 import { usePractice } from "../practice/store";
 import { HintCard } from "./HintCard";
 
@@ -28,6 +29,8 @@ export function PracticePlayingScreen({ state }: Props) {
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(solveTime);
   const answerRef = useRef("");
+  const keystrokesRef = useRef<Keystroke[]>([]);
+  const hasErasedRef = useRef(false);
 
   // Reset on each new trial
   useEffect(() => {
@@ -35,6 +38,8 @@ export function PracticePlayingScreen({ state }: Props) {
     answerRef.current = "";
     setPressedKey(null);
     setRemaining(solveTime);
+    keystrokesRef.current = [];
+    hasErasedRef.current = false;
   }, [state.trialId, solveTime]);
 
   // Countdown timer
@@ -47,7 +52,7 @@ export function PracticePlayingScreen({ state }: Props) {
       setRemaining(left);
       if (left === 0) {
         clearInterval(id);
-        timeUp();
+        timeUp(keystrokesRef.current, hasErasedRef.current);
       }
     }, 100);
     return () => clearInterval(id);
@@ -66,11 +71,14 @@ export function PracticePlayingScreen({ state }: Props) {
     function onKeyDown(e: KeyboardEvent) {
       if (/^\d$/.test(e.key)) {
         press(e.key);
+        keystrokesRef.current.push({ key: e.key, t: Date.now() - (startedAt ?? Date.now()) });
         setAnswer((prev) => (prev.length < 10 ? prev + e.key : prev));
         answerRef.current =
           answerRef.current.length < 10 ? answerRef.current + e.key : answerRef.current;
       } else if (e.key === "Backspace") {
         press("⌫");
+        keystrokesRef.current.push({ key: "⌫", t: Date.now() - (startedAt ?? Date.now()) });
+        hasErasedRef.current = true;
         setAnswer((prev) => prev.slice(0, -1));
         answerRef.current = answerRef.current.slice(0, -1);
       } else if (e.key === "Delete") {
@@ -96,9 +104,12 @@ export function PracticePlayingScreen({ state }: Props) {
       setAnswer("");
       answerRef.current = "";
     } else if (key === "⌫") {
+      keystrokesRef.current.push({ key: "⌫", t: Date.now() - (startedAt ?? Date.now()) });
+      hasErasedRef.current = true;
       setAnswer((prev) => prev.slice(0, -1));
       answerRef.current = answerRef.current.slice(0, -1);
     } else {
+      keystrokesRef.current.push({ key, t: Date.now() - (startedAt ?? Date.now()) });
       setAnswer((prev) => (prev.length < 10 ? prev + key : prev));
       answerRef.current =
         answerRef.current.length < 10 ? answerRef.current + key : answerRef.current;
@@ -107,7 +118,8 @@ export function PracticePlayingScreen({ state }: Props) {
 
   function doSubmit() {
     const parsed = parseInt(answerRef.current, 10);
-    if (answerRef.current !== "" && !isNaN(parsed)) submitAnswer(parsed);
+    if (answerRef.current !== "" && !isNaN(parsed))
+      submitAnswer(parsed, keystrokesRef.current, hasErasedRef.current);
   }
 
   const isReviewing = playingState.type === "reviewing";

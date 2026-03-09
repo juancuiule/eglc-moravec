@@ -24,6 +24,8 @@ export function starsForScore(correctInTime: number): 0 | 1 | 2 | 3 {
 
 // ─── Trial result ──────────────────────────────────────────────────────────────
 
+export type Keystroke = { key: string; t: number };
+
 export type TrialResult = {
   operation: Operation;
   answer: number | null; // null = timed out
@@ -31,6 +33,9 @@ export type TrialResult = {
   timeExceeded: boolean; // true if timeTaken > operation.solveTime()
   timeTaken: number; // ms
   hintShown: boolean;
+  keystrokes: Keystroke[];
+  hasErased: boolean;
+  streakAtSubmit: number;
 };
 
 // A trial only consumes a slot when it's wrong, or correct-within-time.
@@ -97,13 +102,13 @@ export type GameStore = {
    * Submit an answer for the current operation.
    * Valid from: Playing › Answering
    */
-  submitAnswer: (answer: number) => void;
+  submitAnswer: (answer: number, keystrokes?: Keystroke[], hasErased?: boolean) => void;
 
   /**
    * Mark the current trial as timed out.
    * Valid from: Playing › Answering
    */
-  timeUp: () => void;
+  timeUp: (keystrokes?: Keystroke[], hasErased?: boolean) => void;
 
   /**
    * Advance after the result is shown.
@@ -158,6 +163,17 @@ function startPlaying(config: GameConfig, trialId = 0): Playing {
   };
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+function currentStreak(results: TrialResult[]): number {
+  let streak = 0;
+  for (let i = results.length - 1; i >= 0; i--) {
+    if (results[i].correct && !results[i].timeExceeded) streak++;
+    else break;
+  }
+  return streak;
+}
+
 // ─── Factory ───────────────────────────────────────────────────────────────────
 
 export function createGameStore() {
@@ -170,7 +186,7 @@ export function createGameStore() {
       set({ state: startPlaying(config) });
     },
 
-    submitAnswer(answer) {
+    submitAnswer(answer, keystrokes = [], hasErased = false) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
@@ -188,12 +204,15 @@ export function createGameStore() {
         timeExceeded,
         timeTaken,
         hintShown: state.hintVisible,
+        keystrokes,
+        hasErased,
+        streakAtSubmit: currentStreak(state.results),
       };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
 
-    timeUp() {
+    timeUp(keystrokes = [], hasErased = false) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
@@ -206,6 +225,9 @@ export function createGameStore() {
         timeExceeded: true,
         timeTaken: currentOperation.solveTime(),
         hintShown: state.hintVisible,
+        keystrokes,
+        hasErased,
+        streakAtSubmit: currentStreak(state.results),
       };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });

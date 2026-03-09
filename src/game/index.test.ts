@@ -35,6 +35,9 @@ function makeResult(
     timeExceeded,
     timeTaken: timeExceeded ? op.solveTime() + 1 : op.solveTime() - 1,
     hintShown: false,
+    keystrokes: [],
+    hasErased: false,
+    streakAtSubmit: 0,
   };
 }
 

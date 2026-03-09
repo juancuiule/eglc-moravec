@@ -1,7 +1,7 @@
 import { createStore } from "zustand/vanilla";
 import { createOperation } from "../operations";
 import { Operation } from "../operations/operation";
-import type { Answering, Reviewing } from "../game/index";
+import type { Answering, Keystroke } from "../game/index";
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -18,9 +18,16 @@ export type PracticeTrialResult = {
   timeExceeded: boolean;
   timeTaken: number;
   hintShown: boolean;
+  keystrokes: Keystroke[];
+  hasErased: boolean;
 };
 
 // ─── States ────────────────────────────────────────────────────────────────────
+
+export type PracticeReviewing = {
+  type: "reviewing";
+  result: PracticeTrialResult;
+};
 
 export type PracticeIdle = { type: "idle" };
 
@@ -30,7 +37,7 @@ export type PracticePlaying = {
   currentOperation: Operation;
   trialId: number;
   results: PracticeTrialResult[];
-  playingState: Answering | Reviewing;
+  playingState: Answering | PracticeReviewing;
   hintVisible: boolean;
 };
 
@@ -51,13 +58,13 @@ export type PracticeStore = {
   start: (config: PracticeConfig) => void;
 
   /** Submit an answer. Valid from: playing › answering. */
-  submitAnswer: (answer: number) => void;
+  submitAnswer: (answer: number, keystrokes?: Keystroke[], hasErased?: boolean) => void;
 
   /**
    * Time ran out. Valid from: playing › answering.
    * In practice, this is not penalised — just triggers review then advance.
    */
-  timeUp: () => void;
+  timeUp: (keystrokes?: Keystroke[], hasErased?: boolean) => void;
 
   /** Advance to next trial. Valid from: playing › reviewing. */
   advance: () => void;
@@ -94,7 +101,7 @@ export function createPracticeStore() {
       set({ state: startPlaying(config) });
     },
 
-    submitAnswer(answer) {
+    submitAnswer(answer, keystrokes = [], hasErased = false) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
@@ -112,12 +119,14 @@ export function createPracticeStore() {
         timeExceeded,
         timeTaken,
         hintShown: state.hintVisible,
+        keystrokes,
+        hasErased,
       };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
 
-    timeUp() {
+    timeUp(keystrokes = [], hasErased = false) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
@@ -130,6 +139,8 @@ export function createPracticeStore() {
         timeExceeded: true,
         timeTaken: currentOperation.solveTime(),
         hintShown: state.hintVisible,
+        keystrokes,
+        hasErased,
       };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { Playing } from "../game/index";
+import type { Playing, Keystroke } from "../game/index";
 import { useGame } from "../game/store";
 import { HintCard } from "./HintCard";
 
@@ -27,6 +27,8 @@ export function AnsweringView({ state }: Props) {
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(solveTime);
   const answerRef = useRef("");
+  const keystrokesRef = useRef<Keystroke[]>([]);
+  const hasErasedRef = useRef(false);
 
   // Reset state on each new trial
   useEffect(() => {
@@ -34,6 +36,8 @@ export function AnsweringView({ state }: Props) {
     answerRef.current = "";
     setPressedKey(null);
     setRemaining(solveTime);
+    keystrokesRef.current = [];
+    hasErasedRef.current = false;
   }, [state.trialId, solveTime]);
 
   // Countdown timer — only active while answering
@@ -47,7 +51,7 @@ export function AnsweringView({ state }: Props) {
       setRemaining(left);
       if (left === 0) {
         clearInterval(id);
-        timeUp();
+        timeUp(keystrokesRef.current, hasErasedRef.current);
       }
     }, 100);
     return () => clearInterval(id);
@@ -66,6 +70,7 @@ export function AnsweringView({ state }: Props) {
     function onKeyDown(e: KeyboardEvent) {
       if (/^\d$/.test(e.key)) {
         press(e.key);
+        keystrokesRef.current.push({ key: e.key, t: Date.now() - (startedAt ?? Date.now()) });
         setAnswer((prev) => (prev.length < 10 ? prev + e.key : prev));
         answerRef.current =
           answerRef.current.length < 10
@@ -73,6 +78,8 @@ export function AnsweringView({ state }: Props) {
             : answerRef.current;
       } else if (e.key === "Backspace") {
         press("⌫");
+        keystrokesRef.current.push({ key: "⌫", t: Date.now() - (startedAt ?? Date.now()) });
+        hasErasedRef.current = true;
         setAnswer((prev) => prev.slice(0, -1));
         answerRef.current = answerRef.current.slice(0, -1);
       } else if (e.key === "Delete") {
@@ -98,9 +105,12 @@ export function AnsweringView({ state }: Props) {
       setAnswer("");
       answerRef.current = "";
     } else if (key === "⌫") {
+      keystrokesRef.current.push({ key: "⌫", t: Date.now() - (startedAt ?? Date.now()) });
+      hasErasedRef.current = true;
       setAnswer((prev) => prev.slice(0, -1));
       answerRef.current = answerRef.current.slice(0, -1);
     } else {
+      keystrokesRef.current.push({ key, t: Date.now() - (startedAt ?? Date.now()) });
       setAnswer((prev) => (prev.length < 10 ? prev + key : prev));
       answerRef.current =
         answerRef.current.length < 10
@@ -111,7 +121,8 @@ export function AnsweringView({ state }: Props) {
 
   function doSubmit() {
     const parsed = parseInt(answerRef.current, 10);
-    if (answerRef.current !== "" && !isNaN(parsed)) submitAnswer(parsed);
+    if (answerRef.current !== "" && !isNaN(parsed))
+      submitAnswer(parsed, keystrokesRef.current, hasErasedRef.current);
   }
 
   const isReviewing = playingState.type === "reviewing";

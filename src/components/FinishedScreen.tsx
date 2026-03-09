@@ -30,6 +30,7 @@ export function FinishedScreen({ state, onBack }: Props) {
         timeExceeded: r.timeExceeded,
         timeTaken: r.timeTaken,
         playedAt: new Date().toISOString(),
+        keystrokes: r.keystrokes,
       })),
     );
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

@@ -8,6 +8,7 @@ export type PersistedTrial = {
   timeExceeded: boolean;
   timeTaken: number;
   playedAt: string; // ISO date
+  keystrokes: { key: string; t: number }[];
 };
 
 export function loadTrialHistory(): PersistedTrial[] {

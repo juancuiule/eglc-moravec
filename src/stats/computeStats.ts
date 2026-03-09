@@ -21,6 +21,31 @@ export const ALL_CATEGORIES: string[] = [
   "(4d)^2",
 ];
 
+export type HistogramBucket = { label: string; count: number };
+
+export function computeHistogram(
+  trials: PersistedTrial[],
+  categoryCodename: string,
+): HistogramBucket[] {
+  const correct = trials.filter(
+    (t) => t.categoryCodename === categoryCodename && t.correct && !t.timeExceeded,
+  );
+  if (correct.length === 0) return [];
+
+  const maxBucket = Math.floor(Math.max(...correct.map((t) => t.timeTaken)) / 1000);
+
+  const buckets: HistogramBucket[] = Array.from({ length: maxBucket + 1 }, (_, i) => ({
+    label: `${i}–${i + 1}s`,
+    count: 0,
+  }));
+
+  for (const t of correct) {
+    buckets[Math.floor(t.timeTaken / 1000)].count++;
+  }
+
+  return buckets;
+}
+
 export function computeStats(trials: PersistedTrial[]): CategoryStats[] {
   const byCategory = new Map<string, PersistedTrial[]>();
 
