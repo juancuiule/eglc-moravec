@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createRandomOperation } from "./level";
-import { Operation } from "./operations/operation";
+import { Operation } from "engine";
 
 afterEach(() => {
   vi.restoreAllMocks();

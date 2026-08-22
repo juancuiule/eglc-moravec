@@ -1,4 +1,4 @@
-import type { Hint } from "./Hint";
+import type { Hint } from "./Hint.js";
 
 /**
  * Applies x² = (x−a)(x+a) + a², where `a` rounds x to the nearest multiple of 10.

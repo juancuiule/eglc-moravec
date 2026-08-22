@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import type { Operation } from "../operations/operation";
-import type { Answering, BaseTrialResult, Keystroke } from "../trial/engine";
+import type { Operation, Answering, BaseTrialResult, Keystroke } from "engine";
 import { HintCard } from "./HintCard";
 
 type ReviewingResult = { type: "reviewing"; result: BaseTrialResult };

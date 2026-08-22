@@ -4,7 +4,7 @@ import {
   loadPracticeHistory,
   appendPracticeTrials,
 } from "./practiceHistory";
-import { Addition, Multiplication } from "../operations/operation";
+import { Addition, Multiplication } from "engine";
 import type { PracticeTrialResult } from "../practice/index";
 
 const STORAGE_KEY = "moravec:practiceHistory";

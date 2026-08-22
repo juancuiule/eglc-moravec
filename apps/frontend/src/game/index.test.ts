@@ -1,13 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  starsForScore,
-  trialCounts,
-  createGameStore,
-  LEVEL_COMPLETE_THRESHOLD,
-  TOTAL_TRIALS,
-} from "./index";
+import { trialCounts, createGameStore, TOTAL_TRIALS } from "./index";
 import type { TrialResult } from "./index";
-import { Addition } from "../operations/operation";
+import { Addition } from "engine";
 import { LEVELS } from "../LEVELS";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -41,29 +35,6 @@ function makeResult(
   };
 }
 
-// ─── starsForScore ─────────────────────────────────────────────────────────────
-
-describe("starsForScore", () => {
-  it("returns 0 for fewer than 15", () => {
-    expect(starsForScore(0)).toBe(0);
-    expect(starsForScore(14)).toBe(0);
-  });
-
-  it("returns 1 for 15–16", () => {
-    expect(starsForScore(15)).toBe(1);
-    expect(starsForScore(16)).toBe(1);
-  });
-
-  it("returns 2 for 17–19", () => {
-    expect(starsForScore(17)).toBe(2);
-    expect(starsForScore(19)).toBe(2);
-  });
-
-  it("returns 3 for 20", () => {
-    expect(starsForScore(20)).toBe(3);
-  });
-});
-
 // ─── trialCounts ───────────────────────────────────────────────────────────────
 
 describe("trialCounts", () => {
@@ -87,10 +58,6 @@ describe("trialCounts", () => {
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 describe("constants", () => {
-  it("LEVEL_COMPLETE_THRESHOLD is 15", () => {
-    expect(LEVEL_COMPLETE_THRESHOLD).toBe(15);
-  });
-
   it("TOTAL_TRIALS is 20", () => {
     expect(TOTAL_TRIALS).toBe(20);
   });

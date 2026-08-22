@@ -1,7 +1,4 @@
-import { createOperation } from "./operations";
-import { OperationCategory } from "./operations/category";
-import { Operation } from "./operations/operation";
-import { getKeys, getValues, math } from "./utils";
+import { createOperation, type OperationCategory, Operation, getKeys, getValues, math } from "engine";
 
 export type Level = Record<OperationCategory["codename"], number>;
 

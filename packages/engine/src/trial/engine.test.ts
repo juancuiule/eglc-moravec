@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { scoreAnswer, scoreTimeout, canShowHint } from "./engine";
-import { Addition } from "../operations/operation";
+import { scoreAnswer, scoreTimeout, canShowHint } from "./engine.js";
+import { Addition } from "../operations/operation.js";
 
 function makeOp() {
   return Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });

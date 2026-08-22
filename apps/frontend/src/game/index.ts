@@ -1,16 +1,19 @@
 import { createStore } from "zustand/vanilla";
 import { createRandomOperation, Level } from "../level";
-import { Operation } from "../operations/operation";
 import {
+  Operation,
   scoreAnswer,
   scoreTimeout,
   canShowHint,
+  starsForScore,
+  LEVEL_COMPLETE_THRESHOLD,
   type Keystroke,
   type Answering,
   type BaseTrialResult,
-} from "../trial/engine";
+} from "engine";
 
 export type { Keystroke, Answering };
+export { LEVEL_COMPLETE_THRESHOLD };
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -22,15 +25,7 @@ export type GameConfig = {
 
 // ─── Scoring ───────────────────────────────────────────────────────────────────
 
-export const LEVEL_COMPLETE_THRESHOLD = 15;
 export const TOTAL_TRIALS = 20;
-
-export function starsForScore(correctInTime: number): 0 | 1 | 2 | 3 {
-  if (correctInTime >= 20) return 3;
-  if (correctInTime >= 17) return 2;
-  if (correctInTime >= 15) return 1;
-  return 0;
-}
 
 // ─── Trial result ──────────────────────────────────────────────────────────────
 

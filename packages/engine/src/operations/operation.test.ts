@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { Addition, Multiplication, Squaring } from "./operation";
-import { categoryFromCodename } from "./category";
-import type { AdditionCategory, MultiplicationCategory, SquaringCategory } from "./category";
+import { Addition, Multiplication, Squaring } from "./operation.js";
+import { categoryFromCodename } from "./category.js";
+import type { AdditionCategory, MultiplicationCategory, SquaringCategory } from "./category.js";
 
 afterEach(() => {
   vi.restoreAllMocks();

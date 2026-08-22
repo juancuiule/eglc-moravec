@@ -7,7 +7,7 @@ vi.mock("../storage/practiceHistory", () => ({
 
 import { persistStoppedPractice } from "./persistStoppedPractice";
 import { appendPracticeTrials, buildPersistedPracticeTrials } from "../storage/practiceHistory";
-import { Addition } from "../operations/operation";
+import { Addition } from "engine";
 import type { PracticeStopped, PracticeTrialResult } from "./index";
 
 function makeResult(): PracticeTrialResult {

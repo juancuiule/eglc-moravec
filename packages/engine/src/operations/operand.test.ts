@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { createRandomOperand } from "./operand";
+import { createRandomOperand } from "./operand.js";
 
 afterEach(() => {
   vi.restoreAllMocks();

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildPersistedTrials } from "./trialHistory";
-import { Addition, Multiplication } from "../operations/operation";
+import { Addition, Multiplication } from "engine";
 import { LEVELS } from "../LEVELS";
 import type { TrialResult } from "../game/index";
 

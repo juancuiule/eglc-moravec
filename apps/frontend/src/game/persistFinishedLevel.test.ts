@@ -19,7 +19,7 @@ import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
 import { pushResults, pushLevelStats } from "../sync/push";
 import { LEVELS } from "../LEVELS";
-import { Addition } from "../operations/operation";
+import { Addition } from "engine";
 import type { Finished, TrialResult } from "./index";
 import type { AuthState } from "../auth/index";
 

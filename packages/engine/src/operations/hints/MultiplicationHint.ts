@@ -1,4 +1,4 @@
-import type { Hint } from "./Hint";
+import type { Hint } from "./Hint.js";
 
 /**
  * Decomposes the left operand by digit position.

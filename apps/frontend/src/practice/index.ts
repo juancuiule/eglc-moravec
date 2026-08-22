@@ -1,14 +1,14 @@
 import { createStore } from "zustand/vanilla";
-import { createOperation } from "../operations";
-import type { Operation } from "../operations/operation";
 import {
+  createOperation,
+  type Operation,
   scoreAnswer,
   scoreTimeout,
   canShowHint,
   type Answering,
   type Keystroke,
   type BaseTrialResult,
-} from "../trial/engine";
+} from "engine";
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 

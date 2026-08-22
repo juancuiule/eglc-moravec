@@ -1,5 +1,5 @@
-import { categoryFromCodename } from "./category";
-import { Addition, Multiplication, Operation, Squaring } from "./operation";
+import { categoryFromCodename } from "./category.js";
+import { Addition, Multiplication, Operation, Squaring } from "./operation.js";
 
 export function createOperation(codename: string): Operation {
   const category = categoryFromCodename(codename);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { categoryFromCodename } from "./category";
+import { categoryFromCodename } from "./category.js";
 
 describe("categoryFromCodename", () => {
   it("parses addition codenames", () => {

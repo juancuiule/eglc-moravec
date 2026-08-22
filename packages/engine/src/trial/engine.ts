@@ -1,4 +1,4 @@
-import { Operation } from "../operations/operation";
+import { Operation } from "../operations/operation.js";
 
 // ─── Shared trial types ─────────────────────────────────────────────────────────
 // Used by both the level game (game/index.ts) and practice mode (practice/index.ts).
