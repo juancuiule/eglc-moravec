@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGame } from "./game/store";
 import { usePractice } from "./practice/store";
 import { useAuth } from "./auth/store";
@@ -16,7 +16,12 @@ export function App() {
   const gameState = useGame((s) => s.state);
   const practiceState = usePractice((s) => s.state);
   const authState = useAuth((s) => s.state);
+  const restoreSession = useAuth((s) => s.restoreSession);
   const [nav, setNav] = useState<NavScreen>("menu");
+
+  useEffect(() => {
+    void restoreSession();
+  }, [restoreSession]);
 
   const screen = deriveCurrentScreen(gameState, practiceState, authState, nav);
 

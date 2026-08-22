@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] `auth/store.ts` no longer triggers a network call merely by being imported.
-- [ ] `App.tsx` (or an equivalent single startup point) explicitly calls `restoreSession()` once, at app start.
-- [ ] No behavior change: a returning logged-in User still gets their session validated and LevelStats synced on load, exactly as before.
-- [ ] Existing auth store tests still pass.
+- [x] `auth/store.ts` no longer triggers a network call merely by being imported.
+- [x] `App.tsx` (or an equivalent single startup point) explicitly calls `restoreSession()` once, at app start.
+- [x] No behavior change: a returning logged-in User still gets their session validated and LevelStats synced on load, exactly as before.
+- [x] Existing auth store tests still pass.
