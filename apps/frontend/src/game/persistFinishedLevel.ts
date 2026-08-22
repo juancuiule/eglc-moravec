@@ -14,7 +14,7 @@ export function persistFinishedLevel(state: Finished, authState: AuthState): voi
   appendTrials(persistedTrials);
 
   if (authState.type === "loggedIn") {
-    pushResults(authState.token, persistedTrials);
+    pushResults(authState.token, results, persistedTrials);
     pushLevelStats(authState.token, config.levelNumber, { stars, totalTime });
   }
 }

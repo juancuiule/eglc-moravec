@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { pushResults, pushLevelStats } from "./push";
 import type { PersistedTrial } from "../storage/trialHistory";
+import { Addition } from "engine";
+import type { TrialResult } from "../game/index";
 
 function makeTrial(): PersistedTrial {
   return {
@@ -14,13 +16,29 @@ function makeTrial(): PersistedTrial {
   };
 }
 
+function makeResult(): TrialResult {
+  const op = Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
+  return {
+    operation: op,
+    answer: op.result(),
+    correct: true,
+    timeExceeded: false,
+    timeTaken: 900,
+    hintShown: false,
+    keystrokes: [{ key: "1", t: 10 }],
+    hasErased: false,
+    streakAtSubmit: 0,
+  };
+}
+
 describe("pushResults", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
   });
 
-  it("POSTs the already-built PersistedTrials with the session token, including keystrokes", async () => {
-    pushResults("tok123", [makeTrial()]);
+  it("POSTs the already-built PersistedTrials with the session token, including keystrokes and verifiable data", async () => {
+    const result = makeResult();
+    pushResults("tok123", [result], [makeTrial()]);
     await Promise.resolve(); // let the fire-and-forget fetch call happen
 
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -38,12 +56,14 @@ describe("pushResults", () => {
       timeTaken: 900,
       playedAt: new Date("2026-01-01T00:00:00.000Z").getTime(),
       keystrokes: [{ key: "1", t: 10 }],
+      operands: result.operation.operands(),
+      answer: result.answer,
     });
   });
 
   it("never throws even when the request fails", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
-    expect(() => pushResults("tok123", [makeTrial()])).not.toThrow();
+    expect(() => pushResults("tok123", [makeResult()], [makeTrial()])).not.toThrow();
   });
 });
 

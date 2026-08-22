@@ -75,9 +75,14 @@ describe("persistFinishedLevel", () => {
   });
 
   it("syncs results and level stats when logged in", () => {
-    persistFinishedLevel(makeFinished(), loggedIn);
+    const state = makeFinished();
+    persistFinishedLevel(state, loggedIn);
 
-    expect(pushResults).toHaveBeenCalledWith("tok123", [{ fake: "persisted-trial" }]);
+    expect(pushResults).toHaveBeenCalledWith(
+      "tok123",
+      state.results,
+      [{ fake: "persisted-trial" }],
+    );
     expect(pushLevelStats).toHaveBeenCalledWith("tok123", 4, { stars: 2, totalTime: 2500 });
   });
 });

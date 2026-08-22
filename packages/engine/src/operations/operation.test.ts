@@ -26,6 +26,12 @@ describe("Addition", () => {
     expect(op.humanReadable()).toBe("1 + 1");
   });
 
+  it("exposes its operands", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const op = Addition.create(category);
+    expect(op.operands()).toEqual([1, 1]);
+  });
+
   it("returns correct solveTime for 1d+1d", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     expect(Addition.create(category).solveTime()).toBe(7_000);
@@ -58,6 +64,12 @@ describe("Multiplication", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const op = Multiplication.create(category);
     expect(op.humanReadable()).toBe("2 x 2");
+  });
+
+  it("exposes its operands", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const op = Multiplication.create(category);
+    expect(op.operands()).toEqual([2, 2]);
   });
 
   it("returns correct solveTime for 1dx1d", () => {
@@ -98,6 +110,12 @@ describe("Squaring", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const op = Squaring.create(category);
     expect(op.humanReadable()).toBe("11²");
+  });
+
+  it("exposes its operand", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const op = Squaring.create(category);
+    expect(op.operands()).toEqual([11]);
   });
 
   it("returns correct solveTime for (2d)^2", () => {

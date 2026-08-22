@@ -15,6 +15,8 @@ export abstract class Operation {
   abstract result(): number;
   abstract humanReadable(): string;
   abstract categoryCodename(): string;
+  /** Raw operand values, serializable, enough (with categoryCodename) to reconstruct this Operation. */
+  abstract operands(): number[];
   hint(): Hint {
     return new NoHint();
   }
@@ -56,6 +58,10 @@ export class Addition extends Operation {
 
   categoryCodename(): string {
     return this.category.codename;
+  }
+
+  operands(): number[] {
+    return [this.leftOperand, this.rightOperand];
   }
 
   humanReadable(): string {
@@ -110,6 +116,10 @@ export class Multiplication extends Operation {
     return this.category.codename;
   }
 
+  operands(): number[] {
+    return [this.leftOperand, this.rightOperand];
+  }
+
   hint(): Hint {
     return new MultiplicationHint(this.leftOperand, this.rightOperand);
   }
@@ -153,6 +163,10 @@ export class Squaring extends Operation {
 
   categoryCodename(): string {
     return this.category.codename;
+  }
+
+  operands(): number[] {
+    return [this.operand];
   }
 
   hint(): Hint {
