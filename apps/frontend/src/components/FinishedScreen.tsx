@@ -1,13 +1,9 @@
 import { useEffect } from "react";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
-import { useAuth } from "../auth/store";
 import { LEVELS } from "../LEVELS";
 import { TOTAL_TRIALS } from "../game/index";
 import { StarsDisplay } from "./StarsDisplay";
-import { updateLevelRecord } from "../storage/levelStats";
-import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
-import { pushResults, pushLevelStats } from "../sync/push";
 
 type Props = { state: Finished; onBack: () => void };
 
@@ -15,23 +11,10 @@ export function FinishedScreen({ state, onBack }: Props) {
   const reset = useGame((s) => s.reset);
   const replay = useGame((s) => s.replay);
   const load = useGame((s) => s.load);
-  const authState = useAuth((s) => s.state);
 
   const { correctInTime, levelCompleted, stars, results, config } = state;
   const totalAttempts = results.length;
   const isLastLevel = config.levelNumber >= 150;
-
-  // Persist best record and trial history; Sync to the backend if logged in
-  useEffect(() => {
-    const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
-    updateLevelRecord(config.levelNumber, { stars, totalTime });
-    const persistedTrials = buildPersistedTrials(config, results);
-    appendTrials(persistedTrials);
-    if (authState.type === "loggedIn") {
-      pushResults(authState.token, persistedTrials);
-      pushLevelStats(authState.token, config.levelNumber, { stars, totalTime });
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function playNext() {
     const nextKey = String(config.levelNumber + 1) as keyof typeof LEVELS;

@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { useGame } from "./game/store";
+import { useGame, gameStore } from "./game/store";
 import { usePractice } from "./practice/store";
-import { useAuth } from "./auth/store";
+import { useAuth, authStore } from "./auth/store";
+import { watchStoreTransition } from "./storeWatch";
+import { persistFinishedLevel } from "./game/persistFinishedLevel";
 import { deriveCurrentScreen, type NavScreen } from "./screen";
 import { LevelSelection } from "./components/LevelSelection";
 import { AnsweringView } from "./components/AnsweringView";
@@ -22,6 +24,19 @@ export function App() {
   useEffect(() => {
     void restoreSession();
   }, [restoreSession]);
+
+  // Persist + Sync a Level the moment the game store reaches Finished —
+  // tied to the state transition, not to whether FinishedScreen renders.
+  useEffect(() => {
+    return watchStoreTransition(
+      gameStore,
+      (s) => s.state.type === "finished",
+      (s) => {
+        if (s.state.type !== "finished") return;
+        persistFinishedLevel(s.state, authStore.getState().state);
+      },
+    );
+  }, []);
 
   const screen = deriveCurrentScreen(gameState, practiceState, authState, nav);
 
