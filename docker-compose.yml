@@ -1,0 +1,18 @@
+services:
+  backend:
+    build:
+      context: ./apps/backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - moravec-data:/app/data
+    env_file:
+      - ./apps/backend/.env
+    environment:
+      DB_PATH: /app/data/moravec.sqlite
+      PORT: "3000"
+      NODE_ENV: production
+    restart: unless-stopped
+
+volumes:
+  moravec-data:

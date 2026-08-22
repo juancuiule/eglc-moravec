@@ -1,0 +1,42 @@
+import { createHmac } from "node:crypto";
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function isValidEmail(email: string): boolean {
+  return EMAIL_PATTERN.test(normalizeEmail(email));
+}
+
+/** Salted, deterministic User identifier — never the plaintext email. */
+export function hashEmail(email: string, secret: string): string {
+  return createHmac("sha256", secret).update(normalizeEmail(email)).digest("hex");
+}
+
+export function canRequestNewOtp(
+  lastRequestedAt: number | null,
+  now: number,
+  minIntervalMs: number,
+): boolean {
+  return lastRequestedAt === null || now - lastRequestedAt >= minIntervalMs;
+}
+
+export type StoredOtp = {
+  code: string;
+  expiresAt: number;
+  attempts: number;
+};
+
+export function isOtpValid(
+  stored: StoredOtp | null,
+  submittedCode: string,
+  now: number,
+  maxAttempts: number,
+): boolean {
+  if (stored === null) return false;
+  if (stored.attempts >= maxAttempts) return false;
+  if (now > stored.expiresAt) return false;
+  return stored.code === submittedCode;
+}
