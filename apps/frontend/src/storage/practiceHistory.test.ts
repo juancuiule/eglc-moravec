@@ -79,6 +79,27 @@ describe("buildPersistedPracticeTrials", () => {
   it("returns an empty array for no results", () => {
     expect(buildPersistedPracticeTrials([])).toEqual([]);
   });
+
+  it("assigns each trial its own timestamp, working backward by timeTaken from now", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:10.000Z"));
+
+    const persisted = buildPersistedPracticeTrials([
+      makeResult({ timeTaken: 1000 }),
+      makeResult({ timeTaken: 2000 }),
+      makeResult({ timeTaken: 3000 }),
+    ]);
+
+    const timestamps = persisted.map((p) => p.playedAt);
+    expect(new Set(timestamps).size).toBe(3);
+    expect(timestamps).toEqual([
+      "2026-01-01T00:00:05.000Z",
+      "2026-01-01T00:00:07.000Z",
+      "2026-01-01T00:00:10.000Z",
+    ]);
+
+    vi.useRealTimers();
+  });
 });
 
 describe("loadPracticeHistory / appendPracticeTrials", () => {

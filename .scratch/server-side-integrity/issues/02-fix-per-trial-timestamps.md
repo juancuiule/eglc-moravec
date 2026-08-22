@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] `buildPersistedTrials` (Level) assigns each trial in the batch its own distinct, accurate `playedAt`, reflecting when that specific trial actually happened rather than when the whole batch was persisted.
-- [ ] `buildPersistedPracticeTrials` (Practice) gets the same fix, for the same reason — it copied the original shared-timestamp pattern.
-- [ ] Existing tests updated to assert distinct per-trial timestamps rather than one shared value across a batch.
-- [ ] No change to what's stored beyond the timestamp values themselves — `correct`/`timeExceeded`/`timeTaken`/`categoryCodename`/`keystrokes` are unaffected.
+- [x] `buildPersistedTrials` (Level) assigns each trial in the batch its own distinct, accurate `playedAt`, reflecting when that specific trial actually happened rather than when the whole batch was persisted.
+- [x] `buildPersistedPracticeTrials` (Practice) gets the same fix, for the same reason — it copied the original shared-timestamp pattern.
+- [x] Existing tests updated to assert distinct per-trial timestamps rather than one shared value across a batch.
+- [x] No change to what's stored beyond the timestamp values themselves — `correct`/`timeExceeded`/`timeTaken`/`categoryCodename`/`keystrokes` are unaffected.

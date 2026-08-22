@@ -1,4 +1,5 @@
 import type { GameConfig, TrialResult } from "../game/index";
+import { computePlayedAtTimestamps } from "./playedAt";
 
 const STORAGE_KEY = "moravec:trialHistory";
 const MAX_TRIALS = 2000;
@@ -18,14 +19,17 @@ export function buildPersistedTrials(
   config: GameConfig,
   results: TrialResult[],
 ): PersistedTrial[] {
-  const playedAt = new Date().toISOString();
-  return results.map((r) => ({
+  const playedAtTimestamps = computePlayedAtTimestamps(
+    results.map((r) => r.timeTaken),
+    Date.now(),
+  );
+  return results.map((r, i) => ({
     levelNumber: config.levelNumber,
     categoryCodename: r.operation.categoryCodename(),
     correct: r.correct,
     timeExceeded: r.timeExceeded,
     timeTaken: r.timeTaken,
-    playedAt,
+    playedAt: new Date(playedAtTimestamps[i]).toISOString(),
     keystrokes: r.keystrokes,
   }));
 }

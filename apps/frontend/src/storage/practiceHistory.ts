@@ -1,4 +1,5 @@
 import type { PracticeTrialResult } from "../practice/index";
+import { computePlayedAtTimestamps } from "./playedAt";
 
 const STORAGE_KEY = "moravec:practiceHistory";
 const MAX_TRIALS = 2000;
@@ -19,13 +20,16 @@ export type PersistedPracticeTrial = {
 export function buildPersistedPracticeTrials(
   results: PracticeTrialResult[],
 ): PersistedPracticeTrial[] {
-  const playedAt = new Date().toISOString();
-  return results.map((r) => ({
+  const playedAtTimestamps = computePlayedAtTimestamps(
+    results.map((r) => r.timeTaken),
+    Date.now(),
+  );
+  return results.map((r, i) => ({
     categoryCodename: r.operation.categoryCodename(),
     correct: r.correct,
     timeExceeded: r.timeExceeded,
     timeTaken: r.timeTaken,
-    playedAt,
+    playedAt: new Date(playedAtTimestamps[i]).toISOString(),
     keystrokes: r.keystrokes,
   }));
 }
