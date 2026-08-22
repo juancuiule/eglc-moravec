@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
 import { loadTrialHistory } from "../storage/trialHistory";
+import { loadPracticeHistory } from "../storage/practiceHistory";
 import { computeStats } from "../stats/computeStats";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
 
 type Props = { onBack: () => void };
+type Tab = "level" | "practice";
 
 function formatMs(ms: number): string {
   return (ms / 1000).toFixed(1) + "s";
@@ -28,13 +30,24 @@ function EffBar({ value }: { value: number }) {
 }
 
 export function StatsScreen({ onBack }: Props) {
+  const [tab, setTab] = useState<Tab>("level");
   const [selected, setSelected] = useState<string | null>(null);
-  const trials = useMemo(() => loadTrialHistory(), []);
+
+  // Level and Practice trials are never merged — separate histories, separate numbers.
+  const levelTrials = useMemo(() => loadTrialHistory(), []);
+  const practiceTrials = useMemo(() => loadPracticeHistory(), []);
+  const trials = tab === "level" ? levelTrials : practiceTrials;
+
   const stats = useMemo(() => computeStats(trials), [trials]);
   const hasAnyData = stats.some((s) => s.total > 0);
 
   if (selected !== null) {
     return <CategoryStatsDetail codename={selected} trials={trials} onBack={() => setSelected(null)} />;
+  }
+
+  function selectTab(next: Tab) {
+    setTab(next);
+    setSelected(null);
   }
 
   return (
@@ -49,9 +62,26 @@ export function StatsScreen({ onBack }: Props) {
         <h1 className="text-xl font-bold tracking-tight">Statistics</h1>
       </div>
 
+      <div className="flex gap-1 bg-[#0f0f13] rounded-lg p-1">
+        {(["level", "practice"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => selectTab(t)}
+            className={[
+              "flex-1 text-sm font-medium py-1.5 rounded-md transition-colors cursor-pointer",
+              tab === t ? "bg-[#5a5af0] text-white" : "text-[#a0a0c0] hover:text-white",
+            ].join(" ")}
+          >
+            {t === "level" ? "Level" : "Practice"}
+          </button>
+        ))}
+      </div>
+
       {!hasAnyData ? (
         <p className="text-center text-[#5a5a80] py-8">
-          No data yet — complete some levels to see your stats.
+          {tab === "level"
+            ? "No data yet — complete some levels to see your stats."
+            : "No data yet — practice a category to see your stats."}
         </p>
       ) : (
         <div className="flex flex-col gap-1">

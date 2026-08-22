@@ -1,4 +1,14 @@
-import type { PersistedTrial } from "../storage/trialHistory";
+// The minimal shape this module actually needs — deliberately not tied to
+// Level's PersistedTrial (which also carries levelNumber). Both PersistedTrial
+// and Practice's PersistedPracticeTrial satisfy this structurally, so the
+// same aggregation runs over either trial history without a levelNumber or
+// an adapter — this module never cared about levelNumber to begin with.
+export type StatsTrial = {
+  categoryCodename: string;
+  correct: boolean;
+  timeExceeded: boolean;
+  timeTaken: number;
+};
 
 export type CategoryStats = {
   codename: string;
@@ -24,7 +34,7 @@ export const ALL_CATEGORIES: string[] = [
 export type HistogramBucket = { label: string; count: number };
 
 export function computeHistogram(
-  trials: PersistedTrial[],
+  trials: StatsTrial[],
   categoryCodename: string,
 ): HistogramBucket[] {
   const correct = trials.filter(
@@ -46,8 +56,8 @@ export function computeHistogram(
   return buckets;
 }
 
-export function computeStats(trials: PersistedTrial[]): CategoryStats[] {
-  const byCategory = new Map<string, PersistedTrial[]>();
+export function computeStats(trials: StatsTrial[]): CategoryStats[] {
+  const byCategory = new Map<string, StatsTrial[]>();
 
   for (const t of trials) {
     const list = byCategory.get(t.categoryCodename) ?? [];

@@ -1,10 +1,9 @@
 import { useMemo } from "react";
-import type { PersistedTrial } from "../storage/trialHistory";
-import { computeHistogram } from "../stats/computeStats";
+import { computeHistogram, type StatsTrial } from "../stats/computeStats";
 
 type Props = {
   codename: string;
-  trials: PersistedTrial[];
+  trials: StatsTrial[];
   onBack: () => void;
 };
 

@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] `StatsScreen` has a Level/Practice toggle; Level tab behavior is unchanged from today.
-- [ ] The Practice tab aggregates only Practice trial history (ticket 02's storage), using the same aggregation shape already used for Level (reuse `computeStats` over the Practice trial list, or an equivalent — the two must never share or merge data).
-- [ ] Categories with zero Practice attempts show the same "no data yet" treatment the Level tab already uses.
-- [ ] Verified live: practice a category, stop the session, open Stats → Practice tab, see it reflected there; Level tab is untouched by Practice activity.
+- [x] `StatsScreen` has a Level/Practice toggle; Level tab behavior is unchanged from today.
+- [x] The Practice tab aggregates only Practice trial history (ticket 02's storage), using the same aggregation shape already used for Level (reuse `computeStats` over the Practice trial list, or an equivalent — the two must never share or merge data).
+- [x] Categories with zero Practice attempts show the same "no data yet" treatment the Level tab already uses.
+- [x] Verified live: practice a category, stop the session, open Stats → Practice tab, see it reflected there; Level tab is untouched by Practice activity.
