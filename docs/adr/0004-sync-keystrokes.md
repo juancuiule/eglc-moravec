@@ -1,0 +1,5 @@
+# Sync keystroke traces to the backend; supersedes ADR-0003
+
+ADR-0003 kept keystroke traces client-only because nothing server-side read them: the only imagined consumer was a hypothetical future anti-cheat pass, not worth building schema and payload for ahead of need. That reasoning held under a pure-game framing of moravec. It no longer holds now that moravec is being rebuilt in the spirit of its original purpose — a disguised arithmetic-cognition data-collection instrument (see the "real purpose" grilling session) — where keystroke-level timing is itself research signal, not just an anti-cheat input. Data-integrity rigor for that use case is worth investing in now, so the deferral no longer applies.
+
+`pushResults` now includes each trial's keystroke trace in the Sync payload, and the backend stores it in a new `trial_keystrokes` table (one row per keystroke, referencing `trial_results.id`) rather than dropping it at the sync boundary. This is additive: existing Sync behavior for results and level-stats is unaffected.

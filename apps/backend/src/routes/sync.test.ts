@@ -5,7 +5,7 @@ import { openDb } from "../db.js";
 import { buildApp } from "../app.js";
 import { loadConfig } from "../config.js";
 import { getOtpRow } from "../auth/repo.js";
-import { getTrialResultsForUser } from "../sync/repo.js";
+import { getTrialResultsForUser, getKeystrokesForTrialResult } from "../sync/repo.js";
 import { hashEmail } from "../auth/logic.js";
 
 const TEST_SECRET = "test-secret";
@@ -36,6 +36,7 @@ const trial = {
   timeExceeded: false,
   timeTaken: 3400,
   playedAt: 1_700_000_000_000,
+  keystrokes: [{ key: "4", t: 120 }, { key: "2", t: 890 }],
 };
 
 describe("POST /sync/results", () => {
@@ -63,6 +64,10 @@ describe("POST /sync/results", () => {
       time_taken: 3400,
       played_at: 1_700_000_000_000,
     });
+
+    const keystrokes = getKeystrokesForTrialResult(db, rows[0].id);
+    expect(keystrokes).toHaveLength(2);
+    expect(keystrokes.map((k) => ({ key: k.key, t: k.t }))).toEqual(trial.keystrokes);
   });
 
   it("rejects an unauthenticated request", async () => {

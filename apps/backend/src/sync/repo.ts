@@ -48,13 +48,16 @@ export function insertTrialResults(
   emailHash: string,
   trials: readonly TrialResultInput[],
 ): void {
-  const insert = db.prepare(
+  const insertTrial = db.prepare(
     `INSERT INTO trial_results
        (email_hash, level_number, category_codename, correct, time_exceeded, time_taken, played_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   );
+  const insertKeystroke = db.prepare(
+    `INSERT INTO trial_keystrokes (trial_result_id, key, t) VALUES (?, ?, ?)`,
+  );
   trials.forEach((t) => {
-    insert.run(
+    const { lastInsertRowid } = insertTrial.run(
       emailHash,
       t.levelNumber,
       t.categoryCodename,
@@ -63,6 +66,9 @@ export function insertTrialResults(
       t.timeTaken,
       t.playedAt,
     );
+    t.keystrokes.forEach((k) => {
+      insertKeystroke.run(lastInsertRowid, k.key, k.t);
+    });
   });
 }
 
@@ -81,4 +87,20 @@ export function getTrialResultsForUser(db: DatabaseSync, emailHash: string): Tri
   return db
     .prepare("SELECT * FROM trial_results WHERE email_hash = ? ORDER BY id")
     .all(emailHash) as TrialResultRow[];
+}
+
+export type KeystrokeRow = {
+  id: number;
+  trial_result_id: number;
+  key: string;
+  t: number;
+};
+
+export function getKeystrokesForTrialResult(
+  db: DatabaseSync,
+  trialResultId: number,
+): KeystrokeRow[] {
+  return db
+    .prepare("SELECT * FROM trial_keystrokes WHERE trial_result_id = ? ORDER BY id")
+    .all(trialResultId) as KeystrokeRow[];
 }

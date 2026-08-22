@@ -1,3 +1,14 @@
+export type KeystrokeInput = {
+  key: string;
+  t: number;
+};
+
+function isKeystrokeInput(value: unknown): value is KeystrokeInput {
+  if (typeof value !== "object" || value === null) return false;
+  const k = value as Record<string, unknown>;
+  return typeof k.key === "string" && typeof k.t === "number";
+}
+
 export type TrialResultInput = {
   levelNumber: number;
   categoryCodename: string;
@@ -5,6 +16,7 @@ export type TrialResultInput = {
   timeExceeded: boolean;
   timeTaken: number;
   playedAt: number;
+  keystrokes: KeystrokeInput[];
 };
 
 function isTrialResultInput(value: unknown): value is TrialResultInput {
@@ -16,7 +28,9 @@ function isTrialResultInput(value: unknown): value is TrialResultInput {
     typeof r.correct === "boolean" &&
     typeof r.timeExceeded === "boolean" &&
     typeof r.timeTaken === "number" &&
-    typeof r.playedAt === "number"
+    typeof r.playedAt === "number" &&
+    Array.isArray(r.keystrokes) &&
+    r.keystrokes.every(isKeystrokeInput)
   );
 }
 

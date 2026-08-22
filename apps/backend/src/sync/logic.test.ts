@@ -8,6 +8,7 @@ const validTrial = {
   timeExceeded: false,
   timeTaken: 1200,
   playedAt: 1_700_000_000_000,
+  keystrokes: [{ key: "9", t: 100 }, { key: "2", t: 340 }],
 };
 
 describe("parseTrialResults", () => {
@@ -34,6 +35,21 @@ describe("parseTrialResults", () => {
 
   it("rejects a trial with a wrong-typed field", () => {
     expect(parseTrialResults({ trials: [{ ...validTrial, correct: "yes" }] })).toBeNull();
+  });
+
+  it("accepts an empty keystrokes array", () => {
+    const trial = { ...validTrial, keystrokes: [] };
+    expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
+  });
+
+  it("rejects a trial with a malformed keystroke", () => {
+    const trial = { ...validTrial, keystrokes: [{ key: "9", t: "not-a-number" }] };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("rejects a trial with a non-array keystrokes field", () => {
+    const trial = { ...validTrial, keystrokes: "nope" };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
   it("rejects null and non-object bodies", () => {

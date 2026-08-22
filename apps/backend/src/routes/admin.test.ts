@@ -22,6 +22,7 @@ function trial(overrides: Partial<TrialResultInput> = {}): TrialResultInput {
     timeExceeded: false,
     timeTaken: 1000,
     playedAt: 1_700_000_000_000,
+    keystrokes: [],
     ...overrides,
   };
 }

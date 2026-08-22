@@ -33,6 +33,13 @@ const SCHEMA_STATEMENTS: readonly string[] = [
    )`,
   `CREATE INDEX IF NOT EXISTS trial_results_email_hash_idx ON trial_results (email_hash)`,
   `CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)`,
+  `CREATE TABLE IF NOT EXISTS trial_keystrokes (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     trial_result_id INTEGER NOT NULL,
+     key TEXT NOT NULL,
+     t INTEGER NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS trial_keystrokes_trial_result_id_idx ON trial_keystrokes (trial_result_id)`,
   `CREATE TABLE IF NOT EXISTS level_stats (
      email_hash TEXT NOT NULL,
      level_number INTEGER NOT NULL,

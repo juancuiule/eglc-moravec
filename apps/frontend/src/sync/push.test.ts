@@ -19,7 +19,7 @@ describe("pushResults", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
   });
 
-  it("POSTs the already-built PersistedTrials with the session token, dropping keystrokes", async () => {
+  it("POSTs the already-built PersistedTrials with the session token, including keystrokes", async () => {
     pushResults("tok123", [makeTrial()]);
     await Promise.resolve(); // let the fire-and-forget fetch call happen
 
@@ -37,8 +37,8 @@ describe("pushResults", () => {
       timeExceeded: false,
       timeTaken: 900,
       playedAt: new Date("2026-01-01T00:00:00.000Z").getTime(),
+      keystrokes: [{ key: "1", t: 10 }],
     });
-    expect(body.trials[0].keystrokes).toBeUndefined();
   });
 
   it("never throws even when the request fails", () => {

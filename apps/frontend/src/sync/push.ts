@@ -16,6 +16,7 @@ export function pushResults(token: string, trials: PersistedTrial[]): void {
     timeExceeded: t.timeExceeded,
     timeTaken: t.timeTaken,
     playedAt: new Date(t.playedAt).getTime(), // backend stores epoch ms, not ISO
+    keystrokes: t.keystrokes,
   }));
 
   void fetch(`${API_URL}/sync/results`, {
