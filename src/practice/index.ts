@@ -1,7 +1,14 @@
 import { createStore } from "zustand/vanilla";
 import { createOperation } from "../operations";
-import { Operation } from "../operations/operation";
-import type { Answering, Keystroke } from "../game/index";
+import type { Operation } from "../operations/operation";
+import {
+  scoreAnswer,
+  scoreTimeout,
+  canShowHint,
+  type Answering,
+  type Keystroke,
+  type BaseTrialResult,
+} from "../trial/engine";
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -11,16 +18,7 @@ export type PracticeConfig = {
 
 // ─── Trial result ──────────────────────────────────────────────────────────────
 
-export type PracticeTrialResult = {
-  operation: Operation;
-  answer: number | null;
-  correct: boolean;
-  timeExceeded: boolean;
-  timeTaken: number;
-  hintShown: boolean;
-  keystrokes: Keystroke[];
-  hasErased: boolean;
-};
+export type PracticeTrialResult = BaseTrialResult;
 
 // ─── States ────────────────────────────────────────────────────────────────────
 
@@ -107,21 +105,11 @@ export function createPracticeStore() {
       if (state.playingState.type !== "answering") return;
 
       const { startedAt } = state.playingState;
-      const { currentOperation } = state;
-      const timeTaken = Date.now() - startedAt;
-      const correct = answer === currentOperation.result();
-      const timeExceeded = timeTaken > currentOperation.solveTime();
-
-      const result: PracticeTrialResult = {
-        operation: currentOperation,
-        answer,
-        correct,
-        timeExceeded,
-        timeTaken,
-        hintShown: state.hintVisible,
+      const result: PracticeTrialResult = scoreAnswer(state.currentOperation, startedAt, answer, {
         keystrokes,
         hasErased,
-      };
+        hintShown: state.hintVisible,
+      });
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
@@ -131,17 +119,11 @@ export function createPracticeStore() {
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
 
-      const { currentOperation } = state;
-      const result: PracticeTrialResult = {
-        operation: currentOperation,
-        answer: null,
-        correct: false,
-        timeExceeded: true,
-        timeTaken: currentOperation.solveTime(),
-        hintShown: state.hintVisible,
+      const result: PracticeTrialResult = scoreTimeout(state.currentOperation, {
         keystrokes,
         hasErased,
-      };
+        hintShown: state.hintVisible,
+      });
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
@@ -170,8 +152,7 @@ export function createPracticeStore() {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
-      if (!state.currentOperation.hint().hasHint()) return;
-      if (state.hintVisible) return;
+      if (!canShowHint(state.hintVisible, state.currentOperation.hint().hasHint())) return;
       set({ state: { ...state, hintVisible: true } });
     },
 

@@ -1,6 +1,16 @@
 import { createStore } from "zustand/vanilla";
 import { createRandomOperation, Level } from "../level";
 import { Operation } from "../operations/operation";
+import {
+  scoreAnswer,
+  scoreTimeout,
+  canShowHint,
+  type Keystroke,
+  type Answering,
+  type BaseTrialResult,
+} from "../trial/engine";
+
+export type { Keystroke, Answering };
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -24,17 +34,7 @@ export function starsForScore(correctInTime: number): 0 | 1 | 2 | 3 {
 
 // ─── Trial result ──────────────────────────────────────────────────────────────
 
-export type Keystroke = { key: string; t: number };
-
-export type TrialResult = {
-  operation: Operation;
-  answer: number | null; // null = timed out
-  correct: boolean;
-  timeExceeded: boolean; // true if timeTaken > operation.solveTime()
-  timeTaken: number; // ms
-  hintShown: boolean;
-  keystrokes: Keystroke[];
-  hasErased: boolean;
+export type TrialResult = BaseTrialResult & {
   streakAtSubmit: number;
 };
 
@@ -45,11 +45,6 @@ export function trialCounts(result: TrialResult): boolean {
 }
 
 // ─── Playing nested states ─────────────────────────────────────────────────────
-
-export type Answering = {
-  type: "answering";
-  startedAt: number;
-};
 
 export type Reviewing = {
   type: "reviewing";
@@ -192,22 +187,12 @@ export function createGameStore() {
       if (state.playingState.type !== "answering") return;
 
       const { startedAt } = state.playingState;
-      const { currentOperation } = state;
-      const timeTaken = Date.now() - startedAt;
-      const correct = answer === currentOperation.result();
-      const timeExceeded = timeTaken > currentOperation.solveTime();
-
-      const result: TrialResult = {
-        operation: currentOperation,
-        answer,
-        correct,
-        timeExceeded,
-        timeTaken,
-        hintShown: state.hintVisible,
+      const base = scoreAnswer(state.currentOperation, startedAt, answer, {
         keystrokes,
         hasErased,
-        streakAtSubmit: currentStreak(state.results),
-      };
+        hintShown: state.hintVisible,
+      });
+      const result: TrialResult = { ...base, streakAtSubmit: currentStreak(state.results) };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
@@ -217,18 +202,12 @@ export function createGameStore() {
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
 
-      const { currentOperation } = state;
-      const result: TrialResult = {
-        operation: currentOperation,
-        answer: null,
-        correct: false,
-        timeExceeded: true,
-        timeTaken: currentOperation.solveTime(),
-        hintShown: state.hintVisible,
+      const base = scoreTimeout(state.currentOperation, {
         keystrokes,
         hasErased,
-        streakAtSubmit: currentStreak(state.results),
-      };
+        hintShown: state.hintVisible,
+      });
+      const result: TrialResult = { ...base, streakAtSubmit: currentStreak(state.results) };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
@@ -280,17 +259,13 @@ export function createGameStore() {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
-      if (!state.currentOperation.hint().hasHint()) return;
-      if (state.hintVisible) return; // already showing
-
-      const cost = state.hintsRemaining > 0 ? 1 : 0;
-      if (cost === 0 && state.hintsRemaining === 0) return; // no hints left
+      if (!canShowHint(state.hintVisible, state.currentOperation.hint().hasHint(), state.hintsRemaining)) return;
 
       set({
         state: {
           ...state,
           hintVisible: true,
-          hintsRemaining: state.hintsRemaining - cost,
+          hintsRemaining: state.hintsRemaining - 1,
         },
       });
     },

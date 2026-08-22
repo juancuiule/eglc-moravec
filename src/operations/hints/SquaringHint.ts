@@ -1,8 +1,8 @@
 import type { Hint } from "./Hint";
 
 /**
- * Applies x² = (x−a)(x+a) + a² recursively until single digits.
- * `a` is chosen to round x to the nearest multiple of 10.
+ * Applies x² = (x−a)(x+a) + a², where `a` rounds x to the nearest multiple of 10.
+ * Stops at the decomposition — the player still does the arithmetic.
  */
 export class SquaringHint implements Hint {
   constructor(private x: number) {}
@@ -36,9 +36,8 @@ function buildSteps(x: number): string[] {
   const signStr = a >= 0 ? "−" : "+";
   const signStrInv = a >= 0 ? "+" : "−";
 
-  const steps: string[] = [
+  return [
     `${x}² = (${x}${signStr}${aAbs})(${x}${signStrInv}${aAbs}) + ${aAbs}²`,
+    `= ${lo} × ${hi} + ${aAbs * aAbs}`,
   ];
-
-  return steps;
 }

@@ -1,76 +1,71 @@
 import { useState } from "react";
 import { useGame } from "./game/store";
 import { usePractice } from "./practice/store";
+import { deriveCurrentScreen, type NavScreen } from "./screen";
 import { LevelSelection } from "./components/LevelSelection";
-import { PlayingScreen } from "./components/PlayingScreen";
+import { AnsweringView } from "./components/AnsweringView";
 import { FinishedScreen } from "./components/FinishedScreen";
 import { StatsScreen } from "./components/StatsScreen";
 import { PracticeModeSelection } from "./components/PracticeModeSelection";
 import { PracticePlayingScreen } from "./components/PracticePlayingScreen";
 import { PracticeSummary } from "./components/PracticeSummary";
 
-type AppScreen = "menu" | "stats" | "practice";
-
 export function App() {
   const gameState = useGame((s) => s.state);
   const practiceState = usePractice((s) => s.state);
-  const [screen, setScreen] = useState<AppScreen>("menu");
+  const [nav, setNav] = useState<NavScreen>("menu");
 
-  // Practice takes over when a session is active
-  if (screen === "practice") {
-    if (practiceState.type === "playing") {
+  const screen = deriveCurrentScreen(gameState, practiceState, nav);
+
+  switch (screen.type) {
+    case "practicePlaying":
       return (
         <Centered>
-          <PracticePlayingScreen state={practiceState} />
+          <PracticePlayingScreen state={screen.state} />
         </Centered>
       );
-    }
-    if (practiceState.type === "stopped") {
+    case "practiceStopped":
       return (
         <Centered>
-          <PracticeSummary state={practiceState} onBack={() => setScreen("menu")} />
+          <PracticeSummary state={screen.state} onBack={() => setNav("menu")} />
         </Centered>
       );
-    }
-    // idle — show selection
-    return (
-      <Centered>
-        <PracticeModeSelection onBack={() => setScreen("menu")} />
-      </Centered>
-    );
+    case "practiceSelection":
+      return (
+        <Centered>
+          <PracticeModeSelection onBack={() => setNav("menu")} />
+        </Centered>
+      );
+    case "stats":
+      return (
+        <Centered>
+          <StatsScreen onBack={() => setNav("menu")} />
+        </Centered>
+      );
+    case "levelPlaying":
+      return (
+        <Centered>
+          <AnsweringView state={screen.state} />
+        </Centered>
+      );
+    case "levelFinished":
+      return (
+        <Centered>
+          <FinishedScreen state={screen.state} onBack={() => setNav("menu")} />
+        </Centered>
+      );
+    case "levelSelection":
+      return (
+        <Centered>
+          <LevelSelection
+            onShowStats={() => setNav("stats")}
+            onShowPractice={() => setNav("practice")}
+          />
+        </Centered>
+      );
+    default:
+      return screen satisfies never;
   }
-
-  if (screen === "stats") {
-    return (
-      <Centered>
-        <StatsScreen onBack={() => setScreen("menu")} />
-      </Centered>
-    );
-  }
-
-  // menu
-  if (gameState.type === "playing") {
-    return (
-      <Centered>
-        <PlayingScreen state={gameState} />
-      </Centered>
-    );
-  }
-  if (gameState.type === "finished") {
-    return (
-      <Centered>
-        <FinishedScreen state={gameState} onBack={() => setScreen("menu")} />
-      </Centered>
-    );
-  }
-  return (
-    <Centered>
-      <LevelSelection
-        onShowStats={() => setScreen("stats")}
-        onShowPractice={() => setScreen("practice")}
-      />
-    </Centered>
-  );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

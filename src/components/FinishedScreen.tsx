@@ -5,7 +5,7 @@ import { LEVELS } from "../LEVELS";
 import { TOTAL_TRIALS } from "../game/index";
 import { StarsDisplay } from "./StarsDisplay";
 import { updateLevelRecord } from "../storage/levelStats";
-import { appendTrials } from "../storage/trialHistory";
+import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
 
 type Props = { state: Finished; onBack: () => void };
 
@@ -22,17 +22,7 @@ export function FinishedScreen({ state, onBack }: Props) {
   useEffect(() => {
     const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
     updateLevelRecord(config.levelNumber, { stars, totalTime });
-    appendTrials(
-      results.map((r) => ({
-        levelNumber: config.levelNumber,
-        categoryCodename: r.operation.categoryCodename(),
-        correct: r.correct,
-        timeExceeded: r.timeExceeded,
-        timeTaken: r.timeTaken,
-        playedAt: new Date().toISOString(),
-        keystrokes: r.keystrokes,
-      })),
-    );
+    appendTrials(buildPersistedTrials(config, results));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function playNext() {

@@ -2,7 +2,8 @@ import type { Hint } from "./Hint";
 
 /**
  * Decomposes the left operand by digit position.
- * e.g. 23 × 4 → (20 + 3) × 4 → 80 + 12 → 92
+ * e.g. 23 × 4 → (20 + 3) × 4 → 20×4 + 3×4
+ * Stops at the decomposition — the player still does the arithmetic.
  */
 export class MultiplicationHint implements Hint {
   constructor(
@@ -17,18 +18,12 @@ export class MultiplicationHint implements Hint {
   getSteps(): string[] {
     const { left, right } = this;
     const parts = digitParts(left); // e.g. [20, 3] for 23
-
     const decomposed = parts.map((p) => `${p}×${right}`).join(" + ");
-    const products = parts.map((p) => p * right);
-    const productsStr = products.join(" + ");
-    // const result = left * right;
 
     return [
       `${left} × ${right}`,
       `= (${parts.join(" + ")}) × ${right}`,
       `= ${decomposed}`,
-      // `= ${productsStr}`,
-      // `= ${result}`,
     ];
   }
 }

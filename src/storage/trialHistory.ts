@@ -1,3 +1,5 @@
+import type { GameConfig, TrialResult } from "../game/index";
+
 const STORAGE_KEY = "moravec:trialHistory";
 const MAX_TRIALS = 2000;
 
@@ -10,6 +12,23 @@ export type PersistedTrial = {
   playedAt: string; // ISO date
   keystrokes: { key: string; t: number }[];
 };
+
+/** Map a finished level's trial results into the shape persisted to trial history. */
+export function buildPersistedTrials(
+  config: GameConfig,
+  results: TrialResult[],
+): PersistedTrial[] {
+  const playedAt = new Date().toISOString();
+  return results.map((r) => ({
+    levelNumber: config.levelNumber,
+    categoryCodename: r.operation.categoryCodename(),
+    correct: r.correct,
+    timeExceeded: r.timeExceeded,
+    timeTaken: r.timeTaken,
+    playedAt,
+    keystrokes: r.keystrokes,
+  }));
+}
 
 export function loadTrialHistory(): PersistedTrial[] {
   try {
