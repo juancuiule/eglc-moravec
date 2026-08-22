@@ -32,6 +32,7 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      played_at INTEGER NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS trial_results_email_hash_idx ON trial_results (email_hash)`,
+  `CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)`,
   `CREATE TABLE IF NOT EXISTS level_stats (
      email_hash TEXT NOT NULL,
      level_number INTEGER NOT NULL,

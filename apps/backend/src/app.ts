@@ -5,6 +5,7 @@ import type { Config } from "./config.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerSyncRoutes } from "./routes/sync.js";
+import { registerAdminRoutes } from "./routes/admin.js";
 
 export function buildApp(db: DatabaseSync, config: Config): FastifyInstance {
   const app = Fastify({ logger: true });
@@ -14,5 +15,6 @@ export function buildApp(db: DatabaseSync, config: Config): FastifyInstance {
   registerHealthRoute(app, db);
   registerAuthRoutes(app, db, config);
   registerSyncRoutes(app, db);
+  registerAdminRoutes(app, db);
   return app;
 }
