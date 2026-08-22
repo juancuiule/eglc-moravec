@@ -33,18 +33,3 @@ export function pushResults(token: string, results: TrialResult[], trials: Persi
     // best-effort; a failed sync never blocks or interrupts play
   });
 }
-
-/** Fire-and-forget Sync push of a Level's best-record summary (stars, total time). */
-export function pushLevelStats(
-  token: string,
-  levelNumber: number,
-  stats: { stars: 0 | 1 | 2 | 3; totalTime: number },
-): void {
-  void fetch(`${API_URL}/sync/level-stats`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ levelNumber, stars: stats.stars, totalTime: stats.totalTime }),
-  }).catch(() => {
-    // best-effort; a failed sync never blocks or interrupts play
-  });
-}

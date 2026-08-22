@@ -3,9 +3,9 @@ import type { DatabaseSync } from "node:sqlite";
 import { bearerToken, resolveEmailHash } from "../auth/session.js";
 import {
   parseTrialResults,
-  parseLevelStats,
   isBetterLevelRecord,
   evaluateTrialResult,
+  deriveLevelStats,
 } from "../sync/logic.js";
 import {
   insertTrialResults,
@@ -24,24 +24,16 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
 
     const evaluated = trials.map(evaluateTrialResult);
     insertTrialResults(db, emailHash, evaluated);
+
+    deriveLevelStats(evaluated).forEach((ls) => {
+      const existing = getLevelStatsRow(db, emailHash, ls.levelNumber);
+      const existingRecord = existing ? { stars: existing.stars, totalTime: existing.total_time } : null;
+      if (isBetterLevelRecord(ls, existingRecord)) {
+        upsertLevelStatsRow(db, emailHash, ls.levelNumber, ls.stars, ls.totalTime, Date.now());
+      }
+    });
+
     return reply.send({ ok: true, stored: trials.length });
-  });
-
-  app.post("/sync/level-stats", async (request: FastifyRequest, reply) => {
-    const emailHash = resolveEmailHash(db, bearerToken(request.headers.authorization));
-    if (emailHash === null) return reply.code(401).send({ error: "unauthenticated" });
-
-    const input = parseLevelStats(request.body);
-    if (input === null) return reply.code(400).send({ error: "invalid_request" });
-
-    const existing = getLevelStatsRow(db, emailHash, input.levelNumber);
-    const existingRecord = existing ? { stars: existing.stars, totalTime: existing.total_time } : null;
-
-    if (isBetterLevelRecord(input, existingRecord)) {
-      upsertLevelStatsRow(db, emailHash, input.levelNumber, input.stars, input.totalTime, Date.now());
-    }
-
-    return reply.send({ ok: true });
   });
 
   app.get("/sync/level-stats", async (request: FastifyRequest, reply) => {

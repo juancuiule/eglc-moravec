@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   parseTrialResults,
-  parseLevelStats,
   isBetterLevelRecord,
   evaluateTrialResult,
+  deriveLevelStats,
 } from "./logic.js";
 
 const validTrial = {
@@ -104,25 +104,57 @@ describe("evaluateTrialResult", () => {
   });
 });
 
-describe("parseLevelStats", () => {
-  it("accepts a well-formed body", () => {
-    expect(parseLevelStats({ levelNumber: 4, stars: 2, totalTime: 30000 })).toEqual({
-      levelNumber: 4,
-      stars: 2,
-      totalTime: 30000,
-    });
+function evaluatedTrial(overrides: Partial<ReturnType<typeof evaluateTrialResult>> = {}) {
+  return {
+    levelNumber: 4,
+    categoryCodename: "1d+1d",
+    correct: true,
+    timeExceeded: false,
+    clientCorrect: true,
+    clientTimeExceeded: false,
+    timeTaken: 1000,
+    playedAt: 1_700_000_000_000,
+    keystrokes: [],
+    ...overrides,
+  };
+}
+
+describe("deriveLevelStats", () => {
+  it("derives stars/totalTime for a single level from its trial batch", () => {
+    const trials = [
+      evaluatedTrial({ timeTaken: 1000 }),
+      evaluatedTrial({ timeTaken: 2000 }),
+      evaluatedTrial({ correct: false, timeTaken: 3000 }),
+    ];
+
+    const [summary] = deriveLevelStats(trials);
+    expect(summary.levelNumber).toBe(4);
+    expect(summary.totalTime).toBe(6000); // sums every trial, not just correct-in-time ones
+    expect(summary.stars).toBe(0); // 2 correct-in-time < LEVEL_COMPLETE_THRESHOLD (15)
   });
 
-  it("rejects an out-of-range stars value", () => {
-    expect(parseLevelStats({ levelNumber: 4, stars: 4, totalTime: 30000 })).toBeNull();
+  it("bases stars on the server-computed correct/timeExceeded, not the client's claim", () => {
+    const trials = Array.from({ length: 20 }, () =>
+      evaluatedTrial({ correct: false, clientCorrect: true }), // client claims correct; server disagrees
+    );
+
+    const [summary] = deriveLevelStats(trials);
+    expect(summary.stars).toBe(0);
   });
 
-  it("rejects a missing field", () => {
-    expect(parseLevelStats({ levelNumber: 4, stars: 2 })).toBeNull();
+  it("groups a mixed batch by levelNumber, scoring each independently", () => {
+    const trials = [
+      ...Array.from({ length: 20 }, () => evaluatedTrial({ levelNumber: 1 })), // 20 correct-in-time → 3 stars
+      evaluatedTrial({ levelNumber: 2, correct: false }), // 0 correct-in-time → 0 stars
+    ];
+
+    const summaries = deriveLevelStats(trials);
+    expect(summaries.find((s) => s.levelNumber === 1)?.stars).toBe(3);
+    expect(summaries.find((s) => s.levelNumber === 2)?.stars).toBe(0);
   });
 
-  it("rejects a non-object body", () => {
-    expect(parseLevelStats(null)).toBeNull();
+  it("returns an empty array for no trials", () => {
+    expect(deriveLevelStats([])).toEqual([]);
   });
 });
 

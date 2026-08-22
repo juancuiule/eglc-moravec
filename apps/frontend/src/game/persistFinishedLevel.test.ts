@@ -11,13 +11,12 @@ vi.mock("../storage/trialHistory", () => ({
 
 vi.mock("../sync/push", () => ({
   pushResults: vi.fn(),
-  pushLevelStats: vi.fn(),
 }));
 
 import { persistFinishedLevel } from "./persistFinishedLevel";
 import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
-import { pushResults, pushLevelStats } from "../sync/push";
+import { pushResults } from "../sync/push";
 import { LEVELS } from "../LEVELS";
 import { Addition } from "engine";
 import type { Finished, TrialResult } from "./index";
@@ -71,10 +70,9 @@ describe("persistFinishedLevel", () => {
     persistFinishedLevel(makeFinished(), loggedOut);
 
     expect(pushResults).not.toHaveBeenCalled();
-    expect(pushLevelStats).not.toHaveBeenCalled();
   });
 
-  it("syncs results and level stats when logged in", () => {
+  it("syncs results when logged in", () => {
     const state = makeFinished();
     persistFinishedLevel(state, loggedIn);
 
@@ -83,6 +81,5 @@ describe("persistFinishedLevel", () => {
       state.results,
       [{ fake: "persisted-trial" }],
     );
-    expect(pushLevelStats).toHaveBeenCalledWith("tok123", 4, { stars: 2, totalTime: 2500 });
   });
 });

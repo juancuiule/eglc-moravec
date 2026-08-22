@@ -1,4 +1,4 @@
-import { reconstructOperation, evaluateTrial } from "engine";
+import { reconstructOperation, evaluateTrial, starsForScore } from "engine";
 
 export type KeystrokeInput = {
   key: string;
@@ -84,24 +84,32 @@ export function evaluateTrialResult(input: TrialResultInput): EvaluatedTrialResu
   };
 }
 
-export type LevelStatsInput = {
+export type LevelStatsSummary = {
   levelNumber: number;
   stars: 0 | 1 | 2 | 3;
   totalTime: number;
 };
 
-export function parseLevelStats(body: unknown): LevelStatsInput | null {
-  if (typeof body !== "object" || body === null) return null;
-  const r = body as Record<string, unknown>;
-  if (
-    typeof r.levelNumber !== "number" ||
-    typeof r.totalTime !== "number" ||
-    typeof r.stars !== "number" ||
-    ![0, 1, 2, 3].includes(r.stars)
-  ) {
-    return null;
-  }
-  return { levelNumber: r.levelNumber, stars: r.stars as 0 | 1 | 2 | 3, totalTime: r.totalTime };
+/**
+ * Derive each finished Level's stars/totalTime from a batch of validated
+ * trials, using the same threshold rule the client uses
+ * (packages/engine's starsForScore) — but applied to the server's own
+ * recomputed correctness, not the client's claim. In practice one
+ * POST /sync/results call carries exactly one Level's trials; trials are
+ * grouped by levelNumber regardless, so a mixed batch is still scored
+ * correctly per Level.
+ */
+export function deriveLevelStats(trials: readonly EvaluatedTrialResult[]): LevelStatsSummary[] {
+  const byLevel = new Map<number, EvaluatedTrialResult[]>();
+  trials.forEach((t) => {
+    byLevel.set(t.levelNumber, [...(byLevel.get(t.levelNumber) ?? []), t]);
+  });
+
+  return Array.from(byLevel.entries()).map(([levelNumber, levelTrials]) => {
+    const correctInTime = levelTrials.filter((t) => t.correct && !t.timeExceeded).length;
+    const totalTime = levelTrials.reduce((sum, t) => sum + t.timeTaken, 0);
+    return { levelNumber, stars: starsForScore(correctInTime), totalTime };
+  });
 }
 
 /**

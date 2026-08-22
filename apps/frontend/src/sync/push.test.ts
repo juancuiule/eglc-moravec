@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { pushResults, pushLevelStats } from "./push";
+import { pushResults } from "./push";
 import type { PersistedTrial } from "../storage/trialHistory";
 import { Addition } from "engine";
 import type { TrialResult } from "../game/index";
@@ -64,27 +64,5 @@ describe("pushResults", () => {
   it("never throws even when the request fails", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
     expect(() => pushResults("tok123", [makeResult()], [makeTrial()])).not.toThrow();
-  });
-});
-
-describe("pushLevelStats", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
-  });
-
-  it("POSTs the level's best-record summary", async () => {
-    pushLevelStats("tok123", 7, { stars: 2, totalTime: 45000 });
-    await Promise.resolve();
-
-    expect(fetch).toHaveBeenCalledTimes(1);
-    const [url, init] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toContain("/sync/level-stats");
-    expect(init?.headers).toMatchObject({ Authorization: "Bearer tok123" });
-    expect(JSON.parse(init?.body as string)).toEqual({ levelNumber: 7, stars: 2, totalTime: 45000 });
-  });
-
-  it("never throws even when the request fails", () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
-    expect(() => pushLevelStats("tok123", 7, { stars: 2, totalTime: 45000 })).not.toThrow();
   });
 });

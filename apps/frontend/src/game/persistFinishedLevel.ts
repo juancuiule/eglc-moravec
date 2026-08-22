@@ -2,7 +2,7 @@ import type { Finished } from "./index";
 import type { AuthState } from "../auth/index";
 import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
-import { pushResults, pushLevelStats } from "../sync/push";
+import { pushResults } from "../sync/push";
 
 /** Persists a finished Level locally, and syncs it to the backend if the player is logged in. */
 export function persistFinishedLevel(state: Finished, authState: AuthState): void {
@@ -15,6 +15,5 @@ export function persistFinishedLevel(state: Finished, authState: AuthState): voi
 
   if (authState.type === "loggedIn") {
     pushResults(authState.token, results, persistedTrials);
-    pushLevelStats(authState.token, config.levelNumber, { stars, totalTime });
   }
 }

@@ -133,18 +133,49 @@ describe("POST /sync/results", () => {
   });
 });
 
-describe("POST /sync/level-stats + GET /sync/level-stats", () => {
-  it("stores a level record and returns it on GET", async () => {
+// A trial for level `levelNumber`, correct-in-time iff `correct`. Category
+// is always 1d+1d (solveTime 7000ms), so a 1000ms trial is always in time.
+function trialFor(levelNumber: number, correct: boolean) {
+  return {
+    levelNumber,
+    categoryCodename: "1d+1d",
+    correct: true, // client's claim is irrelevant here — the server recomputes from operands/answer
+    timeExceeded: false,
+    timeTaken: 1000,
+    playedAt: 1_700_000_000_000,
+    keystrokes: [],
+    operands: [3, 4],
+    answer: correct ? 7 : 999,
+  };
+}
+
+function batchFor(levelNumber: number, correctCount: number, wrongCount: number) {
+  return [
+    ...Array.from({ length: correctCount }, () => trialFor(levelNumber, true)),
+    ...Array.from({ length: wrongCount }, () => trialFor(levelNumber, false)),
+  ];
+}
+
+async function postResults(
+  app: FastifyInstance,
+  token: string,
+  trials: ReturnType<typeof trialFor>[],
+) {
+  return app.inject({
+    method: "POST",
+    url: "/sync/results",
+    headers: { authorization: `Bearer ${token}` },
+    payload: { trials },
+  });
+}
+
+describe("GET /sync/level-stats (derived from POST /sync/results)", () => {
+  it("derives and stores a level record from a synced trial batch", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    const postRes = await app.inject({
-      method: "POST",
-      url: "/sync/level-stats",
-      headers: { authorization: `Bearer ${token}` },
-      payload: { levelNumber: 4, stars: 2, totalTime: 30000 },
-    });
-    expect(postRes.statusCode).toBe(200);
+    const res = await postResults(app, token, batchFor(4, 17, 0)); // 17 correct-in-time → 2 stars
+    expect(res.statusCode).toBe(200);
 
     const getRes = await app.inject({
       method: "GET",
@@ -152,57 +183,37 @@ describe("POST /sync/level-stats + GET /sync/level-stats", () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(getRes.statusCode).toBe(200);
-    expect(getRes.json().levelStats["4"]).toMatchObject({ stars: 2, totalTime: 30000 });
+    expect(getRes.json().levelStats["4"]).toMatchObject({ stars: 2, totalTime: 17000 });
   });
 
   it("does not downgrade an existing better record", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    await app.inject({
-      method: "POST",
-      url: "/sync/level-stats",
-      headers: { authorization: `Bearer ${token}` },
-      payload: { levelNumber: 1, stars: 3, totalTime: 10000 },
-    });
-    await app.inject({
-      method: "POST",
-      url: "/sync/level-stats",
-      headers: { authorization: `Bearer ${token}` },
-      payload: { levelNumber: 1, stars: 1, totalTime: 5000 },
-    });
+    await postResults(app, token, batchFor(1, 20, 0)); // 3 stars
+    await postResults(app, token, batchFor(1, 15, 0)); // worse: 1 star
 
     const getRes = await app.inject({
       method: "GET",
       url: "/sync/level-stats",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3, totalTime: 10000 });
+    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3, totalTime: 20000 });
   });
 
   it("upgrades to a better record", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    await app.inject({
-      method: "POST",
-      url: "/sync/level-stats",
-      headers: { authorization: `Bearer ${token}` },
-      payload: { levelNumber: 1, stars: 1, totalTime: 10000 },
-    });
-    await app.inject({
-      method: "POST",
-      url: "/sync/level-stats",
-      headers: { authorization: `Bearer ${token}` },
-      payload: { levelNumber: 1, stars: 3, totalTime: 8000 },
-    });
+    await postResults(app, token, batchFor(1, 15, 0)); // 1 star
+    await postResults(app, token, batchFor(1, 20, 0)); // better: 3 stars
 
     const getRes = await app.inject({
       method: "GET",
       url: "/sync/level-stats",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3, totalTime: 8000 });
+    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3, totalTime: 20000 });
   });
 
   it("GET returns an empty object for a user with no records", async () => {
@@ -217,15 +228,8 @@ describe("POST /sync/level-stats + GET /sync/level-stats", () => {
     expect(getRes.json()).toEqual({ levelStats: {} });
   });
 
-  it("rejects unauthenticated requests on both routes", async () => {
+  it("rejects an unauthenticated GET", async () => {
     const { app } = setup();
-    const postRes = await app.inject({
-      method: "POST",
-      url: "/sync/level-stats",
-      payload: { levelNumber: 1, stars: 1, totalTime: 1000 },
-    });
-    expect(postRes.statusCode).toBe(401);
-
     const getRes = await app.inject({ method: "GET", url: "/sync/level-stats" });
     expect(getRes.statusCode).toBe(401);
   });
