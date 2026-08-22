@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useGame, gameStore } from "./game/store";
-import { usePractice } from "./practice/store";
+import { usePractice, practiceStore } from "./practice/store";
 import { useAuth, authStore } from "./auth/store";
 import { watchStoreTransition } from "./storeWatch";
 import { persistFinishedLevel } from "./game/persistFinishedLevel";
+import { persistStoppedPractice } from "./practice/persistStoppedPractice";
 import { deriveCurrentScreen, type NavScreen } from "./screen";
 import { LevelSelection } from "./components/LevelSelection";
 import { AnsweringView } from "./components/AnsweringView";
@@ -34,6 +35,18 @@ export function App() {
       (s) => {
         if (s.state.type !== "finished") return;
         persistFinishedLevel(s.state, authStore.getState().state);
+      },
+    );
+  }, []);
+
+  // Same seam, second adapter: persist a Practice session locally when it stops.
+  useEffect(() => {
+    return watchStoreTransition(
+      practiceStore,
+      (s) => s.state.type === "stopped",
+      (s) => {
+        if (s.state.type !== "stopped") return;
+        persistStoppedPractice(s.state);
       },
     );
   }, []);
