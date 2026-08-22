@@ -14,13 +14,20 @@ import { PracticeModeSelection } from "./components/PracticeModeSelection";
 import { PracticePlayingScreen } from "./components/PracticePlayingScreen";
 import { PracticeSummary } from "./components/PracticeSummary";
 import { LoginScreen } from "./components/LoginScreen";
+import { AdminStatsScreen } from "./components/AdminStatsScreen";
+
+// Unlinked — reachable only by navigating directly to /admin, never a nav
+// button. The app has no router; this is the one URL-aware check it needs.
+function initialNav(): NavScreen {
+  return window.location.pathname === "/admin" ? "admin" : "menu";
+}
 
 export function App() {
   const gameState = useGame((s) => s.state);
   const practiceState = usePractice((s) => s.state);
   const authState = useAuth((s) => s.state);
   const restoreSession = useAuth((s) => s.restoreSession);
-  const [nav, setNav] = useState<NavScreen>("menu");
+  const [nav, setNav] = useState<NavScreen>(initialNav);
 
   useEffect(() => {
     void restoreSession();
@@ -54,6 +61,12 @@ export function App() {
   const screen = deriveCurrentScreen(gameState, practiceState, authState, nav);
 
   switch (screen.type) {
+    case "admin":
+      return (
+        <Centered>
+          <AdminStatsScreen onBack={() => setNav("menu")} />
+        </Centered>
+      );
     case "practicePlaying":
       return (
         <Centered>

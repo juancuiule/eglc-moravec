@@ -72,4 +72,10 @@ describe("deriveCurrentScreen", () => {
   it("falls through to the menu when nav is login but already logged in", () => {
     expect(deriveCurrentScreen(loading, idle, loggedIn, "login")).toEqual({ type: "levelSelection" });
   });
+
+  it("shows the admin screen when nav is admin, regardless of game/practice/auth state", () => {
+    expect(deriveCurrentScreen(playing as GameState, practicePlaying as PracticeState, loggedIn, "admin")).toEqual({
+      type: "admin",
+    });
+  });
 });
