@@ -1,10 +1,38 @@
 import { describe, it, expect, vi } from "vitest";
-import { scoreAnswer, scoreTimeout, canShowHint } from "./engine.js";
+import { scoreAnswer, scoreTimeout, evaluateTrial, canShowHint } from "./engine.js";
 import { Addition } from "../operations/operation.js";
 
 function makeOp() {
   return Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
 }
+
+describe("evaluateTrial", () => {
+  it("marks a correct in-time answer", () => {
+    const op = makeOp();
+    const result = evaluateTrial(op, op.result(), 0);
+    expect(result.correct).toBe(true);
+    expect(result.timeExceeded).toBe(false);
+  });
+
+  it("marks a wrong answer", () => {
+    const op = makeOp();
+    const result = evaluateTrial(op, op.result() + 99, 0);
+    expect(result.correct).toBe(false);
+  });
+
+  it("marks a correct-but-late answer as timeExceeded", () => {
+    const op = makeOp();
+    const result = evaluateTrial(op, op.result(), op.solveTime() + 1);
+    expect(result.correct).toBe(true);
+    expect(result.timeExceeded).toBe(true);
+  });
+
+  it("marks a null answer (timeout) as not correct", () => {
+    const op = makeOp();
+    const result = evaluateTrial(op, null, op.solveTime());
+    expect(result.correct).toBe(false);
+  });
+});
 
 describe("scoreAnswer", () => {
   it("marks a correct in-time answer", () => {

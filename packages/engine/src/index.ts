@@ -11,7 +11,7 @@ export {
   type SquaringCategory,
 } from "./operations/category.js";
 export { createRandomOperand, type OperandOptions } from "./operations/operand.js";
-export { createOperation, operations } from "./operations/index.js";
+export { createOperation, reconstructOperation, operations } from "./operations/index.js";
 
 export type { Hint } from "./operations/hints/Hint.js";
 export { NoHint } from "./operations/hints/NoHint.js";
@@ -21,6 +21,7 @@ export { SquaringHint } from "./operations/hints/SquaringHint.js";
 export {
   scoreAnswer,
   scoreTimeout,
+  evaluateTrial,
   canShowHint,
   type Keystroke,
   type Answering,

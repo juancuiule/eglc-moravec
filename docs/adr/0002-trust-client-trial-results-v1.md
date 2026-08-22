@@ -1,3 +1,5 @@
+> **Superseded by [ADR-0005](0005-backend-revalidates-correctness.md).** The trigger this ADR itself named — the backend needing `operations/`-level scoring knowledge — has fired: `packages/engine` now exists and the backend uses it to independently re-validate trial correctness.
+
 # Trust client-submitted Trial results in v1; no server-side anti-cheat
 
 Cheat-resistance was one of the stated goals for adding a backend (alongside cross-device Sync and a future leaderboard), but re-validating a submitted TrialResult server-side means re-deriving `operations/`'s solve-time rules on the backend — real duplicated logic, not just duplicated types. We're deliberately not building that for v1: the backend stores whatever the client reports, unvalidated beyond basic shape checks.

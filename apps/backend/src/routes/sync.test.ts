@@ -37,6 +37,8 @@ const trial = {
   timeTaken: 3400,
   playedAt: 1_700_000_000_000,
   keystrokes: [{ key: "4", t: 120 }, { key: "2", t: 890 }],
+  operands: [12, 5], // 12 * 5 = 60
+  answer: 60,
 };
 
 describe("POST /sync/results", () => {
@@ -61,6 +63,8 @@ describe("POST /sync/results", () => {
       category_codename: "2dx1d",
       correct: 1,
       time_exceeded: 0,
+      client_correct: 1,
+      client_time_exceeded: 0,
       time_taken: 3400,
       played_at: 1_700_000_000_000,
     });
@@ -102,6 +106,30 @@ describe("POST /sync/results", () => {
 
     const otherUserHash = hashEmail("someone-else@example.com", TEST_SECRET);
     expect(getTrialResultsForUser(db, otherUserHash)).toHaveLength(0);
+  });
+
+  it("stores the server's own recomputation, not the client's claim, when they disagree — without rejecting the sync", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    // operands say 12 * 5 = 60, but the client claims a wrong answer was correct
+    const mismatchedTrial = { ...trial, answer: 999, correct: true };
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { trials: [mismatchedTrial] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true, stored: 1 });
+
+    const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(rows[0]).toMatchObject({
+      correct: 0, // server-computed wins
+      client_correct: 1, // original claim kept for auditing
+    });
   });
 });
 

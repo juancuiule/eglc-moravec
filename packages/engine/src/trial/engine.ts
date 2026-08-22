@@ -29,6 +29,23 @@ export type TrialInputs = {
 
 // ─── Scoring ───────────────────────────────────────────────────────────────────
 
+/**
+ * Independently derive correctness/timing from an operation, a submitted
+ * answer, and a known duration — no clock reads involved. Used by
+ * `scoreAnswer` for live client-side play, and by the backend to
+ * re-validate a client-submitted trial from its reported timeTaken.
+ */
+export function evaluateTrial(
+  operation: Operation,
+  answer: number | null,
+  timeTaken: number,
+): { correct: boolean; timeExceeded: boolean } {
+  return {
+    correct: answer !== null && answer === operation.result(),
+    timeExceeded: timeTaken > operation.solveTime(),
+  };
+}
+
 /** Score a submitted answer against an operation, given when the trial started. */
 export function scoreAnswer(
   operation: Operation,
@@ -37,8 +54,7 @@ export function scoreAnswer(
   inputs: TrialInputs,
 ): BaseTrialResult {
   const timeTaken = Date.now() - startedAt;
-  const correct = answer === operation.result();
-  const timeExceeded = timeTaken > operation.solveTime();
+  const { correct, timeExceeded } = evaluateTrial(operation, answer, timeTaken);
 
   return {
     operation,

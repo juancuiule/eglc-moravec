@@ -1,7 +1,8 @@
 services:
   backend:
     build:
-      context: ./apps/backend
+      context: .
+      dockerfile: apps/backend/Dockerfile
     ports:
       - "3000:3000"
     volumes:

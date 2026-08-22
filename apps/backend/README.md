@@ -1,6 +1,6 @@
 # backend
 
-Fastify + SQLite (`node:sqlite`, no native dependency). Deployed self-hosted via Docker — see ADR-0001/0002 in `docs/adr/` for why this is a plain 2-package workspace rather than a 3rd `engine` package, and why v1 trusts client-submitted results.
+Fastify + SQLite (`node:sqlite`, no native dependency). Deployed self-hosted via Docker. Depends on the shared `packages/engine` domain model to independently re-validate client-submitted trials — see `docs/adr/` for the history: ADR-0001 named the trigger for extracting `engine`, ADR-0002 (superseded by ADR-0005) originally deferred server-side re-validation.
 
 ## Local dev
 

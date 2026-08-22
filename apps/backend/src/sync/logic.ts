@@ -1,3 +1,5 @@
+import { reconstructOperation, evaluateTrial } from "engine";
+
 export type KeystrokeInput = {
   key: string;
   t: number;
@@ -12,11 +14,13 @@ function isKeystrokeInput(value: unknown): value is KeystrokeInput {
 export type TrialResultInput = {
   levelNumber: number;
   categoryCodename: string;
-  correct: boolean;
-  timeExceeded: boolean;
+  correct: boolean; // client-submitted claim
+  timeExceeded: boolean; // client-submitted claim
   timeTaken: number;
   playedAt: number;
   keystrokes: KeystrokeInput[];
+  operands: number[];
+  answer: number | null;
 };
 
 function isTrialResultInput(value: unknown): value is TrialResultInput {
@@ -30,7 +34,10 @@ function isTrialResultInput(value: unknown): value is TrialResultInput {
     typeof r.timeTaken === "number" &&
     typeof r.playedAt === "number" &&
     Array.isArray(r.keystrokes) &&
-    r.keystrokes.every(isKeystrokeInput)
+    r.keystrokes.every(isKeystrokeInput) &&
+    Array.isArray(r.operands) &&
+    r.operands.every((o) => typeof o === "number") &&
+    (r.answer === null || typeof r.answer === "number")
   );
 }
 
@@ -40,6 +47,41 @@ export function parseTrialResults(body: unknown): TrialResultInput[] | null {
   const trials = (body as { trials?: unknown }).trials;
   if (!Array.isArray(trials)) return null;
   return trials.every(isTrialResultInput) ? trials : null;
+}
+
+export type EvaluatedTrialResult = {
+  levelNumber: number;
+  categoryCodename: string;
+  correct: boolean; // server-computed (authoritative)
+  timeExceeded: boolean; // server-computed (authoritative)
+  clientCorrect: boolean; // original client claim, kept for auditing
+  clientTimeExceeded: boolean; // original client claim, kept for auditing
+  timeTaken: number;
+  playedAt: number;
+  keystrokes: KeystrokeInput[];
+};
+
+/**
+ * Independently re-derives correctness/timing from a trial's own reported
+ * operands/answer/timeTaken, using packages/engine — the same scoring rules
+ * the client itself uses. A disagreement with the client's claim is never an
+ * error: both are returned, and the caller stores both (see ADR-0005).
+ */
+export function evaluateTrialResult(input: TrialResultInput): EvaluatedTrialResult {
+  const operation = reconstructOperation(input.categoryCodename, input.operands);
+  const { correct, timeExceeded } = evaluateTrial(operation, input.answer, input.timeTaken);
+
+  return {
+    levelNumber: input.levelNumber,
+    categoryCodename: input.categoryCodename,
+    correct,
+    timeExceeded,
+    clientCorrect: input.correct,
+    clientTimeExceeded: input.timeExceeded,
+    timeTaken: input.timeTaken,
+    playedAt: input.playedAt,
+    keystrokes: input.keystrokes,
+  };
 }
 
 export type LevelStatsInput = {

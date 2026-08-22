@@ -5,7 +5,7 @@ import { openDb } from "../db.js";
 import { buildApp } from "../app.js";
 import { loadConfig } from "../config.js";
 import { insertTrialResults } from "../sync/repo.js";
-import type { TrialResultInput } from "../sync/logic.js";
+import type { EvaluatedTrialResult } from "../sync/logic.js";
 
 function setup(): { db: DatabaseSync; app: FastifyInstance } {
   const db = openDb(":memory:");
@@ -14,12 +14,14 @@ function setup(): { db: DatabaseSync; app: FastifyInstance } {
   return { db, app };
 }
 
-function trial(overrides: Partial<TrialResultInput> = {}): TrialResultInput {
+function trial(overrides: Partial<EvaluatedTrialResult> = {}): EvaluatedTrialResult {
   return {
     levelNumber: 1,
     categoryCodename: "1d+1d",
     correct: true,
     timeExceeded: false,
+    clientCorrect: true,
+    clientTimeExceeded: false,
     timeTaken: 1000,
     playedAt: 1_700_000_000_000,
     keystrokes: [],

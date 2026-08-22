@@ -1,7 +1,12 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
 import { bearerToken, resolveEmailHash } from "../auth/session.js";
-import { parseTrialResults, parseLevelStats, isBetterLevelRecord } from "../sync/logic.js";
+import {
+  parseTrialResults,
+  parseLevelStats,
+  isBetterLevelRecord,
+  evaluateTrialResult,
+} from "../sync/logic.js";
 import {
   insertTrialResults,
   getLevelStatsRow,
@@ -17,7 +22,8 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
     const trials = parseTrialResults(request.body);
     if (trials === null) return reply.code(400).send({ error: "invalid_request" });
 
-    insertTrialResults(db, emailHash, trials);
+    const evaluated = trials.map(evaluateTrialResult);
+    insertTrialResults(db, emailHash, evaluated);
     return reply.send({ ok: true, stored: trials.length });
   });
 

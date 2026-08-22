@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import type { TrialResultInput } from "./logic.js";
+import type { EvaluatedTrialResult } from "./logic.js";
 
 export type LevelStatsRow = {
   email_hash: string;
@@ -46,12 +46,12 @@ export function getAllLevelStatsForUser(db: DatabaseSync, emailHash: string): Le
 export function insertTrialResults(
   db: DatabaseSync,
   emailHash: string,
-  trials: readonly TrialResultInput[],
+  trials: readonly EvaluatedTrialResult[],
 ): void {
   const insertTrial = db.prepare(
     `INSERT INTO trial_results
-       (email_hash, level_number, category_codename, correct, time_exceeded, time_taken, played_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insertKeystroke = db.prepare(
     `INSERT INTO trial_keystrokes (trial_result_id, key, t) VALUES (?, ?, ?)`,
@@ -63,6 +63,8 @@ export function insertTrialResults(
       t.categoryCodename,
       t.correct ? 1 : 0,
       t.timeExceeded ? 1 : 0,
+      t.clientCorrect ? 1 : 0,
+      t.clientTimeExceeded ? 1 : 0,
       t.timeTaken,
       t.playedAt,
     );
@@ -79,6 +81,8 @@ export type TrialResultRow = {
   category_codename: string;
   correct: number;
   time_exceeded: number;
+  client_correct: number;
+  client_time_exceeded: number;
   time_taken: number;
   played_at: number;
 };
