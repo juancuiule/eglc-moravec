@@ -67,3 +67,33 @@ _Avoid_: Magic link, passwordless login, sign-in.
 **Sync**:
 Reconciling a logged-in User's local Level/Practice progress with the backend. Has two directions: a push of each Trial's result immediately after a Level (fire-and-forget, doesn't block play), and a pull of the User's remote LevelStats on OTP login, merged into local state using the same better-record comparison LevelStats already uses.
 _Avoid_: Backup, save, upload.
+
+### Research background
+
+Moravec started as a research instrument, not a game — this shapes why certain design choices exist and is worth knowing before changing them. Federico Zimmerman (engineering student), Andrés Rieznik (neuroscientist, his thesis advisor), and El Gato y La Caja turned arithmetic-cognition research — normally volunteers doing timed mental math in a lab, one session a week — into a public Android game, on the bet that a genuinely fun game would collect more and better data than a lab ever could. It worked: ~500 downloads produced 120,000+ data points in weeks, replicating ~30 years of prior lab findings, and won silver at Neurocog 2015.
+
+Two decisions from that original app are why Moravec looks the way it does, not incidentally:
+- **The calculator-style answer input** exists so the player's attention stays on the arithmetic, not on learning the app's UI — the interface is deliberately supposed to disappear.
+- **Stars, points, and level-complete celebrations** exist because the team found that a data-collection tool people are *compelled* to open beats one they're *obligated* to open — gamification was the mechanism for data scale, not decoration.
+
+**Arithmetic cognition** findings the original research surfaced, useful context for any future work on level design, operation weighting, or a stats/insights screen:
+- **Symmetry advantage**: operations with identical factors (6×6, 7×7) are answered faster than non-identical ones of similar magnitude.
+- **Table-neighbor errors**: mistakes cluster around answers numerically close *in the multiplication table* (e.g. answering 48 for 6×7), not around the numerically nearest integer to the correct answer.
+- **Rhymed-order effect**: in Spanish, operations whose spoken result rhymes with the operation (6×4=24, 7×5=35, 9×5=45, 6×8=48) are answered faster — a verbal-encoding effect, evidence multiplication facts are partly stored as memorized language rather than pure visual/spatial representation.
+- 8×7 had the highest observed error rate of any operation (12.8%).
+
+## Engineering context
+
+Non-obvious architecture decisions and their reasoning. Full rationale lives in `docs/adr/`; this is the map, not the territory — read the linked ADR before changing the thing it covers.
+
+**Monorepo shape**: pnpm workspaces, three packages. `packages/engine` is the shared domain model (Operation, Trial scoring, Level completion) used independently by both `apps/frontend` (gameplay) and `apps/backend` (server-side re-validation of what a client reports — ADR-0001, ADR-0005). `apps/frontend` is a Next.js App Router app; `apps/backend` is Fastify + SQLite.
+
+**Dev loop has no build step for `engine`**: both `pnpm dev:frontend` and `pnpm dev:backend` resolve `engine` straight from `packages/engine/src` — types included — via a `"development"` package.json export condition (`customConditions: ["development"]` in both apps' tsconfigs) plus Turbopack's `transpilePackages`. Editing engine source hot-reloads both apps immediately, no `pnpm --filter engine build` in the loop. This only works because `engine/src` uses extensionless relative imports (bundler-style, matching frontend); production `dist/` is built by tsup (esbuild), which bundles into a single flat file so Node's real ESM loader never sees an unresolved extension. Don't reintroduce `.js`-suffixed internal imports in `engine/src` — that was the exact thing blocking Turbopack before this was fixed.
+
+**Auth is cookie-based, validated server-side before render** (ADR-0007): a `moravec_session` cookie carries `{token, email}`; `proxy.ts` (Next 16 renamed `middleware.ts` → `proxy.ts`) revalidates it against the backend before `/` or `/login` render, and `/login` itself is a Server Component that redirects if already logged in, delegating the interactive form to a Client Component.
+
+**Level routes exist but level-unlock is intentionally still client-side** (ADR-0008): `/level/[levelNumber]` reads local `LevelStats` to decide access, not a backend check. This was a deliberate choice, not an oversight — level-unlock was never a security boundary worth backend enforcement. The ADR also lays out the real reason to eventually add anonymous device-id accounts: cross-device continuity for players who never log in with email, not gating. See the "Local-first + account upgrade" plan below before building this.
+
+**Tailwind v4 theme**: every color and the one non-default type size used anywhere in the frontend comes from `@theme` tokens in `apps/frontend/app/globals.css`, named by role (`panel`, `accent`, `danger`, …) not value. No component should reach for a raw hex.
+
+**Jazz.tools was evaluated for local-first sync and rejected** — noted here so it isn't re-evaluated from scratch; if local-first sync work resumes, revisit that verdict rather than assuming it still holds, since neither the tool nor this app's sync needs are static.
