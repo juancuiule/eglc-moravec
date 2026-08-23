@@ -69,16 +69,16 @@ describe("SquaringHint", () => {
 
 describe("Operation.hint() integration", () => {
   it("Addition returns NoHint", async () => {
-    const { Addition } = await import("../operation.js");
-    const { categoryFromCodename } = await import("../category.js");
+    const { Addition } = await import("../operation");
+    const { categoryFromCodename } = await import("../category");
     const cat = categoryFromCodename("1d+1d");
     const op = Addition.create(cat as Parameters<typeof Addition.create>[0]);
     expect(op.hint().hasHint()).toBe(false);
   });
 
   it("Multiplication returns MultiplicationHint", async () => {
-    const { Multiplication } = await import("../operation.js");
-    const { categoryFromCodename } = await import("../category.js");
+    const { Multiplication } = await import("../operation");
+    const { categoryFromCodename } = await import("../category");
     const cat = categoryFromCodename("2dx1d");
     const op = Multiplication.create(cat as Parameters<typeof Multiplication.create>[0]);
     expect(op.hint().hasHint()).toBe(true);
@@ -86,8 +86,8 @@ describe("Operation.hint() integration", () => {
   });
 
   it("Squaring returns SquaringHint", async () => {
-    const { Squaring } = await import("../operation.js");
-    const { categoryFromCodename } = await import("../category.js");
+    const { Squaring } = await import("../operation");
+    const { categoryFromCodename } = await import("../category");
     const cat = categoryFromCodename("(2d)^2");
     const op = Squaring.create(cat as Parameters<typeof Squaring.create>[0]);
     expect(op.hint().hasHint()).toBe(true);

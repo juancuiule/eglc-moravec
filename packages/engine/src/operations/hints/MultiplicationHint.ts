@@ -31,12 +31,9 @@ export class MultiplicationHint implements Hint {
 /** Splits a number into its positional components, largest first.
  *  e.g. 234 → [200, 30, 4] */
 function digitParts(n: number): number[] {
-  const parts: number[] = [];
-  let place = 1;
-  while (place <= n) {
-    const digit = Math.floor(n / place) % 10;
-    if (digit !== 0) parts.unshift(digit * place);
-    place *= 10;
-  }
+  const digits = String(n).split("").map(Number);
+  const parts = digits
+    .map((digit, i) => digit * 10 ** (digits.length - 1 - i))
+    .filter((part) => part !== 0);
   return parts.length > 0 ? parts : [n];
 }

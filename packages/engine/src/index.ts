@@ -11,7 +11,7 @@ export {
   type SquaringCategory,
 } from "./operations/category";
 export { createRandomOperand, type OperandOptions } from "./operations/operand";
-export { createOperation, reconstructOperation, operations } from "./operations/index";
+export { createOperation, reconstructOperation } from "./operations/index";
 
 export type { Hint } from "./operations/hints/Hint";
 export { NoHint } from "./operations/hints/NoHint";

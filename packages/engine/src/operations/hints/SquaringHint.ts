@@ -18,9 +18,8 @@ export class SquaringHint implements Hint {
 
 /** Choose a such that (x − a) is the nearest multiple of 10. */
 function nearestA(x: number): number {
-  let a = x % 10;
-  if (a > 5) a = a - 10; // round up → negative a
-  return a;
+  const remainder = x % 10;
+  return remainder > 5 ? remainder - 10 : remainder; // round up → negative a
 }
 
 function buildSteps(x: number): string[] {

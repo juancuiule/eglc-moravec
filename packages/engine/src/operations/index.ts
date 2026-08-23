@@ -30,15 +30,3 @@ export function reconstructOperation(categoryCodename: string, operands: number[
       return new Squaring(operands[0], category);
   }
 }
-
-export const operations: Operation[] = [
-  createOperation("1d+1d"),
-  createOperation("1dx1d"),
-  createOperation("2d+2d"),
-  createOperation("2dx1d"),
-  createOperation("3dx1d"),
-  createOperation("(2d)^2"),
-  createOperation("4dx1d"),
-  createOperation("(3d)^2"),
-  createOperation("(4d)^2"),
-];

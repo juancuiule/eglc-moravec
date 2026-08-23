@@ -33,48 +33,45 @@ export function categoryFromCodename(codename: string): OperationCategory {
   const type = typeFromCodename(codename);
   switch (type) {
     case "addition": {
-      const match = codename.match(codenameRegex.addition);
-      if (!match) throw new Error(`Invalid codename for addition: ${codename}`);
-      const lDigits = parseInt(match[1], 10);
-      const rDigits = parseInt(match[2], 10);
+      const [, lDigits, rDigits] = matchCodename(codename, type);
       return {
         type,
         codename: codename as AdditionCategory["codename"],
-        lDigits,
-        rDigits,
+        lDigits: parseInt(lDigits, 10),
+        rDigits: parseInt(rDigits, 10),
       };
     }
     case "multiplication": {
-      const match = codename.match(codenameRegex.multiplication);
-      if (!match)
-        throw new Error(`Invalid codename for multiplication: ${codename}`);
-      const lDigits = parseInt(match[1], 10);
-      const rDigits = parseInt(match[2], 10);
+      const [, lDigits, rDigits] = matchCodename(codename, type);
       return {
         type,
         codename: codename as MultiplicationCategory["codename"],
-        lDigits,
-        rDigits,
+        lDigits: parseInt(lDigits, 10),
+        rDigits: parseInt(rDigits, 10),
       };
     }
     case "squaring": {
-      const match = codename.match(codenameRegex.squaring);
-      if (!match) throw new Error(`Invalid codename for squaring: ${codename}`);
-      const digits = parseInt(match[1], 10);
+      const [, digits] = matchCodename(codename, type);
       return {
         type,
         codename: codename as SquaringCategory["codename"],
-        digits,
+        digits: parseInt(digits, 10),
       };
     }
   }
 }
 
+function matchCodename(
+  codename: string,
+  type: OperationCategory["type"],
+): RegExpMatchArray {
+  const match = codename.match(codenameRegex[type]);
+  if (!match) throw new Error(`Invalid codename for ${type}: ${codename}`);
+  return match;
+}
+
 function typeFromCodename(codename: string): OperationCategory["type"] {
-  for (const [type, regex] of Object.entries(codenameRegex)) {
-    if (regex.test(codename)) {
-      return type as OperationCategory["type"];
-    }
-  }
-  throw new Error(`Unknown operation for codename: ${codename}`);
+  const entry = Object.entries(codenameRegex).find(([, regex]) => regex.test(codename));
+  if (!entry) throw new Error(`Unknown operation for codename: ${codename}`);
+  return entry[0] as OperationCategory["type"];
 }
