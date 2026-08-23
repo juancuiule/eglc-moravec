@@ -1,3 +1,5 @@
+"use client";
+
 import type { PracticePlaying } from "../practice/index";
 import { usePractice } from "../practice/store";
 import { AnsweringPanel } from "./AnsweringPanel";

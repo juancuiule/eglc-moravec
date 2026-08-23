@@ -18,7 +18,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: apps/frontend-next/Dockerfile
+      dockerfile: apps/frontend/Dockerfile
       args:
         # Baked into the client bundle at build time — must be reachable
         # from the *browser*, not just from inside this container. Override

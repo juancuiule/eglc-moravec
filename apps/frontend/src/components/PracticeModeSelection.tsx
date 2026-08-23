@@ -1,7 +1,8 @@
+"use client";
+
+import Link from "next/link";
 import { usePractice } from "../practice/store";
 import { ALL_CATEGORIES } from "../stats/computeStats";
-
-type Props = { onBack: () => void };
 
 // Human-readable labels for each category codename
 const CATEGORY_LABELS: Record<string, string> = {
@@ -16,18 +17,15 @@ const CATEGORY_LABELS: Record<string, string> = {
   "(4d)^2":  "4d²",
 };
 
-export function PracticeModeSelection({ onBack }: Props) {
+export function PracticeModeSelection() {
   const start = usePractice((s) => s.start);
 
   return (
     <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-6 w-full max-w-[480px] flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="text-[#a0a0c0] hover:text-white transition-colors text-lg leading-none"
-        >
+        <Link href="/" className="text-[#a0a0c0] hover:text-white transition-colors text-lg leading-none">
           ←
-        </button>
+        </Link>
         <h1 className="text-xl font-bold tracking-tight">Practice</h1>
       </div>
 

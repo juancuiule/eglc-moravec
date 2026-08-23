@@ -1,10 +1,12 @@
-import { useState, useMemo } from "react";
-import { loadTrialHistory } from "../storage/trialHistory";
-import { loadPracticeHistory } from "../storage/practiceHistory";
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
+import { loadTrialHistory, type PersistedTrial } from "../storage/trialHistory";
+import { loadPracticeHistory, type PersistedPracticeTrial } from "../storage/practiceHistory";
 import { computeStats } from "../stats/computeStats";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
 
-type Props = { onBack: () => void };
 type Tab = "level" | "practice";
 
 function formatMs(ms: number): string {
@@ -29,13 +31,22 @@ function EffBar({ value }: { value: number }) {
   );
 }
 
-export function StatsScreen({ onBack }: Props) {
+export function StatsScreen() {
   const [tab, setTab] = useState<Tab>("level");
   const [selected, setSelected] = useState<string | null>(null);
 
   // Level and Practice trials are never merged — separate histories, separate numbers.
-  const levelTrials = useMemo(() => loadTrialHistory(), []);
-  const practiceTrials = useMemo(() => loadPracticeHistory(), []);
+  // Read on mount rather than during render — localStorage isn't available
+  // during SSR, and reading it synchronously here would mismatch the
+  // server-rendered (empty) HTML against the client's first render.
+  const [levelTrials, setLevelTrials] = useState<PersistedTrial[]>([]);
+  const [practiceTrials, setPracticeTrials] = useState<PersistedPracticeTrial[]>([]);
+
+  useEffect(() => {
+    setLevelTrials(loadTrialHistory());
+    setPracticeTrials(loadPracticeHistory());
+  }, []);
+
   const trials = tab === "level" ? levelTrials : practiceTrials;
 
   const stats = useMemo(() => computeStats(trials), [trials]);
@@ -53,12 +64,9 @@ export function StatsScreen({ onBack }: Props) {
   return (
     <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-6 w-full max-w-[480px] flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="text-[#a0a0c0] hover:text-white transition-colors text-lg leading-none"
-        >
+        <Link href="/" className="text-[#a0a0c0] hover:text-white transition-colors text-lg leading-none">
           ←
-        </button>
+        </Link>
         <h1 className="text-xl font-bold tracking-tight">Statistics</h1>
       </div>
 

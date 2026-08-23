@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import type { Operation, Answering, BaseTrialResult, Keystroke } from "engine";
 import { HintCard } from "./HintCard";

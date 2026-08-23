@@ -4,8 +4,7 @@ import {
   loadPracticeHistory,
   appendPracticeTrials,
 } from "./practiceHistory";
-import { Addition, Multiplication } from "engine";
-import type { PracticeTrialResult } from "../practice/index";
+import { Addition, Multiplication, type BaseTrialResult } from "engine";
 
 const STORAGE_KEY = "moravec:practiceHistory";
 
@@ -29,7 +28,7 @@ beforeEach(() => {
   vi.stubGlobal("localStorage", localStorageMock);
 });
 
-function makeResult(overrides: Partial<PracticeTrialResult> = {}): PracticeTrialResult {
+function makeResult(overrides: Partial<BaseTrialResult> = {}): BaseTrialResult {
   const op = Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
   return {
     operation: op,

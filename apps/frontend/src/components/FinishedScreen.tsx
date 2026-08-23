@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect } from "react";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
@@ -5,9 +7,9 @@ import { LEVELS } from "../LEVELS";
 import { TOTAL_TRIALS } from "../game/index";
 import { StarsDisplay } from "./StarsDisplay";
 
-type Props = { state: Finished; onBack: () => void };
+type Props = { state: Finished };
 
-export function FinishedScreen({ state, onBack }: Props) {
+export function FinishedScreen({ state }: Props) {
   const reset = useGame((s) => s.reset);
   const replay = useGame((s) => s.replay);
   const load = useGame((s) => s.load);
@@ -36,7 +38,6 @@ export function FinishedScreen({ state, onBack }: Props) {
         replay();
       } else if (e.key === "m" || e.key === "M") {
         reset();
-        onBack();
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -91,10 +92,7 @@ export function FinishedScreen({ state, onBack }: Props) {
         </button>
         <button
           className="cursor-pointer text-[#a0a0c0] w-full rounded-lg px-5 py-2 font-medium hover:text-white transition-colors"
-          onClick={() => {
-            reset();
-            onBack();
-          }}
+          onClick={reset}
         >
           Back to menu (M)
         </button>

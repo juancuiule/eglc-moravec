@@ -1,3 +1,5 @@
+"use client";
+
 import type { Playing } from "../game/index";
 import { useGame } from "../game/store";
 import { AnsweringPanel } from "./AnsweringPanel";

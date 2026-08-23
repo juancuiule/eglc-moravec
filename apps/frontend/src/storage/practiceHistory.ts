@@ -1,4 +1,4 @@
-import type { PracticeTrialResult } from "../practice/index";
+import type { BaseTrialResult } from "engine";
 import { computePlayedAtTimestamps } from "./playedAt";
 
 const STORAGE_KEY = "moravec:practiceHistory";
@@ -18,7 +18,7 @@ export type PersistedPracticeTrial = {
 
 /** Map a stopped Practice session's trial results into the shape persisted to Practice history. */
 export function buildPersistedPracticeTrials(
-  results: PracticeTrialResult[],
+  results: BaseTrialResult[],
 ): PersistedPracticeTrial[] {
   const playedAtTimestamps = computePlayedAtTimestamps(
     results.map((r) => r.timeTaken),

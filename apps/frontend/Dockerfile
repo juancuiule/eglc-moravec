@@ -7,17 +7,17 @@ ARG NEXT_PUBLIC_API_URL=http://localhost:3000
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 COPY pnpm-workspace.yaml package.json ./
 COPY packages/engine ./packages/engine
-COPY apps/frontend-next ./apps/frontend-next
+COPY apps/frontend ./apps/frontend
 RUN corepack enable && pnpm install
 RUN pnpm --filter engine build
-RUN pnpm --filter frontend-next build
+RUN pnpm --filter frontend build
 
 FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
-COPY --from=build /app/apps/frontend-next/.next/standalone ./
-COPY --from=build /app/apps/frontend-next/.next/static ./apps/frontend-next/.next/static
+COPY --from=build /app/apps/frontend/.next/standalone ./
+COPY --from=build /app/apps/frontend/.next/static ./apps/frontend/.next/static
 EXPOSE 3000
-CMD ["node", "apps/frontend-next/server.js"]
+CMD ["node", "apps/frontend/server.js"]

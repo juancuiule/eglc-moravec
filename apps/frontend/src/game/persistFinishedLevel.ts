@@ -1,8 +1,8 @@
 import type { Finished } from "./index";
-import type { AuthState } from "../auth/index";
+import type { AuthState } from "../auth/store";
 import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
-import { pushResults } from "../sync/push";
+import { pushResults } from "../sync/pushResults";
 
 /** Persists a finished Level locally, and syncs it to the backend if the player is logged in. */
 export function persistFinishedLevel(state: Finished, authState: AuthState): void {

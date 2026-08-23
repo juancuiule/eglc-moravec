@@ -1,9 +1,13 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import type { PracticeStopped } from "../practice/index";
 import { usePractice } from "../practice/store";
 
-type Props = { state: PracticeStopped; onBack: () => void };
+type Props = { state: PracticeStopped };
 
-export function PracticeSummary({ state, onBack }: Props) {
+export function PracticeSummary({ state }: Props) {
+  const router = useRouter();
   const start = usePractice((s) => s.start);
   const reset = usePractice((s) => s.reset);
 
@@ -14,7 +18,7 @@ export function PracticeSummary({ state, onBack }: Props) {
 
   function handleBack() {
     reset();
-    onBack();
+    router.push("/");
   }
 
   return (

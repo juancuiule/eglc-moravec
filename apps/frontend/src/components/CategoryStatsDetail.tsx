@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo } from "react";
 import { computeHistogram, type StatsTrial } from "../stats/computeStats";
 
