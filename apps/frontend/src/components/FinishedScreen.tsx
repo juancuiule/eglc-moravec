@@ -1,33 +1,29 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
-import { LEVELS } from "../LEVELS";
-import { TOTAL_TRIALS } from "../game/index";
 import { StarsDisplay } from "./StarsDisplay";
 
 type Props = { state: Finished };
 
 export function FinishedScreen({ state }: Props) {
+  const router = useRouter();
   const reset = useGame((s) => s.reset);
   const replay = useGame((s) => s.replay);
-  const load = useGame((s) => s.load);
 
   const { correctInTime, levelCompleted, stars, results, config } = state;
   const totalAttempts = results.length;
   const isLastLevel = config.levelNumber >= 150;
 
   function playNext() {
-    const nextKey = String(config.levelNumber + 1) as keyof typeof LEVELS;
-    const nextLevel = LEVELS[nextKey];
-    if (nextLevel) {
-      load({
-        levelNumber: config.levelNumber + 1,
-        level: nextLevel,
-        totalTrials: TOTAL_TRIALS,
-      });
-    }
+    router.push(`/level/${config.levelNumber + 1}`);
+  }
+
+  function backToMenu() {
+    reset();
+    router.push("/");
   }
 
   useEffect(() => {
@@ -37,7 +33,7 @@ export function FinishedScreen({ state }: Props) {
       } else if (e.key === "r" || e.key === "R") {
         replay();
       } else if (e.key === "m" || e.key === "M") {
-        reset();
+        backToMenu();
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -92,7 +88,7 @@ export function FinishedScreen({ state }: Props) {
         </button>
         <button
           className="cursor-pointer text-[#a0a0c0] w-full rounded-lg px-5 py-2 font-medium hover:text-white transition-colors"
-          onClick={reset}
+          onClick={backToMenu}
         >
           Back to menu (M)
         </button>

@@ -2,23 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth, authStore } from "@/auth/store";
-import { useGame, gameStore } from "@/game/store";
-import { TOTAL_TRIALS } from "@/game/index";
-import { watchStoreTransition } from "@/storeWatch";
-import { persistFinishedLevel } from "@/game/persistFinishedLevel";
+import { useAuth } from "@/auth/store";
 import { LEVELS } from "@/LEVELS";
-import { loadLevelStats, type PersistedLevelStats } from "@/storage/levelStats";
+import { loadLevelStats, isLevelUnlocked, type PersistedLevelStats } from "@/storage/levelStats";
 import { Centered } from "@/components/Centered";
-import { AnsweringView } from "@/components/AnsweringView";
-import { FinishedScreen } from "@/components/FinishedScreen";
 
 const LEVEL_KEYS = Object.keys(LEVELS).map(Number).sort((a, b) => a - b);
-
-function isUnlocked(levelNumber: number, stats: PersistedLevelStats): boolean {
-  if (levelNumber === 1) return true;
-  return (stats[String(levelNumber - 1)]?.stars ?? 0) > 0;
-}
 
 function LevelStars({ stars }: { stars: 0 | 1 | 2 | 3 }) {
   return (
@@ -35,55 +24,24 @@ function LevelStars({ stars }: { stars: 0 | 1 | 2 | 3 }) {
 const navLinkClassName =
   "text-sm text-[#a0a0c0] hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-[#2e2e42]";
 
+const levelCellClassName = (unlocked: boolean, played: boolean) =>
+  [
+    "flex flex-col items-center justify-center rounded-xl py-2 px-1 text-sm font-semibold transition-all",
+    unlocked
+      ? played
+        ? "bg-[#0f0f13] border border-[#2e2e42] hover:border-[#5a5af0] cursor-pointer"
+        : "bg-[#1a1a30] border border-[#3a3a55] hover:border-[#5a5af0] cursor-pointer"
+      : "bg-[#0f0f13] border border-[#1e1e28] text-[#3e3e52] cursor-not-allowed",
+  ].join(" ");
+
 export default function HomePage() {
   const authState = useAuth((s) => s.state);
   const logout = useAuth((s) => s.logout);
-  const gameState = useGame((s) => s.state);
-  const load = useGame((s) => s.load);
   const [stats, setStats] = useState<PersistedLevelStats>({});
 
   useEffect(() => {
     setStats(loadLevelStats());
   }, []);
-
-  // Persist + sync a Level the moment the game store reaches Finished —
-  // tied to the state transition, not to whether FinishedScreen renders.
-  useEffect(() => {
-    return watchStoreTransition(
-      gameStore,
-      (s) => s.state.type === "finished",
-      (s) => {
-        if (s.state.type !== "finished") return;
-        persistFinishedLevel(s.state, authStore.getState().state);
-        setStats(loadLevelStats()); // reflect the new record once back at level selection
-      },
-    );
-  }, []);
-
-  function handleSelect(levelNumber: number) {
-    if (!isUnlocked(levelNumber, stats)) return;
-    load({
-      levelNumber,
-      level: LEVELS[String(levelNumber) as keyof typeof LEVELS],
-      totalTrials: TOTAL_TRIALS,
-    });
-  }
-
-  if (gameState.type === "playing") {
-    return (
-      <Centered>
-        <AnsweringView state={gameState} />
-      </Centered>
-    );
-  }
-
-  if (gameState.type === "finished") {
-    return (
-      <Centered>
-        <FinishedScreen state={gameState} />
-      </Centered>
-    );
-  }
 
   return (
     <Centered>
@@ -120,39 +78,34 @@ export default function HomePage() {
         <div className="grid grid-cols-5 gap-1.5 max-h-[60dvh] overflow-y-auto pr-1">
           {LEVEL_KEYS.map((n) => {
             const levelStats = stats[String(n)];
-            const unlocked = isUnlocked(n, stats);
+            const unlocked = isLevelUnlocked(n, stats);
             const played = !!levelStats;
+            const className = levelCellClassName(unlocked, played);
 
-            return (
-              <button
-                key={n}
-                disabled={!unlocked}
-                onClick={() => handleSelect(n)}
-                className={[
-                  "flex flex-col items-center justify-center rounded-xl py-2 px-1 text-sm font-semibold transition-all",
-                  unlocked
-                    ? played
-                      ? "bg-[#0f0f13] border border-[#2e2e42] hover:border-[#5a5af0] cursor-pointer"
-                      : "bg-[#1a1a30] border border-[#3a3a55] hover:border-[#5a5af0] cursor-pointer"
-                    : "bg-[#0f0f13] border border-[#1e1e28] text-[#3e3e52] cursor-not-allowed",
-                ].join(" ")}
-              >
-                {unlocked ? (
-                  <>
-                    <span>{n}</span>
-                    {played ? (
-                      <LevelStars stars={levelStats.stars} />
-                    ) : (
-                      <span className="text-[10px] text-[#5a5af0] mt-0.5">new</span>
-                    )}
-                  </>
+            const content = unlocked ? (
+              <>
+                <span>{n}</span>
+                {played ? (
+                  <LevelStars stars={levelStats.stars} />
                 ) : (
-                  <>
-                    <span>{n}</span>
-                    <span className="text-[10px] mt-0.5">🔒</span>
-                  </>
+                  <span className="text-[10px] text-[#5a5af0] mt-0.5">new</span>
                 )}
-              </button>
+              </>
+            ) : (
+              <>
+                <span>{n}</span>
+                <span className="text-[10px] mt-0.5">🔒</span>
+              </>
+            );
+
+            return unlocked ? (
+              <Link key={n} href={`/level/${n}`} className={className}>
+                {content}
+              </Link>
+            ) : (
+              <div key={n} className={className}>
+                {content}
+              </div>
             );
           })}
         </div>

@@ -24,18 +24,19 @@ beforeEach(() => {
 });
 
 test(
-  "renders the level selection screen with level 1 unlocked and level 2 locked",
+  "renders the level selection screen with level 1 linked and level 2 locked",
   () => {
     render(<HomePage />);
     expect(screen.getByText("Mental Math")).toBeDefined();
 
-    const level1 = screen.getByRole("button", { name: "1 new" }) as HTMLButtonElement;
-    expect(level1.disabled).toBe(false);
+    const level1 = screen.getByRole("link", { name: "1 new" });
+    expect(level1.getAttribute("href")).toBe("/level/1");
 
-    const level2 = screen.getByRole("button", { name: "2 🔒" }) as HTMLButtonElement;
-    expect(level2.disabled).toBe(true);
+    // A locked level renders as plain text, not a link — nothing to
+    // navigate to yet.
+    expect(screen.getByText("2").closest("a")).toBeNull();
   },
-  // Rendering all 150 level buttons is legitimately slow under concurrent
+  // Rendering all 150 level cells is legitimately slow under concurrent
   // CI/workspace load (`pnpm -r test:run`) — past the 5s default elsewhere.
   15000,
 );
