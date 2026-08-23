@@ -42,15 +42,45 @@ export type AdminStats = {
   byCategory: CategoryPerformance[];
 };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Request helpers ───────────────────────────────────────────────────────────
+
+type RequestOptions = {
+  method: "GET" | "POST";
+  /** Attached as an `Authorization: Bearer` header when present. */
+  token?: string;
+  /** JSON-stringified as the body; also sets Content-Type. */
+  body?: unknown;
+};
 
 async function errorFrom(res: Response): Promise<string> {
   const body = await res.json().catch(() => null);
   return (body && typeof body.error === "string" ? body.error : null) ?? "request_failed";
 }
 
-function authHeader(token: string): { Authorization: string } {
-  return { Authorization: `Bearer ${token}` };
+/** Every backend call goes through this — the one place headers get built. */
+async function request(path: string, options: RequestOptions): Promise<Response> {
+  const headers: Record<string, string> = {};
+  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  if (options.token) headers.Authorization = `Bearer ${options.token}`;
+
+  return fetch(`${API_URL}${path}`, {
+    method: options.method,
+    headers,
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+  });
+}
+
+/** Like `request`, but throws on a non-ok response and parses the JSON body. */
+async function requestJson<T>(path: string, options: RequestOptions): Promise<T> {
+  const res = await request(path, options);
+  if (!res.ok) throw new Error(await errorFrom(res));
+  return (await res.json()) as T;
+}
+
+/** Like `request`, but throws on a non-ok response and discards the body. */
+async function requestVoid(path: string, options: RequestOptions): Promise<void> {
+  const res = await request(path, options);
+  if (!res.ok) throw new Error(await errorFrom(res));
 }
 
 // ─── Api ───────────────────────────────────────────────────────────────────────
@@ -59,58 +89,42 @@ function authHeader(token: string): { Authorization: string } {
  * The one place every call to the backend is defined. Each function is a
  * plain async function — callable directly (server components, imperative
  * call sites) or as a TanStack Query `queryFn`/`mutationFn`. Every function
- * throws on a non-ok response (the standard TanStack Query error contract);
- * a best-effort call site decides for itself whether to swallow that.
+ * throws on a non-ok response (the standard TanStack Query error contract),
+ * except `checkSession`, whose whole contract is reporting validity as a
+ * boolean, not an error; a best-effort call site decides for itself whether
+ * to swallow a thrown rejection.
  */
 export const Api = {
-  async requestOtp(email: string): Promise<void> {
-    const res = await fetch(`${API_URL}/auth/otp/request`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    if (!res.ok) throw new Error(await errorFrom(res));
+  requestOtp(email: string): Promise<void> {
+    return requestVoid("/auth/otp/request", { method: "POST", body: { email } });
   },
 
-  async verifyOtp(email: string, code: string): Promise<OtpVerified> {
-    const res = await fetch(`${API_URL}/auth/otp/verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
-    });
-    if (!res.ok) throw new Error(await errorFrom(res));
-    return (await res.json()) as OtpVerified;
+  verifyOtp(email: string, code: string): Promise<OtpVerified> {
+    return requestJson<OtpVerified>("/auth/otp/verify", { method: "POST", body: { email, code } });
   },
 
   async checkSession(token: string): Promise<boolean> {
-    const res = await fetch(`${API_URL}/auth/me`, { headers: authHeader(token) });
+    const res = await request("/auth/me", { method: "GET", token });
     return res.ok;
   },
 
-  async logout(token: string): Promise<void> {
-    const res = await fetch(`${API_URL}/auth/logout`, { method: "POST", headers: authHeader(token) });
-    if (!res.ok) throw new Error(await errorFrom(res));
+  logout(token: string): Promise<void> {
+    return requestVoid("/auth/logout", { method: "POST", token });
   },
 
-  async syncResults(token: string, trials: SyncTrial[]): Promise<void> {
-    const res = await fetch(`${API_URL}/sync/results`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeader(token) },
-      body: JSON.stringify({ trials }),
-    });
-    if (!res.ok) throw new Error(await errorFrom(res));
+  syncResults(token: string, trials: SyncTrial[]): Promise<void> {
+    return requestVoid("/sync/results", { method: "POST", token, body: { trials } });
   },
 
   async pullLevelStats(token: string): Promise<PersistedLevelStats> {
-    const res = await fetch(`${API_URL}/sync/level-stats`, { headers: authHeader(token) });
-    if (!res.ok) throw new Error(await errorFrom(res));
-    const data = await res.json();
-    return data.levelStats as PersistedLevelStats;
+    const data = await requestJson<{ levelStats: PersistedLevelStats }>("/sync/level-stats", {
+      method: "GET",
+      token,
+    });
+    return data.levelStats;
   },
 
-  async fetchAdminStats(): Promise<AdminStats> {
-    const res = await fetch(`${API_URL}/admin/stats`);
-    if (!res.ok) throw new Error(await errorFrom(res));
-    return (await res.json()) as AdminStats;
+  fetchAdminStats(): Promise<AdminStats> {
+    return requestJson<AdminStats>("/admin/stats", { method: "GET" });
   },
 };
