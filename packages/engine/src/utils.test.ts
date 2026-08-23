@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { math, getKeys, getValues } from "./utils.js";
+import { math, getKeys, getValues } from "./utils";
 
 afterEach(() => {
   vi.restoreAllMocks();

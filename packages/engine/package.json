@@ -8,18 +8,22 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "moravec-source": "./src/index.ts",
+      "development": "./src/index.ts",
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run"
   },
   "devDependencies": {
+    "tsup": "^8.5.1",
     "typescript": "^5.7.3",
     "vitest": "^3.0.8"
   }

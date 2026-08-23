@@ -1,4 +1,4 @@
-import type { Hint } from "./Hint.js";
+import type { Hint } from "./Hint";
 
 export class NoHint implements Hint {
   hasHint(): boolean {

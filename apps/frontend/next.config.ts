@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
   // A minimal, self-contained production server (Dockerfile's runtime
   // stage) instead of shipping the full node_modules tree.
   output: "standalone",
+  // engine is consumed as TS source in dev (see its "development" export
+  // condition) so edits to packages/engine/src hot-reload here directly,
+  // with no build step for engine in dev.
+  transpilePackages: ["engine"],
   // This app lives in a pnpm workspace and depends on packages/engine —
   // trace file dependencies from the monorepo root so the standalone
   // output includes that workspace package, not just this app's own dir.

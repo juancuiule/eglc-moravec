@@ -1,4 +1,4 @@
-import { math } from "../utils.js";
+import { math } from "../utils";
 
 export type OperandOptions = {
   allow_zero?: boolean;

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { NoHint } from "./NoHint.js";
-import { MultiplicationHint } from "./MultiplicationHint.js";
-import { SquaringHint } from "./SquaringHint.js";
+import { NoHint } from "./NoHint";
+import { MultiplicationHint } from "./MultiplicationHint";
+import { SquaringHint } from "./SquaringHint";
 
 describe("NoHint", () => {
   it("hasHint returns false", () => {

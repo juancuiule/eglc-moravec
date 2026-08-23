@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { starsForScore, LEVEL_COMPLETE_THRESHOLD } from "./levelScoring.js";
+import { starsForScore, LEVEL_COMPLETE_THRESHOLD } from "./levelScoring";
 
 describe("starsForScore", () => {
   it("returns 0 for fewer than 15", () => {

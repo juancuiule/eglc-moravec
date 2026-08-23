@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createOperation, reconstructOperation } from "./index.js";
-import { Addition, Multiplication, Squaring } from "./operation.js";
+import { createOperation, reconstructOperation } from "./index";
+import { Addition, Multiplication, Squaring } from "./operation";
 
 describe("createOperation", () => {
   it("creates an Addition for an addition codename", () => {

@@ -2,12 +2,12 @@ import {
   AdditionCategory,
   MultiplicationCategory,
   SquaringCategory,
-} from "./category.js";
-import { createRandomOperand, OperandOptions } from "./operand.js";
-import type { Hint } from "./hints/Hint.js";
-import { NoHint } from "./hints/NoHint.js";
-import { MultiplicationHint } from "./hints/MultiplicationHint.js";
-import { SquaringHint } from "./hints/SquaringHint.js";
+} from "./category";
+import { createRandomOperand, OperandOptions } from "./operand";
+import type { Hint } from "./hints/Hint";
+import { NoHint } from "./hints/NoHint";
+import { MultiplicationHint } from "./hints/MultiplicationHint";
+import { SquaringHint } from "./hints/SquaringHint";
 
 export abstract class Operation {
   static readonly restrictions: OperandOptions;

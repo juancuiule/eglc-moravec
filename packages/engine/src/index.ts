@@ -2,21 +2,21 @@
 // Used by both apps/frontend (gameplay) and apps/backend (independent
 // server-side verification of what a client reports). See ADR-0001.
 
-export { Operation, Addition, Multiplication, Squaring } from "./operations/operation.js";
+export { Operation, Addition, Multiplication, Squaring } from "./operations/operation";
 export {
   categoryFromCodename,
   type OperationCategory,
   type AdditionCategory,
   type MultiplicationCategory,
   type SquaringCategory,
-} from "./operations/category.js";
-export { createRandomOperand, type OperandOptions } from "./operations/operand.js";
-export { createOperation, reconstructOperation, operations } from "./operations/index.js";
+} from "./operations/category";
+export { createRandomOperand, type OperandOptions } from "./operations/operand";
+export { createOperation, reconstructOperation, operations } from "./operations/index";
 
-export type { Hint } from "./operations/hints/Hint.js";
-export { NoHint } from "./operations/hints/NoHint.js";
-export { MultiplicationHint } from "./operations/hints/MultiplicationHint.js";
-export { SquaringHint } from "./operations/hints/SquaringHint.js";
+export type { Hint } from "./operations/hints/Hint";
+export { NoHint } from "./operations/hints/NoHint";
+export { MultiplicationHint } from "./operations/hints/MultiplicationHint";
+export { SquaringHint } from "./operations/hints/SquaringHint";
 
 export {
   scoreAnswer,
@@ -27,8 +27,8 @@ export {
   type Answering,
   type BaseTrialResult,
   type TrialInputs,
-} from "./trial/engine.js";
+} from "./trial/engine";
 
-export { starsForScore, LEVEL_COMPLETE_THRESHOLD } from "./levelScoring.js";
+export { starsForScore, LEVEL_COMPLETE_THRESHOLD } from "./levelScoring";
 
-export { math, getKeys, getValues } from "./utils.js";
+export { math, getKeys, getValues } from "./utils";
