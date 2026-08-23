@@ -28,9 +28,10 @@ test("shows the Log in link when logged out", () => {
   expect(screen.getByRole("link", { name: "Log in" })).toBeDefined();
 });
 
-test("links to Play, Practice, and Stats routes", () => {
+test("links to Play, Practice, Stats, and Tutorials routes", () => {
   render(<HomePage />);
   expect(screen.getByRole("link", { name: "Play" }).getAttribute("href")).toBe("/levels");
   expect(screen.getByRole("link", { name: "Practice" }).getAttribute("href")).toBe("/practice");
   expect(screen.getByRole("link", { name: "Stats" }).getAttribute("href")).toBe("/stats");
+  expect(screen.getByRole("link", { name: "Tutorials" }).getAttribute("href")).toBe("/tutorials");
 });

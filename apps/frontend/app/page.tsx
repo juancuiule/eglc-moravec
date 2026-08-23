@@ -50,6 +50,9 @@ export default function HomePage() {
               Stats
             </Link>
           </div>
+          <Link href="/tutorials" className={`${outlineButton} text-center block`}>
+            Tutorials
+          </Link>
         </div>
       </div>
     </Centered>
