@@ -1,8 +1,46 @@
 import { render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import HomePage from "./page";
 
-test("renders the home page", () => {
+// Minimal localStorage mock, matching the convention used elsewhere in this
+// codebase — the auth store and level stats both read it at module/mount time.
+const store: Record<string, string> = {};
+const localStorageMock = {
+  getItem: (key: string) => store[key] ?? null,
+  setItem: (key: string, val: string) => {
+    store[key] = val;
+  },
+  removeItem: (key: string) => {
+    delete store[key];
+  },
+  clear: () => {
+    for (const k in store) delete store[k];
+  },
+};
+
+beforeEach(() => {
+  localStorageMock.clear();
+  vi.stubGlobal("localStorage", localStorageMock);
+});
+
+test("renders the level selection screen with level 1 unlocked and level 2 locked", () => {
   render(<HomePage />);
-  expect(screen.getByText("EGLC Moravec")).toBeDefined();
+  expect(screen.getByText("Mental Math")).toBeDefined();
+
+  const level1 = screen.getByRole("button", { name: "1 new" }) as HTMLButtonElement;
+  expect(level1.disabled).toBe(false);
+
+  const level2 = screen.getByRole("button", { name: "2 🔒" }) as HTMLButtonElement;
+  expect(level2.disabled).toBe(true);
+});
+
+test("shows the Log in link when logged out", () => {
+  render(<HomePage />);
+  expect(screen.getByRole("link", { name: "Log in" })).toBeDefined();
+});
+
+test("links to Practice and Stats routes", () => {
+  render(<HomePage />);
+  expect(screen.getByRole("link", { name: "Practice" }).getAttribute("href")).toBe("/practice");
+  expect(screen.getByRole("link", { name: "Stats →" }).getAttribute("href")).toBe("/stats");
 });
