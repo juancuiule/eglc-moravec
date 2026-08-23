@@ -29,6 +29,11 @@ export function AnsweringView({ state }: Props) {
       onSubmitAnswer={submitAnswer}
       onTimeUp={timeUp}
       onAdvance={advance}
+      beforeOperation={
+        <div className="text-center text-xs text-muted font-mono tracking-wider">
+          Level {state.config.levelNumber}
+        </div>
+      }
       headerLeft={
         <span>
           Trial {state.trialsConsumed + 1} / {state.config.totalTrials}
