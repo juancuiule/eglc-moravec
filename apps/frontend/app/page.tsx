@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/auth/store";
 import { Centered } from "@/components/Centered";
-import { panel, successButton, primaryButton } from "@/styles";
+import { panel, successButton, primaryButton, outlineButton } from "@/styles";
 
 const navLinkClassName =
   "text-sm text-muted hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-subtle";
@@ -16,7 +16,7 @@ export default function HomePage() {
     <Centered>
       <div className={`${panel} p-6 max-w-[420px] gap-6`}>
         <div className="flex items-center justify-between flex-wrap gap-y-2">
-          <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">Mental Math</h1>
+          <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">Moravec</h1>
           <div className="flex items-center gap-1">
             {authState.type === "loggedIn" ? (
               <>
@@ -46,7 +46,7 @@ export default function HomePage() {
             <Link href="/practice" className={`${primaryButton} text-center block flex-1`}>
               Practice
             </Link>
-            <Link href="/stats" className={`${primaryButton} text-center block flex-1`}>
+            <Link href="/stats" className={`${outlineButton} text-center block flex-1`}>
               Stats
             </Link>
           </div>

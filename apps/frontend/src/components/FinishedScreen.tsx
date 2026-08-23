@@ -24,7 +24,7 @@ export function FinishedScreen({ state }: Props) {
 
   function backToMenu() {
     reset();
-    router.push("/");
+    router.push("/levels");
   }
 
   useEffect(() => {
