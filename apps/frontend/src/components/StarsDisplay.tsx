@@ -6,7 +6,7 @@ export function StarsDisplay({ stars }: Props) {
       {[1, 2, 3].map((n) => (
         <span
           key={n}
-          className={n <= stars ? "text-accent" : "text-disabled"}
+          className={n <= stars ? "text-warning" : "text-disabled"}
         >
           ★
         </span>

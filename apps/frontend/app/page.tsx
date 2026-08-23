@@ -14,7 +14,7 @@ function LevelStars({ stars }: { stars: 0 | 1 | 2 | 3 }) {
   return (
     <span className="text-xs">
       {[1, 2, 3].map((n) => (
-        <span key={n} className={n <= stars ? "text-accent" : "text-disabled"}>
+        <span key={n} className={n <= stars ? "text-warning" : "text-disabled"}>
           ★
         </span>
       ))}

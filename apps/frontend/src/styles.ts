@@ -10,8 +10,8 @@ const buttonBase =
   "cursor-pointer text-white rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 active:scale-[0.97] transition-opacity";
 
 export const primaryButton = `${buttonBase} bg-accent`;
-/** The "move forward" action (play next, submit) — the brand's teal gradient, not a semantic green. */
-export const successButton = `${buttonBase} bg-gradient-to-b from-teal-light to-teal`;
+/** The "move forward" action (play next, submit) — the brand's teal, not a semantic green. */
+export const successButton = `${buttonBase} bg-teal`;
 
 export const ghostButton =
   "cursor-pointer text-muted w-full rounded-lg px-5 py-2 font-medium hover:text-foreground transition-colors";

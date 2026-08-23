@@ -32,14 +32,12 @@
   --color-muted-2: #9ca3af;
   --color-disabled: #c6c6cc;
 
-  /* Brand — pink is the primary accent (stars, highlights, secondary CTAs);
-     teal is the "go forward" color for the single biggest action on a
-     screen (start/submit/next), and pairs as a gradient (teal-light to
-     teal) on that button. */
+  /* Brand — pink is the primary accent (highlights, secondary CTAs); teal
+     is the "go forward" color for the single biggest action on a screen
+     (start/submit/next). */
   --color-accent: #ef2172;
   --color-accent-soft: #fa7fae; /* accent-tinted body text, e.g. inside panel-accent */
   --color-teal: #22a891;
-  --color-teal-light: #4bc2a0; /* lighter gradient stop, paired with teal as the darker stop */
   --color-teal-bg: #e3f7f1; /* soft teal tint — the level-complete celebration surface */
 
   /* Semantic states — correctness feedback and the timer's traffic light,
