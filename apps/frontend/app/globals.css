@@ -10,25 +10,30 @@
  */
 @theme {
   /* Surfaces, darkest to lightest */
-  --color-base: #0f0f13; /* page background; also "recessed" surfaces inside a panel — input wells, table rows, calculator keys */
-  --color-panel: #1a1a24; /* the elevated card every screen is built from */
-  --color-panel-accent: #1a1a30; /* a panel surface calling attention to itself: an unplayed level cell, the hint card */
+  --color-base: #121212; /* page background; also "recessed" surfaces inside a panel — input wells, table rows, calculator keys */
+  --color-panel: #1a1a1a; /* the elevated card every screen is built from */
+  --color-panel-accent: #222222; /* a panel surface calling attention to itself: an unplayed level cell, the hint card */
 
   /* Edges and low-emphasis interactive surfaces (a border color doubles as
      a subtle hover/pressed background throughout this UI) */
-  --color-subtle: #2e2e42;
-  --color-subtle-accent: #3a3a55; /* pairs with panel-accent */
-  --color-subtle-muted: #1e1e28; /* pairs with a locked/disabled surface */
+  --color-subtle: #2d2d2d;
+  --color-subtle-accent: #3a3a3a; /* pairs with panel-accent */
+  --color-subtle-muted: #181818; /* pairs with a locked/disabled surface */
 
   /* Text, most to least prominent */
-  --color-foreground: #e8e8f0;
-  --color-muted: #a0a0c0;
-  --color-muted-2: #5a5a80;
-  --color-disabled: #3e3e52;
+  --color-foreground: #e8e8e8;
+  --color-muted: #a0a0a0;
+  --color-muted-2: #666666;
+  --color-disabled: #444444;
+  /* Text, most to least prominent */
+  --color-foreground: #e8e8e8;
+  --color-muted: #a6a6a6;
+  --color-muted-2: #686868;
+  --color-disabled: #444444;
 
   /* Brand accent */
-  --color-accent: #5a5af0;
-  --color-accent-soft: #c0c0f0; /* accent-tinted body text, e.g. inside panel-accent */
+  --color-accent: #ff4181;
+  --color-accent-soft: #ff8fb1; /* accent-tinted body text, e.g. inside panel-accent */
 
   /* Semantic states */
   --color-success: #4ade80;
