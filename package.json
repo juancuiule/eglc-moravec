@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "postinstall": "pnpm --filter engine build",
-    "dev": "pnpm --filter frontend dev",
+    "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend": "pnpm --filter backend dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",

@@ -7,8 +7,11 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "development": {
+        "types": "./src/index.ts",
+        "default": "./src/index.ts"
+      },
       "types": "./dist/index.d.ts",
-      "development": "./src/index.ts",
       "default": "./dist/index.js"
     }
   },
