@@ -2,10 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/auth/store";
+import { useAuth, authStore } from "@/auth/store";
+import { useGame, gameStore } from "@/game/store";
+import { TOTAL_TRIALS } from "@/game/index";
+import { watchStoreTransition } from "@/storeWatch";
+import { persistFinishedLevel } from "@/game/persistFinishedLevel";
 import { LEVELS } from "@/LEVELS";
 import { loadLevelStats, type PersistedLevelStats } from "@/storage/levelStats";
 import { Centered } from "@/components/Centered";
+import { AnsweringView } from "@/components/AnsweringView";
+import { FinishedScreen } from "@/components/FinishedScreen";
 
 const LEVEL_KEYS = Object.keys(LEVELS).map(Number).sort((a, b) => a - b);
 
@@ -32,11 +38,52 @@ const navLinkClassName =
 export default function HomePage() {
   const authState = useAuth((s) => s.state);
   const logout = useAuth((s) => s.logout);
+  const gameState = useGame((s) => s.state);
+  const load = useGame((s) => s.load);
   const [stats, setStats] = useState<PersistedLevelStats>({});
 
   useEffect(() => {
     setStats(loadLevelStats());
   }, []);
+
+  // Persist + sync a Level the moment the game store reaches Finished —
+  // tied to the state transition, not to whether FinishedScreen renders.
+  useEffect(() => {
+    return watchStoreTransition(
+      gameStore,
+      (s) => s.state.type === "finished",
+      (s) => {
+        if (s.state.type !== "finished") return;
+        persistFinishedLevel(s.state, authStore.getState().state);
+        setStats(loadLevelStats()); // reflect the new record once back at level selection
+      },
+    );
+  }, []);
+
+  function handleSelect(levelNumber: number) {
+    if (!isUnlocked(levelNumber, stats)) return;
+    load({
+      levelNumber,
+      level: LEVELS[String(levelNumber) as keyof typeof LEVELS],
+      totalTrials: TOTAL_TRIALS,
+    });
+  }
+
+  if (gameState.type === "playing") {
+    return (
+      <Centered>
+        <AnsweringView state={gameState} />
+      </Centered>
+    );
+  }
+
+  if (gameState.type === "finished") {
+    return (
+      <Centered>
+        <FinishedScreen state={gameState} />
+      </Centered>
+    );
+  }
 
   return (
     <Centered>
@@ -80,6 +127,7 @@ export default function HomePage() {
               <button
                 key={n}
                 disabled={!unlocked}
+                onClick={() => handleSelect(n)}
                 className={[
                   "flex flex-col items-center justify-center rounded-xl py-2 px-1 text-sm font-semibold transition-all",
                   unlocked
