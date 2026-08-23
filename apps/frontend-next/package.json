@@ -24,6 +24,7 @@
     "vitest": "^3.0.8"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.62.11",
     "engine": "workspace:*",
     "next": "^16.3.2",
     "react": "^19.2.4",
