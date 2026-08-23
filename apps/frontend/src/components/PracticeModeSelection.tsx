@@ -3,20 +3,8 @@
 import Link from "next/link";
 import { usePractice } from "../practice/store";
 import { ALL_CATEGORIES } from "../stats/computeStats";
+import { CATEGORY_LABELS } from "../categoryLabels";
 import { panel, backLink } from "../styles";
-
-// Human-readable labels for each category codename
-const CATEGORY_LABELS: Record<string, string> = {
-  "1d+1d":   "1d + 1d",
-  "2d+2d":   "2d + 2d",
-  "1dx1d":   "1d × 1d",
-  "2dx1d":   "2d × 1d",
-  "3dx1d":   "3d × 1d",
-  "4dx1d":   "4d × 1d",
-  "(2d)^2":  "2d²",
-  "(3d)^2":  "3d²",
-  "(4d)^2":  "4d²",
-};
 
 export function PracticeModeSelection() {
   const start = usePractice((s) => s.start);
