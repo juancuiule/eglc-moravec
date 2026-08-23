@@ -23,14 +23,24 @@ describe("createAuthStore", () => {
     vi.mocked(loadSession).mockReturnValue(null);
   });
 
-  it("starts loggedOut when there's no persisted session", () => {
+  it("starts loggedOut before hydrate() runs, even with a persisted session", () => {
+    vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     const store = createAuthStore();
+    // Deliberately not read at store-creation time — see AuthStore.hydrate.
+    expect(store.getState().state).toEqual({ type: "loggedOut" });
+    expect(loadSession).not.toHaveBeenCalled();
+  });
+
+  it("hydrate() stays loggedOut when there's no persisted session", () => {
+    const store = createAuthStore();
+    store.getState().hydrate();
     expect(store.getState().state).toEqual({ type: "loggedOut" });
   });
 
-  it("restores a loggedIn state from a persisted session", () => {
+  it("hydrate() restores a loggedIn state from a persisted session", () => {
     vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     const store = createAuthStore();
+    store.getState().hydrate();
     expect(store.getState().state).toEqual({ type: "loggedIn", token: "t1", email: "a@b.com" });
   });
 
@@ -47,6 +57,7 @@ describe("createAuthStore", () => {
     vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     vi.mocked(Api.logout).mockResolvedValue(undefined);
     const store = createAuthStore();
+    store.getState().hydrate();
 
     store.getState().logout();
 
@@ -76,6 +87,7 @@ describe("createAuthStore", () => {
     vi.mocked(loadSession).mockReturnValue({ token: "stale", email: "a@b.com" });
     vi.mocked(Api.checkSession).mockResolvedValue(false);
     const store = createAuthStore();
+    store.getState().hydrate();
     expect(store.getState().state.type).toBe("loggedIn"); // optimistic, local-first
 
     await store.getState().restoreSession();
@@ -88,6 +100,7 @@ describe("createAuthStore", () => {
     vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     vi.mocked(Api.checkSession).mockResolvedValue(true);
     const store = createAuthStore();
+    store.getState().hydrate();
 
     await store.getState().restoreSession();
 

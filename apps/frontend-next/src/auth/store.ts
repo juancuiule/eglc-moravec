@@ -15,6 +15,15 @@ export type AuthState = AuthLoggedOut | AuthLoggedIn;
 export type AuthStore = {
   state: AuthState;
 
+  /**
+   * Read a persisted session (if any) into state. Must run client-side,
+   * after mount — localStorage isn't available during SSR, and reading it
+   * at store-creation time (module-eval time) would make the client's
+   * first render disagree with the server-rendered HTML, breaking
+   * hydration. Until this runs, state reads as LoggedOut everywhere.
+   */
+  hydrate: () => void;
+
   /** Record a successful login: persists the session and moves to LoggedIn. */
   login: (session: PersistedSession) => void;
 
@@ -35,7 +44,11 @@ function stateFromPersisted(session: PersistedSession | null): AuthState {
 
 export function createAuthStore() {
   return createStore<AuthStore>((set, get) => ({
-    state: stateFromPersisted(loadSession()),
+    state: { type: "loggedOut" },
+
+    hydrate() {
+      set({ state: stateFromPersisted(loadSession()) });
+    },
 
     login(session) {
       saveSession(session);
