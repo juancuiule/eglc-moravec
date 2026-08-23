@@ -7,42 +7,50 @@
  * Each --color-NAME key below generates a matching bg-NAME, text-NAME,
  * border-NAME, and ring-NAME utility automatically (Tailwind v4's @theme
  * convention).
+ *
+ * Values here are sampled from the original Moravec app's screenshots
+ * (pixel-picked, not eyeballed) — a light, two-tone brand: pink (accent)
+ * as the primary/highlight color, teal as the secondary "go forward" color
+ * for the biggest action on a screen. See CONTEXT.md's research-background
+ * section for why this app looked the way it did originally.
  */
 @theme {
-  /* Surfaces, darkest to lightest */
-  --color-base: #121212; /* page background; also "recessed" surfaces inside a panel — input wells, table rows, calculator keys */
-  --color-panel: #1a1a1a; /* the elevated card every screen is built from */
-  --color-panel-accent: #222222; /* a panel surface calling attention to itself: an unplayed level cell, the hint card */
+  /* Surfaces, from recessed to elevated */
+  --color-base: #f0eff4; /* page background; also "recessed" surfaces inside a panel — input wells, table rows, calculator keys */
+  --color-panel: #ffffff; /* the elevated card every screen is built from */
+  --color-panel-accent: #fdf1f6; /* a panel surface calling attention to itself: an unplayed level cell, the hint card */
 
   /* Edges and low-emphasis interactive surfaces (a border color doubles as
      a subtle hover/pressed background throughout this UI) */
-  --color-subtle: #2d2d2d;
-  --color-subtle-accent: #3a3a3a; /* pairs with panel-accent */
-  --color-subtle-muted: #181818; /* pairs with a locked/disabled surface */
+  --color-subtle: #e3e2e8;
+  --color-subtle-accent: #f8d9e6; /* pairs with panel-accent */
+  --color-subtle-muted: #ebebee; /* pairs with a locked/disabled surface */
 
   /* Text, most to least prominent */
-  --color-foreground: #e8e8e8;
-  --color-muted: #a0a0a0;
-  --color-muted-2: #666666;
-  --color-disabled: #444444;
-  /* Text, most to least prominent */
-  --color-foreground: #e8e8e8;
-  --color-muted: #a6a6a6;
-  --color-muted-2: #686868;
-  --color-disabled: #444444;
+  --color-foreground: #262b3d;
+  --color-muted: #6b7280;
+  --color-muted-2: #9ca3af;
+  --color-disabled: #c6c6cc;
 
-  /* Brand accent */
-  --color-accent: #ff4181;
-  --color-accent-soft: #ff8fb1; /* accent-tinted body text, e.g. inside panel-accent */
+  /* Brand — pink is the primary accent (stars, highlights, secondary CTAs);
+     teal is the "go forward" color for the single biggest action on a
+     screen (start/submit/next), and pairs as a gradient (teal-light to
+     teal) on that button. */
+  --color-accent: #ef2172;
+  --color-accent-soft: #fa7fae; /* accent-tinted body text, e.g. inside panel-accent */
+  --color-teal: #22a891;
+  --color-teal-light: #4bc2a0; /* lighter gradient stop, paired with teal as the darker stop */
+  --color-teal-bg: #e3f7f1; /* soft teal tint — the level-complete celebration surface */
 
-  /* Semantic states */
-  --color-success: #4ade80;
-  --color-success-bg: #0d2b1a;
-  --color-success-solid: #166534; /* a success border, and a solid-fill success button */
-  --color-danger: #f87171;
-  --color-danger-bg: #2b0d0d;
-  --color-danger-border: #7f1d1d;
-  --color-warning: #facc15; /* stars, mid-range effectiveness */
+  /* Semantic states — correctness feedback and the timer's traffic light,
+     independent of the brand pink/teal above */
+  --color-success: #16a34a;
+  --color-success-bg: #eafaf0;
+  --color-success-solid: #16a34a; /* a success border, and a solid-fill success button */
+  --color-danger: #e11d48;
+  --color-danger-bg: #fdecef;
+  --color-danger-border: #f3aebe;
+  --color-warning: #eab308; /* the timer's mid-range tick, stats' mid-range effectiveness */
 
   /* The one recurring non-default type size (badge-sized labels) */
   --text-2xs: 0.625rem;

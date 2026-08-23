@@ -10,15 +10,16 @@ const buttonBase =
   "cursor-pointer text-white rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 active:scale-[0.97] transition-opacity";
 
 export const primaryButton = `${buttonBase} bg-accent`;
-export const successButton = `${buttonBase} bg-success-solid`;
+/** The "move forward" action (play next, submit) — the brand's teal gradient, not a semantic green. */
+export const successButton = `${buttonBase} bg-gradient-to-b from-teal-light to-teal`;
 
 export const ghostButton =
-  "cursor-pointer text-muted w-full rounded-lg px-5 py-2 font-medium hover:text-white transition-colors";
+  "cursor-pointer text-muted w-full rounded-lg px-5 py-2 font-medium hover:text-foreground transition-colors";
 
 /** The "←" back-arrow affordance — used as both a <Link> and a plain onClick button. */
-export const backLink = "text-muted hover:text-white transition-colors text-lg leading-none";
+export const backLink = "text-muted hover:text-foreground transition-colors text-lg leading-none";
 
-export const textLink = "text-muted text-sm hover:text-white transition-colors";
+export const textLink = "text-muted text-sm hover:text-foreground transition-colors";
 
 const hintButtonBase = "text-xs font-medium px-2 py-1 rounded-lg transition-all";
 

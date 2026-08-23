@@ -14,7 +14,7 @@ function LevelStars({ stars }: { stars: 0 | 1 | 2 | 3 }) {
   return (
     <span className="text-xs">
       {[1, 2, 3].map((n) => (
-        <span key={n} className={n <= stars ? "text-warning" : "text-disabled"}>
+        <span key={n} className={n <= stars ? "text-accent" : "text-disabled"}>
           ★
         </span>
       ))}
@@ -23,7 +23,7 @@ function LevelStars({ stars }: { stars: 0 | 1 | 2 | 3 }) {
 }
 
 const navLinkClassName =
-  "text-sm text-muted hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-subtle";
+  "text-sm text-muted hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-subtle";
 
 const levelCellClassName = (unlocked: boolean, played: boolean) =>
   [

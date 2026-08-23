@@ -45,7 +45,7 @@ export function FinishedScreen({ state }: Props) {
     <div
       className={[
         "border rounded-2xl p-8 w-full max-w-120 flex flex-col gap-6",
-        levelCompleted ? "bg-success-bg border-success-solid" : "bg-danger-bg border-danger-border",
+        levelCompleted ? "bg-teal-bg border-teal" : "bg-danger-bg border-danger-border",
       ].join(" ")}
     >
       <h1 className="text-2xl font-bold tracking-tight text-center">
@@ -55,7 +55,7 @@ export function FinishedScreen({ state }: Props) {
       {levelCompleted && <StarsDisplay stars={stars} />}
 
       <p className="text-center text-lg">
-        <span className={levelCompleted ? "text-success font-bold text-2xl" : "text-danger font-bold text-2xl"}>
+        <span className={levelCompleted ? "text-teal font-bold text-2xl" : "text-danger font-bold text-2xl"}>
           {correctInTime}
         </span>
         <span className="text-muted">

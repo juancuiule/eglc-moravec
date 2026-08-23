@@ -218,7 +218,7 @@ export function AnsweringPanel({
         </div>
 
         <button
-          className="cursor-pointer bg-accent text-white w-full rounded-xl py-3 font-semibold text-lg hover:opacity-90 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+          className="cursor-pointer bg-gradient-to-b from-teal-light to-teal text-white w-full rounded-xl py-3 font-semibold text-lg hover:opacity-90 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
           disabled={!answer}
           onPointerDown={doSubmit}
         >

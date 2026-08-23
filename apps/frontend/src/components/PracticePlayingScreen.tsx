@@ -56,7 +56,7 @@ export function PracticePlayingScreen({ state }: Props) {
           )}
           <button
             onClick={stop}
-            className="text-danger hover:text-white transition-colors text-xs font-medium cursor-pointer"
+            className="text-danger hover:text-foreground transition-colors text-xs font-medium cursor-pointer"
           >
             Stop
           </button>

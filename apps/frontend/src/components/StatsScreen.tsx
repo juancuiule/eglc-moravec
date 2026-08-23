@@ -81,7 +81,7 @@ export function StatsScreen() {
             onClick={() => selectTab(t)}
             className={[
               "flex-1 text-sm font-medium py-1.5 rounded-md transition-colors cursor-pointer",
-              tab === t ? "bg-accent text-white" : "text-muted hover:text-white",
+              tab === t ? "bg-accent text-white" : "text-muted hover:text-foreground",
             ].join(" ")}
           >
             {t === "level" ? "Level" : "Practice"}
