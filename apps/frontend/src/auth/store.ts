@@ -3,6 +3,10 @@ import { useStore } from "zustand";
 import { Api } from "../api/Api";
 import { loadSession, saveSession, clearSession, type PersistedSession } from "../storage/session";
 
+// Session *validation* against the backend happens in proxy.ts, before
+// "/" or "/login" ever render — not here. By the time this store hydrates,
+// any session cookie present is already known-good (or already cleared).
+
 // ─── States ────────────────────────────────────────────────────────────────────
 
 export type AuthLoggedOut = { type: "loggedOut" };
@@ -16,11 +20,13 @@ export type AuthStore = {
   state: AuthState;
 
   /**
-   * Read a persisted session (if any) into state. Must run client-side,
-   * after mount — localStorage isn't available during SSR, and reading it
-   * at store-creation time (module-eval time) would make the client's
-   * first render disagree with the server-rendered HTML, breaking
-   * hydration. Until this runs, state reads as LoggedOut everywhere.
+   * Read the persisted session cookie (if any) into state. Must run
+   * client-side, after mount — `document` isn't available during SSR, and
+   * reading it at store-creation time (module-eval time) would make the
+   * client's first render disagree with the server-rendered HTML, breaking
+   * hydration. Until this runs, state reads as LoggedOut everywhere. A
+   * synchronous local parse, not a network call — validation already
+   * happened in proxy.ts before this page rendered.
    */
   hydrate: () => void;
 
@@ -29,9 +35,6 @@ export type AuthStore = {
 
   /** Log out and forget the session. Valid from: LoggedIn. */
   logout: () => void;
-
-  /** Confirm a persisted session is still valid server-side; clears it if not. */
-  restoreSession: () => Promise<void>;
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -63,17 +66,6 @@ export function createAuthStore() {
       });
       clearSession();
       set({ state: { type: "loggedOut" } });
-    },
-
-    async restoreSession() {
-      const { state } = get();
-      if (state.type !== "loggedIn") return;
-
-      const valid = await Api.checkSession(state.token);
-      if (!valid) {
-        clearSession();
-        set({ state: { type: "loggedOut" } });
-      }
     },
   }));
 }

@@ -44,6 +44,13 @@ describe("createAuthStore", () => {
     expect(store.getState().state).toEqual({ type: "loggedIn", token: "t1", email: "a@b.com" });
   });
 
+  it("hydrate() never calls the backend — validation happens in proxy.ts, not here", () => {
+    vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
+    const store = createAuthStore();
+    store.getState().hydrate();
+    expect(Api.checkSession).not.toHaveBeenCalled();
+  });
+
   it("login persists the session and moves to loggedIn", () => {
     const store = createAuthStore();
 
@@ -72,39 +79,6 @@ describe("createAuthStore", () => {
     store.getState().logout();
 
     expect(Api.logout).not.toHaveBeenCalled();
-    expect(clearSession).not.toHaveBeenCalled();
-  });
-
-  it("restoreSession is a no-op when loggedOut", async () => {
-    const store = createAuthStore();
-
-    await store.getState().restoreSession();
-
-    expect(Api.checkSession).not.toHaveBeenCalled();
-  });
-
-  it("restoreSession clears an invalid persisted session", async () => {
-    vi.mocked(loadSession).mockReturnValue({ token: "stale", email: "a@b.com" });
-    vi.mocked(Api.checkSession).mockResolvedValue(false);
-    const store = createAuthStore();
-    store.getState().hydrate();
-    expect(store.getState().state.type).toBe("loggedIn"); // optimistic, local-first
-
-    await store.getState().restoreSession();
-
-    expect(store.getState().state).toEqual({ type: "loggedOut" });
-    expect(clearSession).toHaveBeenCalled();
-  });
-
-  it("restoreSession keeps a valid persisted session logged in", async () => {
-    vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
-    vi.mocked(Api.checkSession).mockResolvedValue(true);
-    const store = createAuthStore();
-    store.getState().hydrate();
-
-    await store.getState().restoreSession();
-
-    expect(store.getState().state).toEqual({ type: "loggedIn", token: "t1", email: "a@b.com" });
     expect(clearSession).not.toHaveBeenCalled();
   });
 });
