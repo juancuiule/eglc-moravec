@@ -1,0 +1,21 @@
+// Shared Tailwind class strings for shapes repeated across multiple
+// components — every color they reference comes from app/globals.css's
+// @theme, never a raw hex. This file is about structure/repetition, not
+// about naming individual colors.
+
+/** The elevated card every screen is built from. Callers add their own padding, max-width, and gap. */
+export const panel = "bg-panel border border-subtle rounded-2xl w-full flex flex-col";
+
+const buttonBase =
+  "cursor-pointer text-white rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 active:scale-[0.97] transition-opacity";
+
+export const primaryButton = `${buttonBase} bg-accent`;
+export const successButton = `${buttonBase} bg-success-solid`;
+
+export const ghostButton =
+  "cursor-pointer text-muted w-full rounded-lg px-5 py-2 font-medium hover:text-white transition-colors";
+
+/** The "←" back-arrow affordance — used as both a <Link> and a plain onClick button. */
+export const backLink = "text-muted hover:text-white transition-colors text-lg leading-none";
+
+export const textLink = "text-muted text-sm hover:text-white transition-colors";

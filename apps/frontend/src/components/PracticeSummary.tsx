@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { PracticeStopped } from "../practice/index";
 import { usePractice } from "../practice/store";
+import { panel, primaryButton, ghostButton } from "../styles";
 
 type Props = { state: PracticeStopped };
 
@@ -22,27 +23,21 @@ export function PracticeSummary({ state }: Props) {
   }
 
   return (
-    <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-8 w-full max-w-[420px] flex flex-col gap-6">
+    <div className={`${panel} p-8 max-w-[420px] gap-6`}>
       <h1 className="text-2xl font-bold tracking-tight text-center">Session done</h1>
 
       <div className="text-center">
-        <span className="text-5xl font-bold text-[#5a5af0]">{pct}%</span>
-        <p className="text-[#a0a0c0] text-sm mt-1">
+        <span className="text-5xl font-bold text-accent">{pct}%</span>
+        <p className="text-muted text-sm mt-1">
           {correctInTime} of {total} correct in time
         </p>
       </div>
 
       <div className="flex flex-col gap-2">
-        <button
-          className="cursor-pointer bg-[#5a5af0] text-white w-full rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 active:scale-[0.97] transition-opacity"
-          onClick={() => start(config)}
-        >
+        <button className={primaryButton} onClick={() => start(config)}>
           Practice again
         </button>
-        <button
-          className="cursor-pointer text-[#a0a0c0] w-full rounded-lg px-5 py-2 font-medium hover:text-white transition-colors"
-          onClick={handleBack}
-        >
+        <button className={ghostButton} onClick={handleBack}>
           Back to menu
         </button>
       </div>

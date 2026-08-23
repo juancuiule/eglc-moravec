@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Api } from "@/api/Api";
 import { useAuth } from "@/auth/store";
 import { syncLevelStatsFromRemote } from "@/sync/syncLevelStatsFromRemote";
+import { panel, primaryButton, textLink } from "@/styles";
 
 type Step = { type: "email" } | { type: "code"; email: string };
 
@@ -39,11 +40,11 @@ export function LoginForm() {
 
   if (step.type === "code") {
     return (
-      <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-8 w-full max-w-[420px] flex flex-col gap-4">
+      <div className={`${panel} p-8 max-w-[420px] gap-4`}>
         <h1 className="text-xl font-bold tracking-tight">Enter your code</h1>
-        <p className="text-sm text-[#a0a0c0]">We sent a 6-digit code to {step.email}.</p>
+        <p className="text-sm text-muted">We sent a 6-digit code to {step.email}.</p>
         <input
-          className="bg-[#0f0f13] border border-[#2e2e42] rounded-xl px-4 py-3 text-lg font-mono text-center tracking-[0.5em]"
+          className="bg-base border border-subtle rounded-xl px-4 py-3 text-lg font-mono text-center tracking-[0.5em]"
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           inputMode="numeric"
@@ -51,15 +52,15 @@ export function LoginForm() {
           placeholder="000000"
           autoFocus
         />
-        {verifyCode.error && <p className="text-sm text-[#f87171]">{verifyCode.error.message}</p>}
+        {verifyCode.error && <p className="text-sm text-danger">{verifyCode.error.message}</p>}
         <button
-          className="cursor-pointer bg-[#5a5af0] text-white w-full rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+          className={`${primaryButton} disabled:opacity-30 disabled:cursor-not-allowed`}
           disabled={verifyCode.isPending || code.length !== 6}
           onClick={() => verifyCode.mutate({ email: step.email, code })}
         >
           {verifyCode.isPending ? "Verifying…" : "Verify"}
         </button>
-        <Link href="/" className="text-[#a0a0c0] text-sm hover:text-white transition-colors">
+        <Link href="/" className={textLink}>
           Back to menu
         </Link>
       </div>
@@ -67,28 +68,28 @@ export function LoginForm() {
   }
 
   return (
-    <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-8 w-full max-w-[420px] flex flex-col gap-4">
+    <div className={`${panel} p-8 max-w-[420px] gap-4`}>
       <h1 className="text-xl font-bold tracking-tight">Log in</h1>
-      <p className="text-sm text-[#a0a0c0]">
+      <p className="text-sm text-muted">
         No password — we'll email you a one-time code. Playing without an account still works fine.
       </p>
       <input
-        className="bg-[#0f0f13] border border-[#2e2e42] rounded-xl px-4 py-3"
+        className="bg-base border border-subtle rounded-xl px-4 py-3"
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="you@example.com"
         autoFocus
       />
-      {requestCode.error && <p className="text-sm text-[#f87171]">{requestCode.error.message}</p>}
+      {requestCode.error && <p className="text-sm text-danger">{requestCode.error.message}</p>}
       <button
-        className="cursor-pointer bg-[#5a5af0] text-white w-full rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+        className={`${primaryButton} disabled:opacity-30 disabled:cursor-not-allowed`}
         disabled={requestCode.isPending || email.length === 0}
         onClick={() => requestCode.mutate(email)}
       >
         {requestCode.isPending ? "Sending…" : "Send code"}
       </button>
-      <Link href="/" className="text-[#a0a0c0] text-sm hover:text-white transition-colors">
+      <Link href="/" className={textLink}>
         Back to menu
       </Link>
     </div>

@@ -6,7 +6,7 @@ export function StarsDisplay({ stars }: Props) {
       {[1, 2, 3].map((n) => (
         <span
           key={n}
-          className={n <= stars ? "text-[#facc15]" : "text-[#3e3e52]"}
+          className={n <= stars ? "text-warning" : "text-disabled"}
         >
           ★
         </span>

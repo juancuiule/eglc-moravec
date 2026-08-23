@@ -6,6 +6,7 @@ import { loadTrialHistory, type PersistedTrial } from "../storage/trialHistory";
 import { loadPracticeHistory, type PersistedPracticeTrial } from "../storage/practiceHistory";
 import { computeStats } from "../stats/computeStats";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
+import { panel, backLink } from "../styles";
 
 type Tab = "level" | "practice";
 
@@ -15,10 +16,13 @@ function formatMs(ms: number): string {
 
 function EffBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
-  const color = value >= 0.75 ? "#4ade80" : value >= 0.5 ? "#facc15" : "#f87171";
+  // Referencing the theme's own CSS variables instead of repeating their
+  // hex values here in JS — see AnsweringPanel's timerColor for the same pattern.
+  const color =
+    value >= 0.75 ? "var(--color-success)" : value >= 0.5 ? "var(--color-warning)" : "var(--color-danger)";
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-[#2e2e42] rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-subtle rounded-full overflow-hidden">
         <div
           className="h-full rounded-full"
           style={{ width: `${pct}%`, backgroundColor: color }}
@@ -62,22 +66,22 @@ export function StatsScreen() {
   }
 
   return (
-    <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-6 w-full max-w-[480px] flex flex-col gap-4">
+    <div className={`${panel} p-6 max-w-[480px] gap-4`}>
       <div className="flex items-center gap-3">
-        <Link href="/" className="text-[#a0a0c0] hover:text-white transition-colors text-lg leading-none">
+        <Link href="/" className={backLink}>
           ←
         </Link>
         <h1 className="text-xl font-bold tracking-tight">Statistics</h1>
       </div>
 
-      <div className="flex gap-1 bg-[#0f0f13] rounded-lg p-1">
+      <div className="flex gap-1 bg-base rounded-lg p-1">
         {(["level", "practice"] as const).map((t) => (
           <button
             key={t}
             onClick={() => selectTab(t)}
             className={[
               "flex-1 text-sm font-medium py-1.5 rounded-md transition-colors cursor-pointer",
-              tab === t ? "bg-[#5a5af0] text-white" : "text-[#a0a0c0] hover:text-white",
+              tab === t ? "bg-accent text-white" : "text-muted hover:text-white",
             ].join(" ")}
           >
             {t === "level" ? "Level" : "Practice"}
@@ -86,7 +90,7 @@ export function StatsScreen() {
       </div>
 
       {!hasAnyData ? (
-        <p className="text-center text-[#5a5a80] py-8">
+        <p className="text-center text-muted-2 py-8">
           {tab === "level"
             ? "No data yet — complete some levels to see your stats."
             : "No data yet — practice a category to see your stats."}
@@ -94,7 +98,7 @@ export function StatsScreen() {
       ) : (
         <div className="flex flex-col gap-1">
           {/* Header */}
-          <div className="grid grid-cols-[6rem_1fr_4rem] gap-2 px-2 pb-1 text-xs text-[#5a5a80] font-medium uppercase tracking-wider">
+          <div className="grid grid-cols-[6rem_1fr_4rem] gap-2 px-2 pb-1 text-xs text-muted-2 font-medium uppercase tracking-wider">
             <span>Category</span>
             <span>Effectiveness</span>
             <span className="text-right">Avg time</span>
@@ -105,27 +109,27 @@ export function StatsScreen() {
               key={row.codename}
               onClick={() => row.total > 0 && setSelected(row.codename)}
               className={[
-                "grid grid-cols-[6rem_1fr_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-[#0f0f13]",
-                row.total > 0 ? "cursor-pointer hover:bg-[#1a1a2e]" : "",
+                "grid grid-cols-[6rem_1fr_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-base",
+                row.total > 0 ? "cursor-pointer hover:bg-panel-accent" : "",
               ].join(" ")}
             >
-              <span className="font-mono text-sm text-[#e8e8f0]">
+              <span className="font-mono text-sm text-foreground">
                 {row.codename}
               </span>
 
               {row.total === 0 ? (
-                <span className="text-xs text-[#3e3e52] col-span-2">
+                <span className="text-xs text-disabled col-span-2">
                   No data yet
                 </span>
               ) : (
                 <>
                   <div className="flex flex-col gap-0.5">
                     <EffBar value={row.effectiveness} />
-                    <span className="text-[10px] text-[#5a5a80]">
+                    <span className="text-2xs text-muted-2">
                       {row.correctInTime} / {row.total} correct in time
                     </span>
                   </div>
-                  <span className="text-xs text-right text-[#a0a0c0]">
+                  <span className="text-xs text-right text-muted">
                     {row.avgTimeMs !== null ? formatMs(row.avgTimeMs) : "—"}
                   </span>
                 </>

@@ -28,7 +28,7 @@ export function PracticePlayingScreen({ state }: Props) {
       onTimeUp={timeUp}
       onAdvance={advance}
       beforeOperation={
-        <div className="text-center text-xs text-[#5a5af0] font-mono tracking-wider">
+        <div className="text-center text-xs text-accent font-mono tracking-wider">
           {state.config.categoryCodename}
         </div>
       }
@@ -51,8 +51,8 @@ export function PracticePlayingScreen({ state }: Props) {
               className={[
                 "text-xs font-medium px-2 py-1 rounded-lg transition-all",
                 state.hintVisible || isReviewing
-                  ? "text-[#3e3e52] cursor-not-allowed"
-                  : "text-[#5a5af0] hover:bg-[#2e2e42] cursor-pointer",
+                  ? "text-disabled cursor-not-allowed"
+                  : "text-accent hover:bg-subtle cursor-pointer",
               ].join(" ")}
             >
               Hint
@@ -60,7 +60,7 @@ export function PracticePlayingScreen({ state }: Props) {
           )}
           <button
             onClick={stop}
-            className="text-[#f87171] hover:text-white transition-colors text-xs font-medium cursor-pointer"
+            className="text-danger hover:text-white transition-colors text-xs font-medium cursor-pointer"
           >
             Stop
           </button>

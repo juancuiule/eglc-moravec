@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { computeHistogram, type StatsTrial } from "../stats/computeStats";
+import { panel, backLink } from "../styles";
 
 type Props = {
   codename: string;
@@ -16,40 +17,37 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
   const correctInTime = categoryTrials.filter((t) => t.correct && !t.timeExceeded).length;
 
   return (
-    <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-6 w-full max-w-[480px] flex flex-col gap-4">
+    <div className={`${panel} p-6 max-w-[480px] gap-4`}>
       <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="text-[#a0a0c0] hover:text-white transition-colors text-lg leading-none"
-        >
+        <button onClick={onBack} className={backLink}>
           ←
         </button>
         <h1 className="text-xl font-bold tracking-tight font-mono">{codename}</h1>
       </div>
 
-      <p className="text-sm text-[#a0a0c0]">
+      <p className="text-sm text-muted">
         {correctInTime} correct in time · {categoryTrials.length} total trials
       </p>
 
       {buckets.length === 0 ? (
-        <p className="text-center text-[#5a5a80] py-8">No correct-in-time trials yet.</p>
+        <p className="text-center text-muted-2 py-8">No correct-in-time trials yet.</p>
       ) : (
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-[#5a5a80] uppercase tracking-wider font-medium">
+          <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">
             Response time distribution
           </p>
           {buckets.map((bucket) => (
             <div key={bucket.label} className="flex items-center gap-3">
-              <span className="text-xs text-[#5a5a80] w-12 text-right font-mono shrink-0">
+              <span className="text-xs text-muted-2 w-12 text-right font-mono shrink-0">
                 {bucket.label}
               </span>
-              <div className="flex-1 h-5 bg-[#0f0f13] rounded overflow-hidden">
+              <div className="flex-1 h-5 bg-base rounded overflow-hidden">
                 <div
-                  className="h-full bg-[#5a5af0] rounded transition-all"
+                  className="h-full bg-accent rounded transition-all"
                   style={{ width: `${(bucket.count / maxCount) * 100}%` }}
                 />
               </div>
-              <span className="text-xs text-[#a0a0c0] w-6 text-right shrink-0">
+              <span className="text-xs text-muted w-6 text-right shrink-0">
                 {bucket.count}
               </span>
             </div>

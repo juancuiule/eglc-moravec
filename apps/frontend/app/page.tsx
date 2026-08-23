@@ -6,6 +6,7 @@ import { useAuth } from "@/auth/store";
 import { LEVELS } from "@/LEVELS";
 import { loadLevelStats, isLevelUnlocked, type PersistedLevelStats } from "@/storage/levelStats";
 import { Centered } from "@/components/Centered";
+import { panel } from "@/styles";
 
 const LEVEL_KEYS = Object.keys(LEVELS).map(Number).sort((a, b) => a - b);
 
@@ -13,7 +14,7 @@ function LevelStars({ stars }: { stars: 0 | 1 | 2 | 3 }) {
   return (
     <span className="text-xs">
       {[1, 2, 3].map((n) => (
-        <span key={n} className={n <= stars ? "text-[#facc15]" : "text-[#3e3e52]"}>
+        <span key={n} className={n <= stars ? "text-warning" : "text-disabled"}>
           ★
         </span>
       ))}
@@ -22,16 +23,16 @@ function LevelStars({ stars }: { stars: 0 | 1 | 2 | 3 }) {
 }
 
 const navLinkClassName =
-  "text-sm text-[#a0a0c0] hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-[#2e2e42]";
+  "text-sm text-muted hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-subtle";
 
 const levelCellClassName = (unlocked: boolean, played: boolean) =>
   [
     "flex flex-col items-center justify-center rounded-xl py-2 px-1 text-sm font-semibold transition-all",
     unlocked
       ? played
-        ? "bg-[#0f0f13] border border-[#2e2e42] hover:border-[#5a5af0] cursor-pointer"
-        : "bg-[#1a1a30] border border-[#3a3a55] hover:border-[#5a5af0] cursor-pointer"
-      : "bg-[#0f0f13] border border-[#1e1e28] text-[#3e3e52] cursor-not-allowed",
+        ? "bg-base border border-subtle hover:border-accent cursor-pointer"
+        : "bg-panel-accent border border-subtle-accent hover:border-accent cursor-pointer"
+      : "bg-base border border-subtle-muted text-disabled cursor-not-allowed",
   ].join(" ");
 
 export default function HomePage() {
@@ -45,14 +46,14 @@ export default function HomePage() {
 
   return (
     <Centered>
-      <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-6 w-full max-w-[480px] flex flex-col gap-4">
+      <div className={`${panel} p-6 max-w-[480px] gap-4`}>
         <div className="flex items-center justify-between flex-wrap gap-y-2">
           <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">Mental Math</h1>
           <div className="flex items-center gap-1">
             {authState.type === "loggedIn" ? (
               <>
                 <span
-                  className="text-xs text-[#5a5af0] font-mono max-w-20 truncate"
+                  className="text-xs text-accent font-mono max-w-20 truncate"
                   title={authState.email}
                 >
                   {authState.email}
@@ -88,13 +89,13 @@ export default function HomePage() {
                 {played ? (
                   <LevelStars stars={levelStats.stars} />
                 ) : (
-                  <span className="text-[10px] text-[#5a5af0] mt-0.5">new</span>
+                  <span className="text-2xs text-accent mt-0.5">new</span>
                 )}
               </>
             ) : (
               <>
                 <span>{n}</span>
-                <span className="text-[10px] mt-0.5">🔒</span>
+                <span className="text-2xs mt-0.5">🔒</span>
               </>
             );
 
@@ -111,7 +112,7 @@ export default function HomePage() {
         </div>
 
         {Object.keys(stats).length > 0 && (
-          <p className="text-center text-xs text-[#5a5af0]">
+          <p className="text-center text-xs text-accent">
             {Object.keys(stats).filter((k) => (stats[k]?.stars ?? 0) > 0).length} / {LEVEL_KEYS.length} levels completed
           </p>
         )}

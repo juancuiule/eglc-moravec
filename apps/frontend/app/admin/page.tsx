@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Api, type AdminStats, type LevelPerformance, type CategoryPerformance } from "@/api/Api";
 import { Centered } from "@/components/Centered";
+import { panel, backLink } from "@/styles";
 
 // Without this, Next statically renders this page once at build time
 // (fetch() has no dynamic-API usage to opt it out automatically) and bakes
@@ -35,11 +36,11 @@ function toCategoryRows(rows: CategoryPerformance[]): DisplayRow[] {
 
 function StatsTable({ rows }: { rows: DisplayRow[] }) {
   if (rows.length === 0) {
-    return <p className="text-xs text-[#5a5a80] py-2">No data yet.</p>;
+    return <p className="text-xs text-muted-2 py-2">No data yet.</p>;
   }
   return (
     <div className="flex flex-col gap-1">
-      <div className="grid grid-cols-[6rem_1fr_4rem_3rem] gap-2 px-2 pb-1 text-xs text-[#5a5a80] font-medium uppercase tracking-wider">
+      <div className="grid grid-cols-[6rem_1fr_4rem_3rem] gap-2 px-2 pb-1 text-xs text-muted-2 font-medium uppercase tracking-wider">
         <span></span>
         <span>Effectiveness</span>
         <span className="text-right">Avg time</span>
@@ -48,14 +49,14 @@ function StatsTable({ rows }: { rows: DisplayRow[] }) {
       {rows.map((row) => (
         <div
           key={row.key}
-          className="grid grid-cols-[6rem_1fr_4rem_3rem] gap-2 items-center px-2 py-2 rounded-lg bg-[#0f0f13]"
+          className="grid grid-cols-[6rem_1fr_4rem_3rem] gap-2 items-center px-2 py-2 rounded-lg bg-base"
         >
-          <span className="font-mono text-sm text-[#e8e8f0]">{row.label}</span>
-          <span className="text-xs text-[#a0a0c0]">
+          <span className="font-mono text-sm text-foreground">{row.label}</span>
+          <span className="text-xs text-muted">
             {formatPct(row.effectiveness)} ({row.attemptCount} attempts)
           </span>
-          <span className="text-xs text-right text-[#a0a0c0]">{formatMs(row.avgTimeMs)}</span>
-          <span className="text-xs text-right text-[#a0a0c0]">{row.userCount}</span>
+          <span className="text-xs text-right text-muted">{formatMs(row.avgTimeMs)}</span>
+          <span className="text-xs text-right text-muted">{row.userCount}</span>
         </div>
       ))}
     </div>
@@ -67,26 +68,26 @@ export default async function AdminPage() {
 
   return (
     <Centered>
-      <div className="bg-[#1a1a24] border border-[#2e2e42] rounded-2xl p-6 w-full max-w-[560px] flex flex-col gap-6">
+      <div className={`${panel} p-6 max-w-[560px] gap-6`}>
         <div className="flex items-center gap-3">
-          <Link href="/" className="text-[#a0a0c0] hover:text-white transition-colors text-lg leading-none">
+          <Link href="/" className={backLink}>
             ←
           </Link>
           <h1 className="text-xl font-bold tracking-tight">Admin: level performance</h1>
         </div>
 
         {data === null && (
-          <p className="text-center text-[#f87171] py-8">Failed to load admin stats.</p>
+          <p className="text-center text-danger py-8">Failed to load admin stats.</p>
         )}
 
         {data !== null && (
           <>
             <section className="flex flex-col gap-2">
-              <h2 className="text-xs uppercase tracking-wider text-[#5a5a80] font-medium">By level</h2>
+              <h2 className="text-xs uppercase tracking-wider text-muted-2 font-medium">By level</h2>
               <StatsTable rows={toLevelRows(data.byLevel)} />
             </section>
             <section className="flex flex-col gap-2">
-              <h2 className="text-xs uppercase tracking-wider text-[#5a5a80] font-medium">By category</h2>
+              <h2 className="text-xs uppercase tracking-wider text-muted-2 font-medium">By category</h2>
               <StatsTable rows={toCategoryRows(data.byCategory)} />
             </section>
           </>

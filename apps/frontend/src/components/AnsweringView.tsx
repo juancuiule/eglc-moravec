@@ -40,8 +40,8 @@ export function AnsweringView({ state }: Props) {
           className={[
             "text-xs font-medium px-2 py-1 rounded-lg transition-all",
             hintDisabled
-              ? "text-[#3e3e52] cursor-not-allowed"
-              : "text-[#5a5af0] hover:bg-[#2e2e42] cursor-pointer",
+              ? "text-disabled cursor-not-allowed"
+              : "text-accent hover:bg-subtle cursor-pointer",
           ].join(" ")}
           title="Show hint"
         >
