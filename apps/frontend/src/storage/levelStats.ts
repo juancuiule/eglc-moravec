@@ -45,12 +45,14 @@ export function updateLevelRecord(
 
   if (!isBetter) return;
 
-  all[key] = {
-    stars: run.stars,
-    totalTime: run.totalTime,
-    completedAt: new Date().toISOString(),
-  };
-  saveLevelStats(all);
+  saveLevelStats({
+    ...all,
+    [key]: {
+      stars: run.stars,
+      totalTime: run.totalTime,
+      completedAt: new Date().toISOString(),
+    },
+  });
 }
 
 /** A Level unlocks once the previous one has been completed with at least one star. Level 1 is always open. */

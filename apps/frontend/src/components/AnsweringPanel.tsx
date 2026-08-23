@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import type { Operation, Answering, BaseTrialResult, Keystroke } from "engine";
 import { HintCard } from "./HintCard";
+import { panel } from "../styles";
 
 type ReviewingResult = { type: "reviewing"; result: BaseTrialResult };
 
@@ -159,7 +160,7 @@ export function AnsweringPanel({
   const seconds = Math.ceil(remaining / 1000);
 
   return (
-    <div className="bg-panel border border-subtle rounded-2xl p-6 w-full max-w-[380px] flex flex-col gap-5">
+    <div className={`${panel} p-6 max-w-[380px] gap-5`}>
       {/* Header */}
       <div className="flex justify-between items-center text-sm text-muted">
         {headerLeft}

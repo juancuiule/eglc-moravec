@@ -3,6 +3,7 @@
 import type { Playing } from "../game/index";
 import { useGame } from "../game/store";
 import { AnsweringPanel } from "./AnsweringPanel";
+import { hintButtonClassName } from "../styles";
 
 type Props = { state: Playing };
 
@@ -37,12 +38,7 @@ export function AnsweringView({ state }: Props) {
         <button
           disabled={hintDisabled}
           onClick={requestHint}
-          className={[
-            "text-xs font-medium px-2 py-1 rounded-lg transition-all",
-            hintDisabled
-              ? "text-disabled cursor-not-allowed"
-              : "text-accent hover:bg-subtle cursor-pointer",
-          ].join(" ")}
+          className={hintButtonClassName(hintDisabled)}
           title="Show hint"
         >
           Hint {state.hintsRemaining}/3

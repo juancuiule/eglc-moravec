@@ -3,6 +3,7 @@
 import type { PracticePlaying } from "../practice/index";
 import { usePractice } from "../practice/store";
 import { AnsweringPanel } from "./AnsweringPanel";
+import { hintButtonClassName } from "../styles";
 
 type Props = { state: PracticePlaying };
 
@@ -48,12 +49,7 @@ export function PracticePlayingScreen({ state }: Props) {
             <button
               disabled={state.hintVisible || isReviewing}
               onClick={requestHint}
-              className={[
-                "text-xs font-medium px-2 py-1 rounded-lg transition-all",
-                state.hintVisible || isReviewing
-                  ? "text-disabled cursor-not-allowed"
-                  : "text-accent hover:bg-subtle cursor-pointer",
-              ].join(" ")}
+              className={hintButtonClassName(state.hintVisible || isReviewing)}
             >
               Hint
             </button>

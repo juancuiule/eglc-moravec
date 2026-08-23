@@ -19,3 +19,10 @@ export const ghostButton =
 export const backLink = "text-muted hover:text-white transition-colors text-lg leading-none";
 
 export const textLink = "text-muted text-sm hover:text-white transition-colors";
+
+const hintButtonBase = "text-xs font-medium px-2 py-1 rounded-lg transition-all";
+
+/** The in-trial "Hint" button — same disabled/enabled treatment in Level play and Practice. */
+export function hintButtonClassName(disabled: boolean): string {
+  return `${hintButtonBase} ${disabled ? "text-disabled cursor-not-allowed" : "text-accent hover:bg-subtle cursor-pointer"}`;
+}
