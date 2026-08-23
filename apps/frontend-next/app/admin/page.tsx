@@ -2,6 +2,12 @@ import Link from "next/link";
 import { Api, type AdminStats, type LevelPerformance, type CategoryPerformance } from "@/api/Api";
 import { Centered } from "@/components/Centered";
 
+// Without this, Next statically renders this page once at build time
+// (fetch() has no dynamic-API usage to opt it out automatically) and bakes
+// in whatever the backend returned then — every later visit would show
+// that same stale snapshot instead of live data.
+export const dynamic = "force-dynamic";
+
 type DisplayRow = {
   key: string;
   label: string;
