@@ -93,6 +93,10 @@ function startPlaying(config: PracticeConfig, trialId = 0): PracticePlaying {
   };
 }
 
+function toReviewing(state: PracticePlaying, result: PracticeTrialResult): PracticePlaying {
+  return { ...state, playingState: { type: "reviewing", result } };
+}
+
 export function createPracticeStore() {
   return createStore<PracticeStore>((set, get) => ({
     state: { type: "idle" },
@@ -113,7 +117,7 @@ export function createPracticeStore() {
         hintShown: state.hintVisible,
       });
 
-      set({ state: { ...state, playingState: { type: "reviewing", result } } });
+      set({ state: toReviewing(state, result) });
     },
 
     timeUp(answer, keystrokes = [], hasErased = false) {
@@ -127,7 +131,7 @@ export function createPracticeStore() {
         hintShown: state.hintVisible,
       });
 
-      set({ state: { ...state, playingState: { type: "reviewing", result } } });
+      set({ state: toReviewing(state, result) });
     },
 
     advance() {

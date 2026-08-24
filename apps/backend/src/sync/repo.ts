@@ -44,6 +44,25 @@ export function getAllLevelStatsForUser(db: DatabaseSync, emailHash: string): Le
     .all(emailHash) as LevelStatsRow[];
 }
 
+/**
+ * Overwrites the stored level_stats row only if `candidate` is actually a
+ * better record than what's there — level_stats is a best-ever cache, never
+ * just the latest attempt.
+ */
+export function upsertLevelStatsIfBetter(
+  db: DatabaseSync,
+  emailHash: string,
+  levelNumber: number,
+  candidate: { stars: number; totalTime: number },
+  at: number,
+): void {
+  const existing = getLevelStatsRow(db, emailHash, levelNumber);
+  const existingRecord = existing ? { stars: existing.stars, totalTime: existing.total_time } : null;
+  if (isBetterLevelRecord(candidate, existingRecord)) {
+    upsertLevelStatsRow(db, emailHash, levelNumber, candidate.stars, candidate.totalTime, at);
+  }
+}
+
 export function insertTrialResults(
   db: DatabaseSync,
   emailHash: string,
@@ -176,11 +195,13 @@ export function getLevelRunsForUser(db: DatabaseSync, emailHash: string): LevelR
  */
 export function mergeAnonymousIdentity(db: DatabaseSync, from: string, to: string, now: number): void {
   getAllLevelStatsForUser(db, from).forEach((row) => {
-    const existing = getLevelStatsRow(db, to, row.level_number);
-    const existingRecord = existing ? { stars: existing.stars, totalTime: existing.total_time } : null;
-    if (isBetterLevelRecord({ stars: row.stars, totalTime: row.total_time }, existingRecord)) {
-      upsertLevelStatsRow(db, to, row.level_number, row.stars, row.total_time, now);
-    }
+    upsertLevelStatsIfBetter(
+      db,
+      to,
+      row.level_number,
+      { stars: row.stars, totalTime: row.total_time },
+      now,
+    );
   });
 
   db.prepare("UPDATE trial_results SET email_hash = ? WHERE email_hash = ?").run(to, from);

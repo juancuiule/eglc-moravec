@@ -99,23 +99,11 @@ export function AnsweringPanel({
     if (playingState.type !== "answering") return;
     function onKeyDown(e: KeyboardEvent) {
       if (/^\d$/.test(e.key)) {
-        press(e.key);
-        keystrokesRef.current.push({ key: e.key, t: Date.now() - (startedAt ?? Date.now()) });
-        setAnswer((prev) => (prev.length < 10 ? prev + e.key : prev));
-        answerRef.current =
-          answerRef.current.length < 10
-            ? answerRef.current + e.key
-            : answerRef.current;
+        handleButton(e.key);
       } else if (e.key === "Backspace") {
-        press("⌫");
-        keystrokesRef.current.push({ key: "⌫", t: Date.now() - (startedAt ?? Date.now()) });
-        hasErasedRef.current = true;
-        setAnswer((prev) => prev.slice(0, -1));
-        answerRef.current = answerRef.current.slice(0, -1);
+        handleButton("⌫");
       } else if (e.key === "Delete") {
-        press("C");
-        setAnswer("");
-        answerRef.current = "";
+        handleButton("C");
       } else if (e.key === "Enter") {
         doSubmit();
       }

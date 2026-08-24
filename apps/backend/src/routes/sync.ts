@@ -1,17 +1,11 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
 import { bearerToken, resolveEmailHash } from "../auth/session.js";
-import {
-  parseTrialResults,
-  isBetterLevelRecord,
-  evaluateTrialResult,
-  deriveLevelRuns,
-} from "../sync/logic.js";
+import { parseTrialResults, evaluateTrialResult, deriveLevelRuns } from "../sync/logic.js";
 import {
   insertTrialResults,
   insertLevelRuns,
-  getLevelStatsRow,
-  upsertLevelStatsRow,
+  upsertLevelStatsIfBetter,
   getAllLevelStatsForUser,
 } from "../sync/repo.js";
 
@@ -29,12 +23,9 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
     const runs = deriveLevelRuns(evaluated);
     insertLevelRuns(db, emailHash, runs, Date.now());
 
+    const syncedAt = Date.now();
     runs.forEach((run) => {
-      const existing = getLevelStatsRow(db, emailHash, run.levelNumber);
-      const existingRecord = existing ? { stars: existing.stars, totalTime: existing.total_time } : null;
-      if (isBetterLevelRecord(run, existingRecord)) {
-        upsertLevelStatsRow(db, emailHash, run.levelNumber, run.stars, run.totalTime, Date.now());
-      }
+      upsertLevelStatsIfBetter(db, emailHash, run.levelNumber, run, syncedAt);
     });
 
     return reply.send({ ok: true, stored: trials.length });

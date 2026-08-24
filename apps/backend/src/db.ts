@@ -88,86 +88,89 @@ const SCHEMA_STATEMENTS: readonly string[] = [
 // `CREATE TABLE IF NOT EXISTS` is a no-op against a table that already
 // exists with an older column set, so a new NOT NULL column needs an
 // explicit, idempotent migration on top — added here as each becomes
-// necessary. Existing rows predate the client/server correctness split
-// (ticket 05), so their claim is backfilled from what was, at
-// the time, the only recorded value.
-function migrateClientCorrectnessColumns(db: DatabaseSync): void {
-  const columns = new Set(
-    (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
-      (c) => c.name,
-    ),
+// necessary. `backfill`, when present, derives the new column's value from
+// whatever equivalent was recorded before; omitted entries have no
+// equivalent to backfill from, so the DEFAULT in `ddl` is the real answer.
+type ColumnMigration = {
+  table: string;
+  column: string;
+  ddl: string;
+  backfill?: string;
+};
+
+const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [
+  // Existing rows predate the client/server correctness split (ticket 05).
+  {
+    table: "trial_results",
+    column: "client_correct",
+    ddl: "ALTER TABLE trial_results ADD COLUMN client_correct INTEGER NOT NULL DEFAULT 0",
+    backfill: "UPDATE trial_results SET client_correct = correct",
+  },
+  {
+    table: "trial_results",
+    column: "client_time_exceeded",
+    ddl: "ALTER TABLE trial_results ADD COLUMN client_time_exceeded INTEGER NOT NULL DEFAULT 0",
+    backfill: "UPDATE trial_results SET client_time_exceeded = time_exceeded",
+  },
+  // Existing rows predate hint/streak tracking (ticket 03 follow-up) — 0
+  // (unknown) is the same value as a trial where no hint was ever available.
+  {
+    table: "trial_results",
+    column: "hint_shown",
+    ddl: "ALTER TABLE trial_results ADD COLUMN hint_shown INTEGER NOT NULL DEFAULT 0",
+  },
+  {
+    table: "trial_results",
+    column: "streak_at_submit",
+    ddl: "ALTER TABLE trial_results ADD COLUMN streak_at_submit INTEGER NOT NULL DEFAULT 0",
+  },
+  {
+    table: "trial_results",
+    column: "hints_available_at_start",
+    ddl: "ALTER TABLE trial_results ADD COLUMN hints_available_at_start INTEGER NOT NULL DEFAULT 0",
+  },
+  // Existing rows predate level-run grouping — '' (ungroupable) is exactly
+  // as unknown as the hint/streak columns' 0 default above.
+  {
+    table: "trial_results",
+    column: "level_run_id",
+    ddl: "ALTER TABLE trial_results ADD COLUMN level_run_id TEXT NOT NULL DEFAULT ''",
+  },
+  // Existing users all predate anonymous accounts and are, by definition,
+  // real email-verified ones — 0 (not anonymous) is exactly correct, no
+  // ambiguity like the columns above had.
+  {
+    table: "users",
+    column: "is_anonymous",
+    ddl: "ALTER TABLE users ADD COLUMN is_anonymous INTEGER NOT NULL DEFAULT 0",
+  },
+];
+
+function tableColumns(db: DatabaseSync, table: string): Set<string> {
+  return new Set(
+    (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name),
   );
-  if (!columns.has("client_correct")) {
-    db.exec("ALTER TABLE trial_results ADD COLUMN client_correct INTEGER NOT NULL DEFAULT 0");
-    db.exec("UPDATE trial_results SET client_correct = correct");
-  }
-  if (!columns.has("client_time_exceeded")) {
-    db.exec(
-      "ALTER TABLE trial_results ADD COLUMN client_time_exceeded INTEGER NOT NULL DEFAULT 0",
-    );
-    db.exec("UPDATE trial_results SET client_time_exceeded = time_exceeded");
-  }
 }
 
-// Existing rows predate hint/streak tracking (ticket 03 follow-up) and have
-// no equivalent value to backfill from — default to 0 (unknown), same as a
-// trial where no hint was ever available.
-function migrateHintAndStreakColumns(db: DatabaseSync): void {
-  const columns = new Set(
-    (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
-      (c) => c.name,
-    ),
+function applyColumnMigrations(db: DatabaseSync): void {
+  COLUMN_MIGRATIONS.forEach(({ table, column, ddl, backfill }) => {
+    if (tableColumns(db, table).has(column)) return;
+    db.exec(ddl);
+    if (backfill) db.exec(backfill);
+  });
+  // Unconditional: needs to run for a fresh database too, where
+  // level_run_id already exists from CREATE TABLE and its migration above
+  // never fires.
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS trial_results_level_run_id_idx ON trial_results (level_run_id)",
   );
-  if (!columns.has("hint_shown")) {
-    db.exec("ALTER TABLE trial_results ADD COLUMN hint_shown INTEGER NOT NULL DEFAULT 0");
-  }
-  if (!columns.has("streak_at_submit")) {
-    db.exec("ALTER TABLE trial_results ADD COLUMN streak_at_submit INTEGER NOT NULL DEFAULT 0");
-  }
-  if (!columns.has("hints_available_at_start")) {
-    db.exec(
-      "ALTER TABLE trial_results ADD COLUMN hints_available_at_start INTEGER NOT NULL DEFAULT 0",
-    );
-  }
-}
-
-// Existing rows predate level-run grouping and have no run to backfill
-// against — default to '' (ungroupable), same spirit as the hint/streak
-// columns' 0 default.
-function migrateLevelRunIdColumn(db: DatabaseSync): void {
-  const columns = new Set(
-    (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
-      (c) => c.name,
-    ),
-  );
-  if (!columns.has("level_run_id")) {
-    db.exec("ALTER TABLE trial_results ADD COLUMN level_run_id TEXT NOT NULL DEFAULT ''");
-  }
-  // Outside the if: needs to run for a fresh database too, where the column
-  // already exists from CREATE TABLE and this branch never executes.
-  db.exec("CREATE INDEX IF NOT EXISTS trial_results_level_run_id_idx ON trial_results (level_run_id)");
-}
-
-// Existing users all predate anonymous accounts and are, by definition,
-// real email-verified ones — default 0 (not anonymous) is exactly correct
-// for backfill here, no ambiguity like the hint/streak/run-id columns had.
-function migrateUserIsAnonymousColumn(db: DatabaseSync): void {
-  const columns = new Set(
-    (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map((c) => c.name),
-  );
-  if (!columns.has("is_anonymous")) {
-    db.exec("ALTER TABLE users ADD COLUMN is_anonymous INTEGER NOT NULL DEFAULT 0");
-  }
 }
 
 export function openDb(path: string): DatabaseSync {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   SCHEMA_STATEMENTS.forEach((statement) => db.exec(statement));
-  migrateClientCorrectnessColumns(db);
-  migrateHintAndStreakColumns(db);
-  migrateLevelRunIdColumn(db);
-  migrateUserIsAnonymousColumn(db);
+  applyColumnMigrations(db);
   seedLevelsIfEmpty(db);
   return db;
 }

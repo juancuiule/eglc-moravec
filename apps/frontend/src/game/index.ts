@@ -183,6 +183,15 @@ function computeHintsAvailableAtStart(hintsRemaining: number, hintShown: boolean
   return hintsRemaining + (hintShown ? 1 : 0);
 }
 
+function toReviewing(state: Playing, base: BaseTrialResult): Playing {
+  const result: TrialResult = {
+    ...base,
+    streakAtSubmit: currentStreak(state.results),
+    hintsAvailableAtStart: computeHintsAvailableAtStart(state.hintsRemaining, state.hintVisible),
+  };
+  return { ...state, playingState: { type: "reviewing", result } };
+}
+
 // ─── Factory ───────────────────────────────────────────────────────────────────
 
 export function createGameStore() {
@@ -206,13 +215,8 @@ export function createGameStore() {
         hasErased,
         hintShown: state.hintVisible,
       });
-      const result: TrialResult = {
-        ...base,
-        streakAtSubmit: currentStreak(state.results),
-        hintsAvailableAtStart: computeHintsAvailableAtStart(state.hintsRemaining, state.hintVisible),
-      };
 
-      set({ state: { ...state, playingState: { type: "reviewing", result } } });
+      set({ state: toReviewing(state, base) });
     },
 
     timeUp(answer, keystrokes = [], hasErased = false) {
@@ -225,13 +229,8 @@ export function createGameStore() {
         hasErased,
         hintShown: state.hintVisible,
       });
-      const result: TrialResult = {
-        ...base,
-        streakAtSubmit: currentStreak(state.results),
-        hintsAvailableAtStart: computeHintsAvailableAtStart(state.hintsRemaining, state.hintVisible),
-      };
 
-      set({ state: { ...state, playingState: { type: "reviewing", result } } });
+      set({ state: toReviewing(state, base) });
     },
 
     advance() {
