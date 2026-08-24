@@ -8,6 +8,7 @@ import {
 import { getRxStorageDexie } from "rxdb/plugins/storage-dexie";
 import { wrappedValidateAjvStorage } from "rxdb/plugins/validate-ajv";
 import { levelSchema, type LevelDocType } from "../levels/schema";
+import { insecureContextHashFunction } from "./hashFunction";
 
 // One shared database for the whole app — every local-first collection
 // (Level catalog today, Trial results / Level stats in later tickets) lives
@@ -42,6 +43,11 @@ export async function createAppDatabase(
   const db = await createRxDatabase<AppCollections>({
     name,
     storage: storageFor(storage),
+    hashFunction: insecureContextHashFunction,
+    // Next.js dev-mode Fast Refresh can re-run this module without a full
+    // page reload, which would otherwise try to create a second database
+    // under the same name and throw — close the earlier one instead.
+    closeDuplicates: true,
   });
   await db.addCollections({
     levels: { schema: levelSchema },

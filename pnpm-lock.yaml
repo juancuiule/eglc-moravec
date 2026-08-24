@@ -44,6 +44,9 @@ importers:
       engine:
         specifier: workspace:*
         version: link:../../packages/engine
+      js-sha256:
+        specifier: ^1.0.0
+        version: 1.0.0
       next:
         specifier: ^16.3.2
         version: 16.3.2(@babel/core@7.29.7)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1594,6 +1597,9 @@ packages:
 
   js-base64@3.9.2:
     resolution: {integrity: sha512-6zayE8QlUdiweYI6cETD/XBSqFcoCUlufn/29PJR99r82x1yDnIprRca0YvAYpAW+ez0GuQkVBC6xG5QkD7OjA==}
+
+  js-sha256@1.0.0:
+    resolution: {integrity: sha512-Bqxf6ENUzYIMzuELCmRNrJOVbjKH1oMgbfYJBKVr/W1Xf9fazpahqCbb24v1pR7XV1isuqhM+w9KWpK7zCyUQw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -3607,6 +3613,8 @@ snapshots:
   joycon@3.1.1: {}
 
   js-base64@3.9.2: {}
+
+  js-sha256@1.0.0: {}
 
   js-tokens@4.0.0: {}
 
