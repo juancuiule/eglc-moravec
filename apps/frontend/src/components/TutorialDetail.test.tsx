@@ -13,7 +13,7 @@ beforeEach(() => {
   practiceStore.setState({ state: { type: "idle" } });
 });
 
-test("multiplication defaults to its most complex category and lets you switch", () => {
+test("multiplication has a category selector and a live hint", () => {
   render(<TutorialDetail topic="multiplication" />);
 
   expect(screen.getByRole("button", { name: "4d × 1d" }).getAttribute("aria-pressed")).toBe("true");
@@ -26,7 +26,7 @@ test("multiplication defaults to its most complex category and lets you switch",
 });
 
 test("show answer reveals the numeric result", () => {
-  render(<TutorialDetail topic="squaring" />);
+  render(<TutorialDetail topic="squaring2d" />);
 
   expect(screen.getByTestId("tutorial-expression").textContent).toMatch(/= \?$/);
 
@@ -37,7 +37,7 @@ test("show answer reveals the numeric result", () => {
   expect(screen.getByTestId("tutorial-expression").textContent).toMatch(/= \?$/);
 });
 
-test("addition has no hint — there's no decomposition trick", () => {
+test("addition has no live hint — there's no decomposition trick", () => {
   render(<TutorialDetail topic="addition" />);
   expect(screen.queryByTestId("hint-card")).toBeNull();
 });
@@ -54,19 +54,22 @@ test("practicing this category starts Practice and navigates there", () => {
   expect(state.type === "playing" && state.config.categoryCodename).toBe("1dx1d");
 });
 
-test("squaring's video switches to match the selected category", () => {
-  render(<TutorialDetail topic="squaring" />);
+test("split squaring topics have their own video and no category selector", () => {
+  render(<TutorialDetail topic="squaring3d" />);
 
-  expect(screen.getByTitle("Squaring tutorial").getAttribute("src")).toContain("WW_VLPJ__V0");
-
-  fireEvent.click(screen.getByRole("button", { name: "2d²" }));
-  expect(screen.getByTitle("Squaring tutorial").getAttribute("src")).toContain("_CUWlWjFreM");
+  expect(screen.getByTitle("Squaring (3 digits) tutorial").getAttribute("src")).toContain(
+    "VHsTlMzN76g",
+  );
+  expect(screen.queryByRole("button", { name: "2d²" })).toBeNull();
+  expect(screen.getByText(/simpler one-step version/)).toBeDefined();
 });
 
-test("Major System has a video and explanation but no interactive example or Practice CTA", () => {
+test("Major System has a video, the digit table, and a worked example, but no interactive example or Practice CTA", () => {
   render(<TutorialDetail topic="majorSystem" />);
 
   expect(screen.getByTitle("Major System tutorial").getAttribute("src")).toContain("Fv0Si7UJHKw");
+  expect(screen.getByText("P, B, V")).toBeDefined();
+  expect(screen.getByText(/"lupa"/)).toBeDefined();
   expect(screen.queryByTestId("hint-card")).toBeNull();
   expect(screen.queryByTestId("tutorial-expression")).toBeNull();
   expect(screen.queryByRole("button", { name: /Practice/ })).toBeNull();

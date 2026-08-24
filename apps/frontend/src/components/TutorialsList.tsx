@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TUTORIAL_TOPICS, TUTORIAL_TITLES } from "../tutorials/content";
+import { TUTORIAL_TOPICS, TUTORIAL_TITLES, TUTORIAL_SUBTITLES } from "../tutorials/content";
 import { panel, backLink } from "../styles";
 
 export function TutorialsList() {
@@ -12,17 +12,20 @@ export function TutorialsList() {
         <h1 className="text-xl font-bold tracking-tight">Tutorials</h1>
       </div>
 
-      <p className="text-sm text-muted">How each operation works, with a live worked example.</p>
-
       <div className="flex flex-col gap-2">
         {TUTORIAL_TOPICS.map((topic) => (
           <Link
             key={topic}
             href={`/tutorial/${topic}`}
-            className="flex items-center justify-between rounded-xl px-4 py-3 bg-base border border-subtle hover:border-accent hover:text-accent transition-all"
+            className="flex items-center justify-between gap-3 rounded-xl px-4 py-3 bg-base border border-subtle hover:border-accent transition-all"
           >
-            <span className="font-semibold">{TUTORIAL_TITLES[topic]}</span>
-            <span aria-hidden="true">→</span>
+            <span className="flex flex-col">
+              <span className="font-semibold">{TUTORIAL_TITLES[topic]}</span>
+              <span className="text-xs text-muted">{TUTORIAL_SUBTITLES[topic]}</span>
+            </span>
+            <span aria-hidden="true" className="text-muted shrink-0">
+              →
+            </span>
           </Link>
         ))}
       </div>
