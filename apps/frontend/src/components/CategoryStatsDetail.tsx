@@ -17,7 +17,7 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
   const correctInTime = categoryTrials.filter((t) => t.correct && !t.timeExceeded).length;
 
   return (
-    <div className={`${panel} p-6 max-w-[480px] gap-4`}>
+    <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
         <button onClick={onBack} className={backLink}>
           ←

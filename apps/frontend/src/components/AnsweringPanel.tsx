@@ -160,7 +160,7 @@ export function AnsweringPanel({
   const seconds = Math.ceil(remaining / 1000);
 
   return (
-    <div className={`${panel} p-6 max-w-[380px] gap-5`}>
+    <div className={`${panel} p-6 gap-5`}>
       {/* Header */}
       <div className="flex justify-between items-center text-sm text-muted">
         {headerLeft}

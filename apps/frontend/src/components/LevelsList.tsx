@@ -37,7 +37,7 @@ export function LevelsList() {
   const completedCount = Object.keys(stats).filter((k) => (stats[k]?.stars ?? 0) > 0).length;
 
   return (
-    <div className={`${panel} p-6 max-w-[420px] gap-3`}>
+    <div className={`${panel} p-6 gap-3`}>
       <div className="flex items-center gap-3">
         <Link href="/" className={backLink} aria-label="Back to menu">
           ←

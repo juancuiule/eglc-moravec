@@ -3,8 +3,17 @@
 // @theme, never a raw hex. This file is about structure/repetition, not
 // about naming individual colors.
 
-/** The elevated card every screen is built from. Callers add their own padding, max-width, and gap. */
-export const panel = "bg-panel border border-subtle rounded-2xl w-full flex flex-col";
+/**
+ * The elevated card every screen is built from. Callers add their own
+ * padding and gap. The max-width is fixed here, not left to callers —
+ * every screen sharing one width is what keeps the page from visibly
+ * shifting sideways as you navigate between them (see Centered for the
+ * matching top-alignment half of that).
+ */
+export const panel = "bg-panel border border-subtle rounded-2xl w-full max-w-[480px] flex flex-col";
+
+/** Same width as `panel`, for the rare surface (FinishedScreen's correct/wrong tinting) that doesn't build on `panel` itself. */
+export const panelMaxWidth = "max-w-[480px]";
 
 const buttonBase =
   "cursor-pointer text-white rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 active:scale-[0.97] transition-opacity";

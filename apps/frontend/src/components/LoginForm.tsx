@@ -40,7 +40,7 @@ export function LoginForm() {
 
   if (step.type === "code") {
     return (
-      <div className={`${panel} p-8 max-w-[420px] gap-4`}>
+      <div className={`${panel} p-8 gap-4`}>
         <h1 className="text-xl font-bold tracking-tight">Enter your code</h1>
         <p className="text-sm text-muted">We sent a 6-digit code to {step.email}.</p>
         <input
@@ -68,7 +68,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className={`${panel} p-8 max-w-[420px] gap-4`}>
+    <div className={`${panel} p-8 gap-4`}>
       <h1 className="text-xl font-bold tracking-tight">Log in</h1>
       <p className="text-sm text-muted">
         No password — we'll email you a one-time code. Playing without an account still works fine.

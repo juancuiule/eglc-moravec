@@ -51,7 +51,7 @@ export function TutorialDetail({ topic }: Props) {
   const hint = operation?.hint();
 
   return (
-    <div className={`${panel} p-6 max-w-[480px] gap-4`}>
+    <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
         <Link href="/tutorials" className={backLink} aria-label="Back to tutorials">
           ←

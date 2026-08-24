@@ -68,7 +68,7 @@ export default async function AdminPage() {
 
   return (
     <Centered>
-      <div className={`${panel} p-6 max-w-[560px] gap-6`}>
+      <div className={`${panel} p-6 gap-6`}>
         <div className="flex items-center gap-3">
           <Link href="/" className={backLink}>
             ←

@@ -10,7 +10,7 @@ export function PracticeModeSelection() {
   const start = usePractice((s) => s.start);
 
   return (
-    <div className={`${panel} p-6 max-w-[480px] gap-4`}>
+    <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
         <Link href="/" className={backLink}>
           ←

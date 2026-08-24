@@ -23,7 +23,7 @@ export function PracticeSummary({ state }: Props) {
   }
 
   return (
-    <div className={`${panel} p-8 max-w-[420px] gap-6`}>
+    <div className={`${panel} p-8 gap-6`}>
       <h1 className="text-2xl font-bold tracking-tight text-center">Session done</h1>
 
       <div className="text-center">

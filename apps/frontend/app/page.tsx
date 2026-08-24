@@ -14,7 +14,7 @@ export default function HomePage() {
 
   return (
     <Centered>
-      <div className={`${panel} p-6 max-w-[420px] gap-6`}>
+      <div className={`${panel} p-6 gap-6`}>
         <div className="flex items-center justify-between flex-wrap gap-y-2">
           <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">Moravec</h1>
           <div className="flex items-center gap-1">

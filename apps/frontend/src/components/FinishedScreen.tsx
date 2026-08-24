@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
 import { StarsDisplay } from "./StarsDisplay";
-import { primaryButton, successButton, ghostButton } from "../styles";
+import { primaryButton, successButton, ghostButton, panelMaxWidth } from "../styles";
 
 type Props = { state: Finished };
 
@@ -44,7 +44,8 @@ export function FinishedScreen({ state }: Props) {
   return (
     <div
       className={[
-        "border rounded-2xl p-8 w-full max-w-120 flex flex-col gap-6",
+        "border rounded-2xl p-8 w-full flex flex-col gap-6",
+        panelMaxWidth,
         levelCompleted ? "bg-teal-bg border-teal" : "bg-danger-bg border-danger-border",
       ].join(" ")}
     >
