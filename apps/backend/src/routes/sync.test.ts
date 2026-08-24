@@ -39,6 +39,9 @@ const trial = {
   keystrokes: [{ key: "4", t: 120 }, { key: "2", t: 890 }],
   operands: [12, 5], // 12 * 5 = 60
   answer: 60,
+  hintShown: true,
+  streakAtSubmit: 4,
+  hintsAvailableAtStart: 3,
 };
 
 describe("POST /sync/results", () => {
@@ -67,6 +70,9 @@ describe("POST /sync/results", () => {
       client_time_exceeded: 0,
       time_taken: 3400,
       played_at: 1_700_000_000_000,
+      hint_shown: 1,
+      streak_at_submit: 4,
+      hints_available_at_start: 3,
     });
 
     const keystrokes = getKeystrokesForTrialResult(db, rows[0].id);
@@ -146,6 +152,9 @@ function trialFor(levelNumber: number, correct: boolean) {
     keystrokes: [],
     operands: [3, 4],
     answer: correct ? 7 : 999,
+    hintShown: false,
+    streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
   };
 }
 

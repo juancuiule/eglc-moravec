@@ -50,8 +50,8 @@ export function insertTrialResults(
 ): void {
   const insertTrial = db.prepare(
     `INSERT INTO trial_results
-       (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insertKeystroke = db.prepare(
     `INSERT INTO trial_keystrokes (trial_result_id, key, t) VALUES (?, ?, ?)`,
@@ -67,6 +67,9 @@ export function insertTrialResults(
       t.clientTimeExceeded ? 1 : 0,
       t.timeTaken,
       t.playedAt,
+      t.hintShown ? 1 : 0,
+      t.streakAtSubmit,
+      t.hintsAvailableAtStart,
     );
     t.keystrokes.forEach((k) => {
       insertKeystroke.run(lastInsertRowid, k.key, k.t);
@@ -85,6 +88,9 @@ export type TrialResultRow = {
   client_time_exceeded: number;
   time_taken: number;
   played_at: number;
+  hint_shown: number;
+  streak_at_submit: number;
+  hints_available_at_start: number;
 };
 
 export function getTrialResultsForUser(db: DatabaseSync, emailHash: string): TrialResultRow[] {

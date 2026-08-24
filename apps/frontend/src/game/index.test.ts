@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { trialCounts, createGameStore, TOTAL_TRIALS } from "./index";
+import { trialCounts, createGameStore, TOTAL_TRIALS, HINTS_PER_LEVEL } from "./index";
 import type { TrialResult } from "./index";
 import { Addition } from "engine";
 import { LEVELS } from "../LEVELS";
@@ -32,6 +32,7 @@ function makeResult(
     keystrokes: [],
     hasErased: false,
     streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
   };
 }
 
@@ -194,6 +195,29 @@ describe("createGameStore", () => {
       const reviewing = multStore.getState().state;
       if (reviewing.type !== "playing" || reviewing.playingState.type !== "reviewing") throw new Error();
       expect(reviewing.playingState.result.hintShown).toBe(true);
+    });
+
+    it("hintsAvailableAtStart reconstructs the pre-trial budget, undoing this trial's own decrement", () => {
+      const multStore = createGameStore();
+      multStore.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
+      multStore.getState().requestHint();
+      const s = multStore.getState().state;
+      if (s.type !== "playing") throw new Error();
+      expect(s.hintsRemaining).toBe(HINTS_PER_LEVEL - 1); // already decremented for this trial
+
+      multStore.getState().submitAnswer(s.currentOperation.result());
+      const reviewing = multStore.getState().state;
+      if (reviewing.type !== "playing" || reviewing.playingState.type !== "reviewing") throw new Error();
+      expect(reviewing.playingState.result.hintsAvailableAtStart).toBe(HINTS_PER_LEVEL);
+    });
+
+    it("hintsAvailableAtStart equals hintsRemaining when no hint was requested this trial", () => {
+      const s = store.getState().state;
+      if (s.type !== "playing") throw new Error();
+      store.getState().submitAnswer(s.currentOperation.result());
+      const reviewing = store.getState().state;
+      if (reviewing.type !== "playing" || reviewing.playingState.type !== "reviewing") throw new Error();
+      expect(reviewing.playingState.result.hintsAvailableAtStart).toBe(s.hintsRemaining);
     });
 
     it("advance after correct-but-late does NOT increment trialsConsumed", () => {

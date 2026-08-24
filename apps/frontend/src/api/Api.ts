@@ -17,6 +17,9 @@ export type SyncTrial = {
   keystrokes: Keystroke[];
   operands: number[];
   answer: number | null;
+  hintShown: boolean;
+  streakAtSubmit: number;
+  hintsAvailableAtStart: number;
 };
 
 export type LevelStats = {

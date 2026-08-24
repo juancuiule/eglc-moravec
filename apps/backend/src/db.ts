@@ -31,7 +31,10 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      client_correct INTEGER NOT NULL,
      client_time_exceeded INTEGER NOT NULL,
      time_taken INTEGER NOT NULL,
-     played_at INTEGER NOT NULL
+     played_at INTEGER NOT NULL,
+     hint_shown INTEGER NOT NULL DEFAULT 0,
+     streak_at_submit INTEGER NOT NULL DEFAULT 0,
+     hints_available_at_start INTEGER NOT NULL DEFAULT 0
    )`,
   `CREATE INDEX IF NOT EXISTS trial_results_email_hash_idx ON trial_results (email_hash)`,
   `CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)`,
@@ -76,11 +79,34 @@ function migrateClientCorrectnessColumns(db: DatabaseSync): void {
   }
 }
 
+// Existing rows predate hint/streak tracking (ticket 03 follow-up) and have
+// no equivalent value to backfill from — default to 0 (unknown), same as a
+// trial where no hint was ever available.
+function migrateHintAndStreakColumns(db: DatabaseSync): void {
+  const columns = new Set(
+    (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
+      (c) => c.name,
+    ),
+  );
+  if (!columns.has("hint_shown")) {
+    db.exec("ALTER TABLE trial_results ADD COLUMN hint_shown INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!columns.has("streak_at_submit")) {
+    db.exec("ALTER TABLE trial_results ADD COLUMN streak_at_submit INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!columns.has("hints_available_at_start")) {
+    db.exec(
+      "ALTER TABLE trial_results ADD COLUMN hints_available_at_start INTEGER NOT NULL DEFAULT 0",
+    );
+  }
+}
+
 export function openDb(path: string): DatabaseSync {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   SCHEMA_STATEMENTS.forEach((statement) => db.exec(statement));
   migrateClientCorrectnessColumns(db);
+  migrateHintAndStreakColumns(db);
   return db;
 }
 

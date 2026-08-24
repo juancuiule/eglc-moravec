@@ -16,6 +16,9 @@ function trial(
     timeTaken,
     playedAt: new Date().toISOString(),
     keystrokes: [],
+    hintShown: false,
+    streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
   };
 }
 

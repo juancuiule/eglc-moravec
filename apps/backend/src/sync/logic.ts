@@ -21,6 +21,9 @@ export type TrialResultInput = {
   keystrokes: KeystrokeInput[];
   operands: number[];
   answer: number | null;
+  hintShown: boolean;
+  streakAtSubmit: number;
+  hintsAvailableAtStart: number;
 };
 
 function isTrialResultInput(value: unknown): value is TrialResultInput {
@@ -37,7 +40,10 @@ function isTrialResultInput(value: unknown): value is TrialResultInput {
     r.keystrokes.every(isKeystrokeInput) &&
     Array.isArray(r.operands) &&
     r.operands.every((o) => typeof o === "number") &&
-    (r.answer === null || typeof r.answer === "number")
+    (r.answer === null || typeof r.answer === "number") &&
+    typeof r.hintShown === "boolean" &&
+    typeof r.streakAtSubmit === "number" &&
+    typeof r.hintsAvailableAtStart === "number"
   );
 }
 
@@ -59,6 +65,9 @@ export type EvaluatedTrialResult = {
   timeTaken: number;
   playedAt: number;
   keystrokes: KeystrokeInput[];
+  hintShown: boolean;
+  streakAtSubmit: number;
+  hintsAvailableAtStart: number;
 };
 
 /**
@@ -81,6 +90,9 @@ export function evaluateTrialResult(input: TrialResultInput): EvaluatedTrialResu
     timeTaken: input.timeTaken,
     playedAt: input.playedAt,
     keystrokes: input.keystrokes,
+    hintShown: input.hintShown,
+    streakAtSubmit: input.streakAtSubmit,
+    hintsAvailableAtStart: input.hintsAvailableAtStart,
   };
 }
 

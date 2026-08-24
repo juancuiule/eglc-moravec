@@ -34,6 +34,7 @@ function makeResult(timeTaken: number): TrialResult {
     keystrokes: [],
     hasErased: false,
     streakAtSubmit: 1,
+    hintsAvailableAtStart: 3,
   };
 }
 

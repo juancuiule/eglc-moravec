@@ -16,6 +16,9 @@ const validTrial = {
   keystrokes: [{ key: "9", t: 100 }, { key: "2", t: 340 }],
   operands: [4, 5],
   answer: 9,
+  hintShown: false,
+  streakAtSubmit: 2,
+  hintsAvailableAtStart: 3,
 };
 
 describe("parseTrialResults", () => {
@@ -79,6 +82,21 @@ describe("parseTrialResults", () => {
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
+  it("rejects a trial with a wrong-typed hintShown", () => {
+    const trial = { ...validTrial, hintShown: "yes" };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("rejects a trial with a wrong-typed streakAtSubmit", () => {
+    const trial = { ...validTrial, streakAtSubmit: "2" };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("rejects a trial with a wrong-typed hintsAvailableAtStart", () => {
+    const trial = { ...validTrial, hintsAvailableAtStart: "3" };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
   it("rejects null and non-object bodies", () => {
     expect(parseTrialResults(null)).toBeNull();
     expect(parseTrialResults("nope")).toBeNull();
@@ -92,6 +110,13 @@ describe("evaluateTrialResult", () => {
     expect(evaluated.timeExceeded).toBe(false);
     expect(evaluated.clientCorrect).toBe(true);
     expect(evaluated.clientTimeExceeded).toBe(false);
+  });
+
+  it("passes hintShown, streakAtSubmit, and hintsAvailableAtStart through unchanged", () => {
+    const evaluated = evaluateTrialResult(validTrial);
+    expect(evaluated.hintShown).toBe(false);
+    expect(evaluated.streakAtSubmit).toBe(2);
+    expect(evaluated.hintsAvailableAtStart).toBe(3);
   });
 
   it("overrides a client claim that disagrees with the server's own recomputation, keeping the claim for auditing", () => {
@@ -115,6 +140,9 @@ function evaluatedTrial(overrides: Partial<ReturnType<typeof evaluateTrialResult
     timeTaken: 1000,
     playedAt: 1_700_000_000_000,
     keystrokes: [],
+    hintShown: false,
+    streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
     ...overrides,
   };
 }

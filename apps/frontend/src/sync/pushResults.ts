@@ -25,6 +25,9 @@ export function pushResults(token: string, results: TrialResult[], trials: Persi
     keystrokes: t.keystrokes,
     operands: results[i].operation.operands(),
     answer: results[i].answer,
+    hintShown: t.hintShown,
+    streakAtSubmit: t.streakAtSubmit,
+    hintsAvailableAtStart: t.hintsAvailableAtStart,
   }));
 
   void Api.syncResults(token, payload).catch(() => {

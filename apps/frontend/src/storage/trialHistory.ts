@@ -12,6 +12,9 @@ export type PersistedTrial = {
   timeTaken: number;
   playedAt: string; // ISO date
   keystrokes: { key: string; t: number }[];
+  hintShown: boolean;
+  streakAtSubmit: number;
+  hintsAvailableAtStart: number;
 };
 
 /** Map a finished level's trial results into the shape persisted to trial history. */
@@ -31,6 +34,9 @@ export function buildPersistedTrials(
     timeTaken: r.timeTaken,
     playedAt: new Date(playedAtTimestamps[i]).toISOString(),
     keystrokes: r.keystrokes,
+    hintShown: r.hintShown,
+    streakAtSubmit: r.streakAtSubmit,
+    hintsAvailableAtStart: r.hintsAvailableAtStart,
   }));
 }
 

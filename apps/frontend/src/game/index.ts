@@ -31,6 +31,8 @@ export const TOTAL_TRIALS = 20;
 
 export type TrialResult = BaseTrialResult & {
   streakAtSubmit: number;
+  /** Hints left *before* this trial's own hint request (if any) — distinct from hintShown, which only says whether one was actually used. */
+  hintsAvailableAtStart: number;
 };
 
 // A trial only consumes a slot when it's wrong, or correct-within-time.
@@ -164,6 +166,16 @@ function currentStreak(results: TrialResult[]): number {
   return streak;
 }
 
+/**
+ * Reconstructs the hint budget as it stood before this trial's own hint
+ * request, if any — at most one hint can be requested per trial (see
+ * requestHint's canShowHint gate), so undoing that single possible
+ * decrement is enough; no separate snapshot needs to be threaded through.
+ */
+function computeHintsAvailableAtStart(hintsRemaining: number, hintShown: boolean): number {
+  return hintsRemaining + (hintShown ? 1 : 0);
+}
+
 // ─── Factory ───────────────────────────────────────────────────────────────────
 
 export function createGameStore() {
@@ -187,7 +199,11 @@ export function createGameStore() {
         hasErased,
         hintShown: state.hintVisible,
       });
-      const result: TrialResult = { ...base, streakAtSubmit: currentStreak(state.results) };
+      const result: TrialResult = {
+        ...base,
+        streakAtSubmit: currentStreak(state.results),
+        hintsAvailableAtStart: computeHintsAvailableAtStart(state.hintsRemaining, state.hintVisible),
+      };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
@@ -202,7 +218,11 @@ export function createGameStore() {
         hasErased,
         hintShown: state.hintVisible,
       });
-      const result: TrialResult = { ...base, streakAtSubmit: currentStreak(state.results) };
+      const result: TrialResult = {
+        ...base,
+        streakAtSubmit: currentStreak(state.results),
+        hintsAvailableAtStart: computeHintsAvailableAtStart(state.hintsRemaining, state.hintVisible),
+      };
 
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },

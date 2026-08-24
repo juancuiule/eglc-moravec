@@ -25,6 +25,9 @@ function trial(overrides: Partial<EvaluatedTrialResult> = {}): EvaluatedTrialRes
     timeTaken: 1000,
     playedAt: 1_700_000_000_000,
     keystrokes: [],
+    hintShown: false,
+    streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
     ...overrides,
   };
 }

@@ -18,6 +18,7 @@ function makeResult(overrides: Partial<TrialResult> = {}): TrialResult {
     keystrokes: [{ key: "1", t: 100 }],
     hasErased: false,
     streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
     ...overrides,
   };
 }
@@ -36,6 +37,9 @@ describe("buildPersistedTrials", () => {
     expect(persisted.timeExceeded).toBe(false);
     expect(persisted.timeTaken).toBe(1200);
     expect(persisted.keystrokes).toBe(result.keystrokes);
+    expect(persisted.hintShown).toBe(false);
+    expect(persisted.streakAtSubmit).toBe(0);
+    expect(persisted.hintsAvailableAtStart).toBe(3);
     expect(persisted.playedAt).toBe("2026-01-01T00:00:00.000Z");
 
     vi.useRealTimers();

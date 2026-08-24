@@ -20,6 +20,7 @@ function makeResult(): TrialResult {
     keystrokes: [{ key: "1", t: 100 }],
     hasErased: false,
     streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
   };
 }
 
@@ -32,6 +33,9 @@ function makeTrial(overrides: Partial<PersistedTrial> = {}): PersistedTrial {
     timeTaken: 1200,
     playedAt: "2026-01-01T00:00:00.000Z",
     keystrokes: [{ key: "1", t: 100 }],
+    hintShown: false,
+    streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
     ...overrides,
   };
 }
@@ -57,6 +61,9 @@ describe("pushResults", () => {
         keystrokes: [{ key: "1", t: 100 }],
         operands: result.operation.operands(),
         answer: result.answer,
+        hintShown: false,
+        streakAtSubmit: 0,
+        hintsAvailableAtStart: 3,
       },
     ]);
   });
