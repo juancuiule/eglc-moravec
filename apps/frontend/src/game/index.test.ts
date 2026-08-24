@@ -91,6 +91,29 @@ describe("createGameStore", () => {
     expect(store.getState().state).toBe(before);
   });
 
+  it("load() generates a valid v4 runId, without relying on crypto.randomUUID (unavailable outside secure contexts)", () => {
+    store.getState().load(makeConfig());
+    const s = store.getState().state;
+    if (s.type !== "playing") throw new Error("not playing");
+    expect(s.runId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+
+  it("replay generates a fresh runId, distinct from the finished run's", () => {
+    store.getState().load(makeConfig({ totalTrials: 1 }));
+    const playing = store.getState().state;
+    if (playing.type !== "playing") throw new Error("not playing");
+    store.getState().submitAnswer(playing.currentOperation.result());
+    store.getState().advance();
+
+    const finished = store.getState().state;
+    if (finished.type !== "finished") throw new Error("not finished");
+
+    store.getState().replay();
+    const replayed = store.getState().state;
+    if (replayed.type !== "playing") throw new Error("not playing");
+    expect(replayed.runId).not.toBe(finished.runId);
+  });
+
   describe("while playing", () => {
     beforeEach(() => {
       store.getState().load(makeConfig());
