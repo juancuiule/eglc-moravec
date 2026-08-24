@@ -18,7 +18,7 @@ import {
 } from "../tutorials/content";
 import { HintCard } from "./HintCard";
 import { YouTubeEmbed } from "./YouTubeEmbed";
-import { panel, backLink, primaryButton } from "../styles";
+import { panel, backLink, button } from "../styles";
 
 type Props = { topic: TutorialTopic };
 
@@ -133,7 +133,7 @@ export function TutorialDetail({ topic }: Props) {
             </div>
           </div>
 
-          <button onClick={practiceThis} className={`${primaryButton} text-center`}>
+          <button onClick={practiceThis} className={`${button({ intent: "primary" })} text-center`}>
             Practice {CATEGORY_LABELS[codename!] ?? codename}
           </button>
         </>

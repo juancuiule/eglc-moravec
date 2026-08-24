@@ -3,7 +3,7 @@
 import type { Playing } from "../game/index";
 import { useGame } from "../game/store";
 import { AnsweringPanel } from "./AnsweringPanel";
-import { hintButtonClassName } from "../styles";
+import { hintButton } from "../styles";
 
 type Props = { state: Playing };
 
@@ -43,7 +43,7 @@ export function AnsweringView({ state }: Props) {
         <button
           disabled={hintDisabled}
           onClick={requestHint}
-          className={hintButtonClassName(hintDisabled)}
+          className={hintButton({ disabled: hintDisabled })}
           title="Show hint"
         >
           Hint {state.hintsRemaining}/3

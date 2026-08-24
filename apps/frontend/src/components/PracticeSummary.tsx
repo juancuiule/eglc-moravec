@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { PracticeStopped } from "../practice/index";
 import { usePractice } from "../practice/store";
-import { panel, primaryButton, ghostButton } from "../styles";
+import { panel, button } from "../styles";
 
 type Props = { state: PracticeStopped };
 
@@ -34,10 +34,10 @@ export function PracticeSummary({ state }: Props) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <button className={primaryButton} onClick={() => start(config)}>
+        <button className={button({ intent: "primary" })} onClick={() => start(config)}>
           Practice again
         </button>
-        <button className={ghostButton} onClick={handleBack}>
+        <button className={button({ intent: "ghost" })} onClick={handleBack}>
           Back to menu
         </button>
       </div>

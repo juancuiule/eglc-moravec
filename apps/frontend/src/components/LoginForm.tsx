@@ -7,7 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Api } from "@/api/Api";
 import { useAuth } from "@/auth/store";
 import { syncLevelStatsFromRemote } from "@/sync/syncLevelStatsFromRemote";
-import { panel, primaryButton, textLink } from "@/styles";
+import { panel, button, textLink } from "@/styles";
 
 type Step = { type: "email" } | { type: "code"; email: string };
 
@@ -54,7 +54,7 @@ export function LoginForm() {
         />
         {verifyCode.error && <p className="text-sm text-danger">{verifyCode.error.message}</p>}
         <button
-          className={`${primaryButton} disabled:opacity-30 disabled:cursor-not-allowed`}
+          className={`${button({ intent: "primary" })} disabled:opacity-30 disabled:cursor-not-allowed`}
           disabled={verifyCode.isPending || code.length !== 6}
           onClick={() => verifyCode.mutate({ email: step.email, code })}
         >
@@ -83,7 +83,7 @@ export function LoginForm() {
       />
       {requestCode.error && <p className="text-sm text-danger">{requestCode.error.message}</p>}
       <button
-        className={`${primaryButton} disabled:opacity-30 disabled:cursor-not-allowed`}
+        className={`${button({ intent: "primary" })} disabled:opacity-30 disabled:cursor-not-allowed`}
         disabled={requestCode.isPending || email.length === 0}
         onClick={() => requestCode.mutate(email)}
       >

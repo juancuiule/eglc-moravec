@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
 import { StarsDisplay } from "./StarsDisplay";
-import { primaryButton, successButton, ghostButton, panelMaxWidth } from "../styles";
+import { button, panelMaxWidth } from "../styles";
 
 type Props = { state: Finished };
 
@@ -67,14 +67,14 @@ export function FinishedScreen({ state }: Props) {
 
       <div className="flex flex-col gap-2">
         {levelCompleted && !isLastLevel && (
-          <button className={successButton} onClick={playNext}>
+          <button className={button({ intent: "success" })} onClick={playNext}>
             Play next level (N)
           </button>
         )}
-        <button className={primaryButton} onClick={replay}>
+        <button className={button({ intent: "primary" })} onClick={replay}>
           {levelCompleted ? "Replay (R)" : "Try again (R)"}
         </button>
-        <button className={ghostButton} onClick={backToMenu}>
+        <button className={button({ intent: "ghost" })} onClick={backToMenu}>
           Back to menu (M)
         </button>
       </div>

@@ -3,7 +3,7 @@
 import type { PracticePlaying } from "../practice/index";
 import { usePractice } from "../practice/store";
 import { AnsweringPanel } from "./AnsweringPanel";
-import { hintButtonClassName } from "../styles";
+import { hintButton } from "../styles";
 
 type Props = { state: PracticePlaying };
 
@@ -49,7 +49,7 @@ export function PracticePlayingScreen({ state }: Props) {
             <button
               disabled={state.hintVisible || isReviewing}
               onClick={requestHint}
-              className={hintButtonClassName(state.hintVisible || isReviewing)}
+              className={hintButton({ disabled: state.hintVisible || isReviewing })}
             >
               Hint
             </button>

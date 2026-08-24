@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/auth/store";
 import { Centered } from "@/components/Centered";
-import { panel, successButton, primaryButton, outlineButton } from "@/styles";
+import { panel, button } from "@/styles";
 
 const navLinkClassName =
   "text-sm text-muted hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-subtle";
@@ -39,18 +39,18 @@ export default function HomePage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Link href="/levels" className={`${successButton} text-center block`}>
+          <Link href="/levels" className={`${button({ intent: "success" })} text-center block`}>
             Play
           </Link>
           <div className="flex gap-2">
-            <Link href="/practice" className={`${primaryButton} text-center block flex-1`}>
+            <Link href="/practice" className={`${button({ intent: "primary" })} text-center block flex-1`}>
               Practice
             </Link>
-            <Link href="/stats" className={`${outlineButton} text-center block flex-1`}>
+            <Link href="/stats" className={`${button({ intent: "outline" })} text-center block flex-1`}>
               Stats
             </Link>
           </div>
-          <Link href="/tutorials" className={`${outlineButton} text-center block`}>
+          <Link href="/tutorials" className={`${button({ intent: "outline" })} text-center block`}>
             Tutorials
           </Link>
         </div>
