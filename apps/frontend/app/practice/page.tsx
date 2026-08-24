@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { usePractice, practiceStore } from "@/practice/store";
 import { watchStoreTransition } from "@/storeWatch";
 import { persistStoppedPractice } from "@/practice/persistStoppedPractice";
-import { Centered } from "@/components/Centered";
 import { PracticeModeSelection } from "@/components/PracticeModeSelection";
 import { PracticePlayingScreen } from "@/components/PracticePlayingScreen";
 import { PracticeSummary } from "@/components/PracticeSummary";
@@ -26,24 +25,12 @@ export default function PracticePage() {
   }, []);
 
   if (practiceState.type === "playing") {
-    return (
-      <Centered>
-        <PracticePlayingScreen state={practiceState} />
-      </Centered>
-    );
+    return <PracticePlayingScreen state={practiceState} />;
   }
 
   if (practiceState.type === "stopped") {
-    return (
-      <Centered>
-        <PracticeSummary state={practiceState} />
-      </Centered>
-    );
+    return <PracticeSummary state={practiceState} />;
   }
 
-  return (
-    <Centered>
-      <PracticeModeSelection />
-    </Centered>
-  );
+  return <PracticeModeSelection />;
 }

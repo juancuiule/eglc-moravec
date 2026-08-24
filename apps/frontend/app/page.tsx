@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useAuth } from "@/auth/store";
-import { Centered } from "@/components/Centered";
 import { panel, button } from "@/styles";
 
 const navLinkClassName =
@@ -13,48 +12,46 @@ export default function HomePage() {
   const logout = useAuth((s) => s.logout);
 
   return (
-    <Centered>
-      <div className={`${panel} p-6 gap-6`}>
-        <div className="flex items-center justify-between flex-wrap gap-y-2">
-          <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">Moravec</h1>
-          <div className="flex items-center gap-1">
-            {authState.type === "loggedIn" ? (
-              <>
-                <span
-                  className="text-xs text-accent font-mono max-w-20 truncate"
-                  title={authState.email}
-                >
-                  {authState.email}
-                </span>
-                <button onClick={logout} className={navLinkClassName}>
-                  Log out
-                </button>
-              </>
-            ) : (
-              <Link href="/login" className={navLinkClassName}>
-                Log in
-              </Link>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Link href="/levels" className={`${button({ intent: "success" })} text-center block`}>
-            Play
-          </Link>
-          <div className="flex gap-2">
-            <Link href="/practice" className={`${button({ intent: "primary" })} text-center block flex-1`}>
-              Practice
+    <div className={`${panel} p-6 gap-6`}>
+      <div className="flex items-center justify-between flex-wrap gap-y-2">
+        <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">Moravec</h1>
+        <div className="flex items-center gap-1">
+          {authState.type === "loggedIn" ? (
+            <>
+              <span
+                className="text-xs text-accent font-mono max-w-20 truncate"
+                title={authState.email}
+              >
+                {authState.email}
+              </span>
+              <button onClick={logout} className={navLinkClassName}>
+                Log out
+              </button>
+            </>
+          ) : (
+            <Link href="/login" className={navLinkClassName}>
+              Log in
             </Link>
-            <Link href="/stats" className={`${button({ intent: "primary" })} text-center block flex-1`}>
-              Stats
-            </Link>
-          </div>
-          <Link href="/tutorials" className={`${button({ intent: "outline" })} text-center block`}>
-            Tutorials
-          </Link>
+          )}
         </div>
       </div>
-    </Centered>
+
+      <div className="flex flex-col gap-2">
+        <Link href="/levels" className={`${button({ intent: "success" })} text-center block`}>
+          Play
+        </Link>
+        <div className="flex gap-2">
+          <Link href="/practice" className={`${button({ intent: "primary" })} text-center block flex-1`}>
+            Practice
+          </Link>
+          <Link href="/stats" className={`${button({ intent: "primary" })} text-center block flex-1`}>
+            Stats
+          </Link>
+        </div>
+        <Link href="/tutorials" className={`${button({ intent: "outline" })} text-center block`}>
+          Tutorials
+        </Link>
+      </div>
+    </div>
   );
 }

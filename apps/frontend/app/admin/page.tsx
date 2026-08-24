@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Api, type AdminStats, type LevelPerformance, type CategoryPerformance } from "@/api/Api";
-import { Centered } from "@/components/Centered";
 import { panel, backLink } from "@/styles";
 
 // Without this, Next statically renders this page once at build time
@@ -67,32 +66,30 @@ export default async function AdminPage() {
   const data: AdminStats | null = await Api.fetchAdminStats().catch(() => null);
 
   return (
-    <Centered>
-      <div className={`${panel} p-6 gap-6`}>
-        <div className="flex items-center gap-3">
-          <Link href="/" className={backLink}>
-            ←
-          </Link>
-          <h1 className="text-xl font-bold tracking-tight">Admin: level performance</h1>
-        </div>
-
-        {data === null && (
-          <p className="text-center text-danger py-8">Failed to load admin stats.</p>
-        )}
-
-        {data !== null && (
-          <>
-            <section className="flex flex-col gap-2">
-              <h2 className="text-xs uppercase tracking-wider text-muted-2 font-medium">By level</h2>
-              <StatsTable rows={toLevelRows(data.byLevel)} />
-            </section>
-            <section className="flex flex-col gap-2">
-              <h2 className="text-xs uppercase tracking-wider text-muted-2 font-medium">By category</h2>
-              <StatsTable rows={toCategoryRows(data.byCategory)} />
-            </section>
-          </>
-        )}
+    <div className={`${panel} p-6 gap-6`}>
+      <div className="flex items-center gap-3">
+        <Link href="/" className={backLink}>
+          ←
+        </Link>
+        <h1 className="text-xl font-bold tracking-tight">Admin: level performance</h1>
       </div>
-    </Centered>
+
+      {data === null && (
+        <p className="text-center text-danger py-8">Failed to load admin stats.</p>
+      )}
+
+      {data !== null && (
+        <>
+          <section className="flex flex-col gap-2">
+            <h2 className="text-xs uppercase tracking-wider text-muted-2 font-medium">By level</h2>
+            <StatsTable rows={toLevelRows(data.byLevel)} />
+          </section>
+          <section className="flex flex-col gap-2">
+            <h2 className="text-xs uppercase tracking-wider text-muted-2 font-medium">By category</h2>
+            <StatsTable rows={toCategoryRows(data.byCategory)} />
+          </section>
+        </>
+      )}
+    </div>
   );
 }

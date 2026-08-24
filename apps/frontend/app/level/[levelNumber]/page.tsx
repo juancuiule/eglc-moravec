@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { Api } from "@/api/Api";
-import { Centered } from "@/components/Centered";
 import { LevelPlay } from "@/components/LevelPlay";
 
 type Props = { params: Promise<{ levelNumber: string }> };
@@ -17,9 +16,5 @@ export default async function LevelPage({ params }: Props) {
   const mix = await Api.fetchLevel(levelNumber);
   if (mix === null) notFound();
 
-  return (
-    <Centered>
-      <LevelPlay levelNumber={levelNumber} level={mix} />
-    </Centered>
-  );
+  return <LevelPlay levelNumber={levelNumber} level={mix} />;
 }

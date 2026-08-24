@@ -14,7 +14,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-dvh bg-base text-foreground font-sans">
         <QueryProvider>
           <AuthBoot />
-          {children}
+          {/* Top-aligned rather than centered, paired with `panel`'s fixed max-width,
+              so navigating between screens of different heights doesn't shift the surface. */}
+          <div className="min-h-dvh flex items-start justify-center p-6 pt-12">{children}</div>
         </QueryProvider>
       </body>
     </html>

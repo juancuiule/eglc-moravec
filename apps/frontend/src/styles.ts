@@ -9,8 +9,8 @@ import { cva, type VariantProps } from "class-variance-authority";
  * The elevated card every screen is built from. Callers add their own
  * padding and gap. The max-width is fixed here, not left to callers —
  * every screen sharing one width is what keeps the page from visibly
- * shifting sideways as you navigate between them (see Centered for the
- * matching top-alignment half of that).
+ * shifting sideways as you navigate between them (see the root layout for
+ * the matching top-alignment half of that).
  */
 export const panel = "bg-panel border border-subtle rounded-2xl w-full max-w-[480px] flex flex-col";
 

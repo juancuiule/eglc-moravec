@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, parseSessionCookie } from "@/storage/session";
-import { Centered } from "@/components/Centered";
 import { LoginForm } from "@/components/LoginForm";
 
 export default async function LoginPage() {
@@ -18,9 +17,5 @@ export default async function LoginPage() {
   const session = parseSessionCookie(cookieStore.get(SESSION_COOKIE)?.value);
   if (session?.email) redirect("/");
 
-  return (
-    <Centered>
-      <LoginForm />
-    </Centered>
-  );
+  return <LoginForm />;
 }
