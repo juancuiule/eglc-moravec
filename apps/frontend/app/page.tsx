@@ -46,7 +46,7 @@ export default function HomePage() {
             <Link href="/practice" className={`${button({ intent: "primary" })} text-center block flex-1`}>
               Practice
             </Link>
-            <Link href="/stats" className={`${button({ intent: "outline" })} text-center block flex-1`}>
+            <Link href="/stats" className={`${button({ intent: "primary" })} text-center block flex-1`}>
               Stats
             </Link>
           </div>
