@@ -1,6 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { getRxStorageMemory } from "rxdb/plugins/storage-memory";
+import { RxDatabaseProvider } from "rxdb/plugins/react";
 import { LevelPlay } from "./LevelPlay";
+import { createAppDatabase, type AppDatabase } from "@/db/database";
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -19,42 +22,49 @@ vi.mock("@/game/store", () => ({
     selector({ state: gameState, load }),
 }));
 
-vi.mock("@/levels/query", () => ({
-  getLocalLevelMix: vi.fn(),
-}));
-
-import { getLocalLevelMix } from "@/levels/query";
-
-beforeEach(() => {
-  replace.mockClear();
-  load.mockClear();
-  reset.mockClear();
-  gameState.type = "loading";
-  vi.mocked(getLocalLevelMix).mockReset();
-  vi.spyOn(console, "warn").mockImplementation(() => {});
-});
-
 // Level 1 is always unlocked (see isLevelUnlocked) — keeps these tests from
 // needing to stub localStorage-backed LevelStats just to reach the code
 // under test.
 const LEVEL_NUMBER = 1;
 
+let db: AppDatabase;
+
+beforeEach(async () => {
+  replace.mockClear();
+  load.mockClear();
+  reset.mockClear();
+  gameState.type = "loading";
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  db = await createAppDatabase(getRxStorageMemory(), `test-levelplay-${Math.random().toString(36).slice(2)}`);
+});
+
+afterEach(async () => {
+  await db.close();
+});
+
+function renderWithDatabase(props: { levelNumber: number; level: Record<string, number> | null }) {
+  return render(
+    <RxDatabaseProvider database={db}>
+      <LevelPlay levelNumber={props.levelNumber} level={props.level} />
+    </RxDatabaseProvider>,
+  );
+}
+
 test("loads the live-fetched Level directly when the backend was reachable", async () => {
-  render(<LevelPlay levelNumber={LEVEL_NUMBER} level={{ "1d+1d": 100 }} />);
+  renderWithDatabase({ levelNumber: LEVEL_NUMBER, level: { "1d+1d": 100 } });
 
   await waitFor(() => expect(load).toHaveBeenCalledWith({
     levelNumber: LEVEL_NUMBER,
     level: { "1d+1d": 100 },
     totalTrials: expect.any(Number),
   }));
-  expect(getLocalLevelMix).not.toHaveBeenCalled();
   expect(console.warn).not.toHaveBeenCalled();
 });
 
 test("falls back to the locally-replicated Level, with a console warning, when the live fetch failed", async () => {
-  vi.mocked(getLocalLevelMix).mockResolvedValue({ "2dx1d": 100 });
+  await db.levels.insert({ levelNumber: String(LEVEL_NUMBER), mix: { "2dx1d": 100 } });
 
-  render(<LevelPlay levelNumber={LEVEL_NUMBER} level={null} />);
+  renderWithDatabase({ levelNumber: LEVEL_NUMBER, level: null });
 
   await waitFor(() => expect(load).toHaveBeenCalledWith({
     levelNumber: LEVEL_NUMBER,
@@ -65,9 +75,7 @@ test("falls back to the locally-replicated Level, with a console warning, when t
 });
 
 test("shows an unavailable message, and never calls load, when neither the live fetch nor the local replica has the Level", async () => {
-  vi.mocked(getLocalLevelMix).mockResolvedValue(null);
-
-  render(<LevelPlay levelNumber={LEVEL_NUMBER} level={null} />);
+  renderWithDatabase({ levelNumber: LEVEL_NUMBER, level: null });
 
   expect(await screen.findByText(/isn't available offline/)).toBeDefined();
   expect(load).not.toHaveBeenCalled();
@@ -79,7 +87,7 @@ test("never loads a locked Level, even though router.replace() doesn't unmount t
   // because it's always unlocked.
   const LOCKED_LEVEL = 2;
 
-  render(<LevelPlay levelNumber={LOCKED_LEVEL} level={{ "1d+1d": 100 }} />);
+  renderWithDatabase({ levelNumber: LOCKED_LEVEL, level: { "1d+1d": 100 } });
 
   await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
   expect(load).not.toHaveBeenCalled();

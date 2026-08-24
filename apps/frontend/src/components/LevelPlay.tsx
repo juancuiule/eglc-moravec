@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useRxCollection, useRxDocument } from "rxdb/plugins/react";
 import { useGame, gameStore } from "@/game/store";
 import { authStore } from "@/auth/store";
 import { watchStoreTransition } from "@/storeWatch";
 import { persistFinishedLevel } from "@/game/persistFinishedLevel";
 import { loadLevelStats, isLevelUnlocked } from "@/storage/levelStats";
-import { getLocalLevelMix } from "@/levels/query";
+import type { LevelDocType } from "@/levels/schema";
 import type { Level } from "@/level";
 import { TOTAL_TRIALS } from "@/game/index";
 import { AnsweringView } from "./AnsweringView";
@@ -24,37 +25,42 @@ type Availability =
 /**
  * `level` null means the backend couldn't be reached — not a 404, that's
  * already handled server-side. Falls back to the locally-replicated copy
- * (see src/levels) instead of leaving the page stuck; "unavailable" only
- * when that local copy doesn't have this Level either.
+ * (see src/levels and src/db) instead of leaving the page stuck;
+ * "unavailable" only when that local copy doesn't have this Level either.
  */
 function useAvailability(levelNumber: number, level: Level | null): Availability {
-  const [fallback, setFallback] = useState<Availability>({ status: "resolving" });
+  const levelsCollection = useRxCollection<LevelDocType>("levels");
+  const { result: localLevel, loading, error } = useRxDocument<LevelDocType>(
+    levelsCollection,
+    level === null ? String(levelNumber) : undefined,
+  );
 
   useEffect(() => {
-    if (level !== null) return;
-    let cancelled = false;
+    if (level === null && localLevel) {
+      console.warn(`Level ${levelNumber}: backend unreachable, using the locally-cached copy.`);
+    }
+  }, [levelNumber, level, localLevel?.levelNumber]);
 
-    getLocalLevelMix(levelNumber).then((mix) => {
-      if (cancelled) return;
-      if (mix) {
-        console.warn(`Level ${levelNumber}: backend unreachable, using the locally-cached copy.`);
-        setFallback({ status: "ready", level: mix });
-      } else {
-        setFallback({ status: "unavailable" });
-      }
-    });
+  useEffect(() => {
+    // A query error on the local replica is not the same as "not replicated
+    // yet" — it still surfaces as the same "unavailable" state to the
+    // player (there's no local data to show either way), but this keeps it
+    // from being silently indistinguishable from that ordinary case.
+    if (error) console.error(`Level ${levelNumber}: local database query failed:`, error);
+  }, [levelNumber, error]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [levelNumber, level]);
-
-  // Memoized so this object's identity only changes when `level` actually
-  // does — otherwise it's a fresh literal every render, which would re-run
-  // the load effect below on every unrelated re-render (e.g. each trial's
-  // gameState update).
-  const ready = useMemo<Availability | null>(() => (level !== null ? { status: "ready", level } : null), [level]);
-  return ready ?? fallback;
+  // Memoized so a "ready" object's identity only changes when the value it
+  // actually carries does — otherwise it's a fresh literal every render,
+  // which would re-run the load effect below on every unrelated re-render
+  // (e.g. each trial's gameState update).
+  return useMemo<Availability>(() => {
+    if (level !== null) return { status: "ready", level };
+    if (localLevel) return { status: "ready", level: localLevel.mix };
+    // levelsCollection is null until useRxCollection's own effect has run —
+    // treat that the same as "still loading", not "confirmed absent".
+    if (levelsCollection === null || loading) return { status: "resolving" };
+    return { status: "unavailable" };
+  }, [level, localLevel, loading, levelsCollection]);
 }
 
 /**

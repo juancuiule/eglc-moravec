@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getRxStorageMemory } from "rxdb/plugins/storage-memory";
-import { createLevelsDatabase, type LevelsDatabase } from "./db";
+import { createAppDatabase, type AppDatabase } from "../db/database";
 import { startLevelCatalogReplication } from "./replication";
 import { Api } from "../api/Api";
 
@@ -12,10 +12,10 @@ vi.mock("../api/Api", () => ({
 }));
 
 describe("Level catalog replication", () => {
-  let db: LevelsDatabase;
+  let db: AppDatabase;
 
   beforeEach(async () => {
-    db = await createLevelsDatabase(getRxStorageMemory(), `test-levels-${Math.random().toString(36).slice(2)}`);
+    db = await createAppDatabase(getRxStorageMemory(), `test-levels-${Math.random().toString(36).slice(2)}`);
   });
 
   afterEach(async () => {
@@ -82,10 +82,10 @@ describe("Level catalog replication", () => {
 });
 
 describe("Level schema", () => {
-  let db: LevelsDatabase;
+  let db: AppDatabase;
 
   beforeEach(async () => {
-    db = await createLevelsDatabase(getRxStorageMemory(), `test-schema-${Math.random().toString(36).slice(2)}`);
+    db = await createAppDatabase(getRxStorageMemory(), `test-schema-${Math.random().toString(36).slice(2)}`);
   });
 
   afterEach(async () => {
