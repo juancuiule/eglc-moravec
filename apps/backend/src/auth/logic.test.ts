@@ -4,7 +4,6 @@ import {
   isValidEmail,
   hashEmail,
   hashDeviceId,
-  canRequestNewOtp,
   isOtpValid,
 } from "./logic.js";
 
@@ -53,20 +52,6 @@ describe("hashDeviceId", () => {
 
   it("never collides with hashEmail for the same underlying string and secret", () => {
     expect(hashDeviceId("a@b.com", "secret")).not.toBe(hashEmail("a@b.com", "secret"));
-  });
-});
-
-describe("canRequestNewOtp", () => {
-  it("allows a first request", () => {
-    expect(canRequestNewOtp(null, 1000, 30_000)).toBe(true);
-  });
-
-  it("blocks a request within the interval", () => {
-    expect(canRequestNewOtp(1000, 1000 + 10_000, 30_000)).toBe(false);
-  });
-
-  it("allows a request once the interval has passed", () => {
-    expect(canRequestNewOtp(1000, 1000 + 30_000, 30_000)).toBe(true);
   });
 });
 

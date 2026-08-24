@@ -24,14 +24,6 @@ export function hashDeviceId(deviceId: string, secret: string): string {
   return createHmac("sha256", secret).update(`device:${deviceId}`).digest("hex");
 }
 
-export function canRequestNewOtp(
-  lastRequestedAt: number | null,
-  now: number,
-  minIntervalMs: number,
-): boolean {
-  return lastRequestedAt === null || now - lastRequestedAt >= minIntervalMs;
-}
-
 export type StoredOtp = {
   code: string;
   expiresAt: number;

@@ -14,22 +14,55 @@ export function getOtpRow(db: DatabaseSync, emailHash: string): OtpRow | undefin
     | undefined;
 }
 
-export function upsertOtpRow(
+/**
+ * Atomically checks the rate limit *and* claims the slot in one write, so
+ * two concurrent requests for the same email can't both read the same
+ * "last requested" snapshot and both slip past the throttle (the previous
+ * check-then-send-then-write shape had exactly that gap, with the email
+ * send sitting in between). The WHERE clause is what makes this atomic:
+ * SQLite skips the DO UPDATE (and reports zero changes) when it evaluates
+ * to false, rather than applying it — so `false` from this function is a
+ * genuine "someone already holds this slot", never a lost update.
+ * Returns whether the slot was claimed.
+ */
+export function reserveOtpSlot(
   db: DatabaseSync,
   emailHash: string,
   code: string,
   expiresAt: number,
   requestedAt: number,
-): void {
+  minIntervalMs: number,
+): boolean {
+  const result = db
+    .prepare(
+      `INSERT INTO otp_codes (email_hash, code, expires_at, attempts, requested_at)
+       VALUES (?, ?, ?, 0, ?)
+       ON CONFLICT(email_hash) DO UPDATE SET
+         code = excluded.code,
+         expires_at = excluded.expires_at,
+         attempts = 0,
+         requested_at = excluded.requested_at
+       WHERE otp_codes.requested_at <= ?`,
+    )
+    .run(emailHash, code, expiresAt, requestedAt, requestedAt - minIntervalMs);
+  return result.changes !== 0;
+}
+
+/**
+ * Undoes a reservation whose email delivery failed, so a real retry isn't
+ * locked out by a slot nothing was ever sent for. `before` is whatever
+ * reserveOtpSlot's caller read *before* reserving — restoring it exactly
+ * (rather than just deleting the row) preserves a still-valid prior code
+ * instead of invalidating it as a side effect of the failed attempt.
+ */
+export function restoreOtpRow(db: DatabaseSync, emailHash: string, before: OtpRow | undefined): void {
+  if (before === undefined) {
+    db.prepare("DELETE FROM otp_codes WHERE email_hash = ?").run(emailHash);
+    return;
+  }
   db.prepare(
-    `INSERT INTO otp_codes (email_hash, code, expires_at, attempts, requested_at)
-     VALUES (?, ?, ?, 0, ?)
-     ON CONFLICT(email_hash) DO UPDATE SET
-       code = excluded.code,
-       expires_at = excluded.expires_at,
-       attempts = 0,
-       requested_at = excluded.requested_at`,
-  ).run(emailHash, code, expiresAt, requestedAt);
+    `UPDATE otp_codes SET code = ?, expires_at = ?, attempts = ?, requested_at = ? WHERE email_hash = ?`,
+  ).run(before.code, before.expires_at, before.attempts, before.requested_at, emailHash);
 }
 
 export function incrementOtpAttempts(db: DatabaseSync, emailHash: string): void {

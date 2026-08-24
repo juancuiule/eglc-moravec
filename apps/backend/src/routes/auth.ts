@@ -6,13 +6,13 @@ import {
   isValidEmail,
   hashEmail,
   hashDeviceId,
-  canRequestNewOtp,
   isOtpValid,
 } from "../auth/logic.js";
 import { generateOtp, generateSessionToken } from "../auth/crypto.js";
 import {
   getOtpRow,
-  upsertOtpRow,
+  reserveOtpSlot,
+  restoreOtpRow,
   incrementOtpAttempts,
   deleteOtpRow,
   upsertUser,
@@ -35,23 +35,26 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
 
     const emailHash = hashEmail(email, config.emailHashSecret);
     const now = Date.now();
-    const existing = getOtpRow(db, emailHash);
+    const before = getOtpRow(db, emailHash);
+    const code = generateOtp();
 
-    if (!canRequestNewOtp(existing?.requested_at ?? null, now, config.otpMinIntervalMs)) {
+    // Claims the rate-limit slot before sending — see reserveOtpSlot for why
+    // this has to happen atomically rather than as a separate check.
+    const reserved = reserveOtpSlot(db, emailHash, code, now + config.otpTtlMs, now, config.otpMinIntervalMs);
+    if (!reserved) {
       return reply.code(429).send({ error: "rate_limited" });
     }
 
-    const code = generateOtp();
     try {
       await sendOtpEmail(normalizeEmail(email), code, config.resendApiKey);
     } catch (err) {
+      // Delivery failed — release the slot so a genuine retry isn't locked
+      // out, and any code that was still valid before this attempt keeps
+      // working (see restoreOtpRow).
+      restoreOtpRow(db, emailHash, before);
       app.log.error(err);
       return reply.code(502).send({ error: "email_delivery_failed" });
     }
-
-    // Only arm the rate limit once the code has actually been sent —
-    // otherwise a delivery failure would lock the caller out for no reason.
-    upsertOtpRow(db, emailHash, code, now + config.otpTtlMs, now);
 
     return reply.send({ ok: true });
   });

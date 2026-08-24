@@ -77,6 +77,29 @@ describe("POST /auth/otp/request", () => {
     expect(res.statusCode).toBe(429);
   });
 
+  it("only one of two concurrent requests for the same email wins the rate-limit slot", async () => {
+    // sendOtpEmail's fetch call is what actually yields to the event loop —
+    // without the atomic reserve, both requests would read the same "no
+    // prior request" snapshot before either finished sending and won.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve({ ok: true }), 5)),
+      ),
+    );
+    const { app } = setup({ RESEND_API_KEY: "fake-key" } as NodeJS.ProcessEnv);
+
+    const [resA, resB] = await Promise.all([
+      app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } }),
+      app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } }),
+    ]);
+
+    const statusCodes = [resA.statusCode, resB.statusCode].sort();
+    expect(statusCodes).toEqual([200, 429]);
+
+    vi.unstubAllGlobals();
+  });
+
   it("does not persist the code or arm the rate limit when email delivery fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, text: () => Promise.resolve("boom") }));
     const { db, app } = setup({ RESEND_API_KEY: "fake-key" } as NodeJS.ProcessEnv);
