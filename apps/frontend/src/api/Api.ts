@@ -146,4 +146,18 @@ export const Api = {
   fetchAdminStats(): Promise<AdminStats> {
     return requestJson<AdminStats>("/admin/stats", { method: "GET" });
   },
+
+  async fetchLevelNumbers(): Promise<number[]> {
+    const data = await requestJson<{ levels: number[] }>("/levels", { method: "GET" });
+    return data.levels;
+  },
+
+  /** Null specifically means "no such level" (404) — any other failure still throws. */
+  async fetchLevel(levelNumber: number): Promise<Record<string, number> | null> {
+    const res = await request(`/levels/${levelNumber}`, { method: "GET" });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(await errorFrom(res));
+    const data = (await res.json()) as { mix: Record<string, number> };
+    return data.mix;
+  },
 };

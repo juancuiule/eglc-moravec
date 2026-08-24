@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildPersistedTrials } from "./trialHistory";
 import { Addition, Multiplication } from "engine";
-import { LEVELS } from "../LEVELS";
 import type { TrialResult } from "../game/index";
+import type { Level } from "../level";
 
-const config = { levelNumber: 7, level: LEVELS["1"], totalTrials: 20 };
+// A fixed fixture, not the real catalog's level 1 — tests shouldn't depend
+// on production Level content (which now lives in the backend).
+const LEVEL_FIXTURE: Level = { "1d+1d": 50, "1dx1d": 50 };
+const config = { levelNumber: 7, level: LEVEL_FIXTURE, totalTrials: 20 };
 const RUN_ID = "run-abc-123";
 
 function makeResult(overrides: Partial<TrialResult> = {}): TrialResult {

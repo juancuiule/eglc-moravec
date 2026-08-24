@@ -143,3 +143,24 @@ test("fetchAdminStats throws on failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "request_failed" }, false));
   await expect(Api.fetchAdminStats()).rejects.toThrow();
 });
+
+test("fetchLevelNumbers resolves with the level list", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ levels: [1, 2, 3] }));
+  await expect(Api.fetchLevelNumbers()).resolves.toEqual([1, 2, 3]);
+});
+
+test("fetchLevel resolves with the mix for a known level", async () => {
+  const mix = { "1d+1d": 50, "1dx1d": 50 };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ levelNumber: 1, mix }));
+  await expect(Api.fetchLevel(1)).resolves.toEqual(mix);
+});
+
+test("fetchLevel resolves with null for a 404, without throwing", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "not_found" }, false, 404));
+  await expect(Api.fetchLevel(99999)).resolves.toBeNull();
+});
+
+test("fetchLevel throws on a non-404 failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "request_failed" }, false, 500));
+  await expect(Api.fetchLevel(1)).rejects.toThrow("request_failed");
+});

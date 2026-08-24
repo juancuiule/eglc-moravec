@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { trialCounts, createGameStore, TOTAL_TRIALS, HINTS_PER_LEVEL } from "./index";
 import type { TrialResult } from "./index";
 import { Addition } from "engine";
-import { LEVELS } from "../LEVELS";
+import type { Level } from "../level";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-const level1 = LEVELS["1"];
+// A fixed fixture, not the real catalog's level 1 — tests shouldn't depend
+// on production Level content (which now lives in the backend).
+const level1: Level = { "1d+1d": 50, "1dx1d": 50 };
 
 function makeConfig(overrides: Partial<{ levelNumber: number; totalTrials: number }> = {}) {
   return {

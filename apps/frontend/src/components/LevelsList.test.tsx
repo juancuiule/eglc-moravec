@@ -1,6 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LevelsList } from "./LevelsList";
+
+vi.mock("@/api/Api", () => ({
+  Api: { fetchLevelNumbers: vi.fn() },
+}));
+
+import { Api } from "@/api/Api";
 
 // Minimal localStorage mock, matching the convention used elsewhere in this
 // codebase — LevelsList reads level stats at mount time.
@@ -21,21 +28,32 @@ const localStorageMock = {
 beforeEach(() => {
   localStorageMock.clear();
   vi.stubGlobal("localStorage", localStorageMock);
+  vi.mocked(Api.fetchLevelNumbers).mockResolvedValue([1, 2, 3]);
 });
 
-test(
-  "level 1 is unlocked and links to play; level 2 is locked, not a link",
-  () => {
-    render(<LevelsList />);
+function renderWithQueryClient() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <LevelsList />
+    </QueryClientProvider>,
+  );
+}
 
-    const level1 = screen.getByRole("link", { name: /Level 1/ });
-    expect(level1.getAttribute("href")).toBe("/level/1");
+test("level 1 is unlocked and links to play; level 2 is locked, not a link", async () => {
+  renderWithQueryClient();
 
-    const level2Row = screen.getByText("Level 2").closest("a, div");
-    expect(level2Row?.tagName).toBe("DIV");
-    expect(screen.getByText("Level 2").closest("a")).toBeNull();
-  },
-  // Rendering all 150 level rows is legitimately slow under concurrent
-  // CI/workspace load (`pnpm -r test:run`) — past the 5s default elsewhere.
-  15000,
-);
+  const level1 = await screen.findByRole("link", { name: /Level 1/ });
+  expect(level1.getAttribute("href")).toBe("/level/1");
+
+  const level2Row = screen.getByText("Level 2").closest("a, div");
+  expect(level2Row?.tagName).toBe("DIV");
+  expect(screen.getByText("Level 2").closest("a")).toBeNull();
+});
+
+test("shows an error message when the level catalog fails to load", async () => {
+  vi.mocked(Api.fetchLevelNumbers).mockRejectedValue(new Error("network down"));
+  renderWithQueryClient();
+
+  expect(await screen.findByText(/Couldn't load levels/)).toBeDefined();
+});

@@ -125,4 +125,24 @@ describe("openDb", () => {
     );
     expect(columns.filter((c) => c === "client_correct")).toHaveLength(1);
   });
+
+  it("seeds the levels table from LEVEL_SEED_DATA on a fresh database", () => {
+    const db = openDb(":memory:");
+    const { count } = db.prepare("SELECT COUNT(*) as count FROM levels").get() as {
+      count: number;
+    };
+    expect(count).toBe(150);
+  });
+
+  it("does not re-seed a database that already has levels", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "levels.sqlite");
+
+    openDb(dbPath).close();
+    const db = openDb(dbPath);
+    const { count } = db.prepare("SELECT COUNT(*) as count FROM levels").get() as {
+      count: number;
+    };
+    expect(count).toBe(150); // not 300 — seeding ran once, not on every open
+  });
 });

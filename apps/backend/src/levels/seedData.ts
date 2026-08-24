@@ -1,6 +1,12 @@
-import { Level } from "./level";
+// The canonical Level catalog — seeded into the `levels` table on first
+// boot (see levels/repo.ts's seedLevelsIfEmpty), only ever read from there
+// after that. This file is the seed fixture, not the live source of truth:
+// changing a level's mix here has no effect on an already-seeded database.
+// Moved here from apps/frontend/src/LEVELS.ts so level content can change
+// without a frontend rebuild.
+type LevelMix = Record<string, number>;
 
-export const LEVELS: Record<string, Level> = {
+export const LEVEL_SEED_DATA: Record<string, LevelMix> = {
   "1": {
     "1d+1d": 50,
     "1dx1d": 50,

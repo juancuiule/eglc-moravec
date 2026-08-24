@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { seedLevelsIfEmpty } from "./levels/repo.js";
 
 // Schema grows here as tables are needed — applied in order, each
 // statement idempotent via IF NOT EXISTS.
@@ -75,6 +76,13 @@ const SCHEMA_STATEMENTS: readonly string[] = [
    )`,
   `CREATE INDEX IF NOT EXISTS level_runs_email_hash_idx ON level_runs (email_hash)`,
   `CREATE INDEX IF NOT EXISTS level_runs_level_number_idx ON level_runs (level_number)`,
+  // The Level catalog — content, read wholesale, rarely written.
+  // mix is a JSON-encoded Record<categoryCodename, weight>, not a normalized
+  // shape: nothing here needs relational queries, only whole-row reads.
+  `CREATE TABLE IF NOT EXISTS levels (
+     level_number INTEGER PRIMARY KEY,
+     mix TEXT NOT NULL
+   )`,
 ];
 
 // `CREATE TABLE IF NOT EXISTS` is a no-op against a table that already
@@ -160,6 +168,7 @@ export function openDb(path: string): DatabaseSync {
   migrateHintAndStreakColumns(db);
   migrateLevelRunIdColumn(db);
   migrateUserIsAnonymousColumn(db);
+  seedLevelsIfEmpty(db);
   return db;
 }
 

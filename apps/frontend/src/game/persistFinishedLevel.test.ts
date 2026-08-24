@@ -17,10 +17,14 @@ import { persistFinishedLevel } from "./persistFinishedLevel";
 import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
 import { pushResults } from "../sync/pushResults";
-import { LEVELS } from "../LEVELS";
 import { Addition } from "engine";
+import type { Level } from "../level";
 import type { Finished, TrialResult } from "./index";
 import type { AuthState } from "../auth/store";
+
+// A fixed fixture, not the real catalog's level 1 — tests shouldn't depend
+// on production Level content (which now lives in the backend).
+const LEVEL_FIXTURE: Level = { "1d+1d": 50, "1dx1d": 50 };
 
 function makeResult(timeTaken: number): TrialResult {
   const op = Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
@@ -41,7 +45,7 @@ function makeResult(timeTaken: number): TrialResult {
 function makeFinished(): Finished {
   return {
     type: "finished",
-    config: { levelNumber: 4, level: LEVELS["1"], totalTrials: 20 },
+    config: { levelNumber: 4, level: LEVEL_FIXTURE, totalTrials: 20 },
     runId: "run-abc",
     results: [makeResult(1000), makeResult(1500)],
     correctInTime: 2,

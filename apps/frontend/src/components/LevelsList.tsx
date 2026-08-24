@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { LEVELS } from "@/LEVELS";
+import { useQuery } from "@tanstack/react-query";
+import { Api } from "@/api/Api";
 import { loadLevelStats, isLevelUnlocked, type PersistedLevelStats } from "@/storage/levelStats";
 import { formatDuration } from "@/formatTime";
 import { panel, backLink } from "@/styles";
-
-const LEVEL_KEYS = Object.keys(LEVELS).map(Number).sort((a, b) => a - b);
 
 function RowStars({ stars, light }: { stars: 0 | 1 | 2 | 3; light?: boolean }) {
   return (
@@ -34,6 +33,13 @@ export function LevelsList() {
     setStats(loadLevelStats());
   }, []);
 
+  // Level numbers come from the backend's catalog — content that
+  // can change without a frontend rebuild — not a static bundled map.
+  const { data: levelKeys, isLoading, isError } = useQuery({
+    queryKey: ["levels"],
+    queryFn: Api.fetchLevelNumbers,
+  });
+
   const completedCount = Object.keys(stats).filter((k) => (stats[k]?.stars ?? 0) > 0).length;
 
   return (
@@ -45,59 +51,64 @@ export function LevelsList() {
         <h1 className="text-xl font-bold text-accent">Levels</h1>
       </div>
 
-      {completedCount > 0 && (
+      {completedCount > 0 && levelKeys && (
         <p className="text-center text-xs text-muted">
-          {completedCount} / {LEVEL_KEYS.length} completed
+          {completedCount} / {levelKeys.length} completed
         </p>
       )}
 
-      <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto">
-        {LEVEL_KEYS.map((n) => {
-          const levelStats = stats[String(n)];
-          const unlocked = isLevelUnlocked(n, stats);
-          const played = !!levelStats;
+      {isLoading && <p className="text-center text-sm text-muted py-8">Loading levels…</p>}
+      {isError && <p className="text-center text-sm text-danger py-8">Couldn't load levels.</p>}
 
-          if (!unlocked) {
-            return (
-              <div
-                key={n}
-                className="flex items-center justify-between px-6 py-3 border-b border-subtle text-disabled"
-              >
-                <span className="font-semibold">Level {n}</span>
-                <span>🔒</span>
-              </div>
-            );
-          }
+      {levelKeys && (
+        <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto">
+          {levelKeys.map((n) => {
+            const levelStats = stats[String(n)];
+            const unlocked = isLevelUnlocked(n, stats);
+            const played = !!levelStats;
 
-          if (!played) {
+            if (!unlocked) {
+              return (
+                <div
+                  key={n}
+                  className="flex items-center justify-between px-6 py-3 border-b border-subtle text-disabled"
+                >
+                  <span className="font-semibold">Level {n}</span>
+                  <span>🔒</span>
+                </div>
+              );
+            }
+
+            if (!played) {
+              return (
+                <Link
+                  key={n}
+                  href={`/level/${n}`}
+                  className="flex flex-col items-center gap-1 px-6 py-3 bg-accent text-white"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-bold">Level {n}</span>
+                    <RowStars stars={0} light />
+                  </div>
+                  <span className="text-sm font-semibold tracking-wide">Play</span>
+                </Link>
+              );
+            }
+
             return (
               <Link
                 key={n}
                 href={`/level/${n}`}
-                className="flex flex-col items-center gap-1 px-6 py-3 bg-accent text-white"
+                className="flex items-center justify-between gap-2 px-6 py-3 border-b border-subtle hover:bg-base transition-colors"
               >
-                <div className="flex items-center justify-between w-full">
-                  <span className="font-bold">Level {n}</span>
-                  <RowStars stars={0} light />
-                </div>
-                <span className="text-sm font-semibold tracking-wide">Play</span>
+                <span className="font-semibold text-muted">Level {n}</span>
+                <span className="text-teal font-mono text-xs">{formatDuration(levelStats.totalTime)}</span>
+                <RowStars stars={levelStats.stars} />
               </Link>
             );
-          }
-
-          return (
-            <Link
-              key={n}
-              href={`/level/${n}`}
-              className="flex items-center justify-between gap-2 px-6 py-3 border-b border-subtle hover:bg-base transition-colors"
-            >
-              <span className="font-semibold text-muted">Level {n}</span>
-              <span className="text-teal font-mono text-xs">{formatDuration(levelStats.totalTime)}</span>
-              <RowStars stars={levelStats.stars} />
-            </Link>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }

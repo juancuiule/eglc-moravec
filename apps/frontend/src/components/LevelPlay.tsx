@@ -7,12 +7,12 @@ import { authStore } from "@/auth/store";
 import { watchStoreTransition } from "@/storeWatch";
 import { persistFinishedLevel } from "@/game/persistFinishedLevel";
 import { loadLevelStats, isLevelUnlocked } from "@/storage/levelStats";
-import { LEVELS } from "@/LEVELS";
+import type { Level } from "@/level";
 import { TOTAL_TRIALS } from "@/game/index";
 import { AnsweringView } from "./AnsweringView";
 import { FinishedScreen } from "./FinishedScreen";
 
-type Props = { levelNumber: number };
+type Props = { levelNumber: number; level: Level };
 
 /**
  * Hosts one Level's gameplay at /level/[levelNumber]. Whether the level
@@ -21,7 +21,7 @@ type Props = { levelNumber: number };
  * checked here, client-side, against local LevelStats (see the
  * server-vs-client tradeoff this was scoped to when the routes were added).
  */
-export function LevelPlay({ levelNumber }: Props) {
+export function LevelPlay({ levelNumber, level }: Props) {
   const router = useRouter();
   const gameState = useGame((s) => s.state);
   const load = useGame((s) => s.load);
@@ -54,8 +54,8 @@ export function LevelPlay({ levelNumber }: Props) {
     // level's URL to another's mid-play). An abandoned run was never
     // persisted anyway, only a Finished one is.
     if (state.type === "playing") gameStore.getState().reset();
-    load({ levelNumber, level: LEVELS[String(levelNumber)], totalTrials: TOTAL_TRIALS });
-  }, [levelNumber, load, router]);
+    load({ levelNumber, level, totalTrials: TOTAL_TRIALS });
+  }, [levelNumber, level, load, router]);
 
   if (gameState.type === "playing" && gameState.config.levelNumber === levelNumber) {
     return <AnsweringView state={gameState} />;
