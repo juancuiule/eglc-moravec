@@ -14,4 +14,7 @@ test("links to the addition, multiplication, and squaring tutorials", () => {
   expect(screen.getByRole("link", { name: /Squaring/ }).getAttribute("href")).toBe(
     "/tutorial/squaring",
   );
+  expect(screen.getByRole("link", { name: /Major System/ }).getAttribute("href")).toBe(
+    "/tutorial/majorSystem",
+  );
 });

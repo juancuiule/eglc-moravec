@@ -10,9 +10,11 @@ import {
   TUTORIAL_TITLES,
   TUTORIAL_EXPLANATIONS,
   categoriesForTopic,
+  videoIdFor,
   type TutorialTopic,
 } from "../tutorials/content";
 import { HintCard } from "./HintCard";
+import { YouTubeEmbed } from "./YouTubeEmbed";
 import { panel, backLink, primaryButton } from "../styles";
 
 type Props = { topic: TutorialTopic };
@@ -23,24 +25,28 @@ export function TutorialDetail({ topic }: Props) {
   const categories = useMemo(() => categoriesForTopic(topic), [topic]);
   // The most complex category in the topic actually has digits to decompose —
   // "1d × 1d" has nothing to break down and makes for a trivial-looking hint.
-  const defaultCategory = categories[categories.length - 1];
+  const defaultCategory: string | undefined = categories[categories.length - 1];
 
   const [codename, setCodename] = useState(defaultCategory);
-  const [operation, setOperation] = useState<Operation>(() => createOperation(defaultCategory));
+  const [operation, setOperation] = useState<Operation | null>(() =>
+    defaultCategory ? createOperation(defaultCategory) : null,
+  );
   const [revealed, setRevealed] = useState(false);
 
-  function newExample(nextCodename: string = codename) {
+  function newExample(nextCodename: string = codename!) {
     setCodename(nextCodename);
     setOperation(createOperation(nextCodename));
     setRevealed(false);
   }
 
   function practiceThis() {
+    if (!codename) return;
     start({ categoryCodename: codename });
     router.push("/practice");
   }
 
-  const hint = operation.hint();
+  const videoId = videoIdFor(topic, codename);
+  const hint = operation?.hint();
 
   return (
     <div className={`${panel} p-6 max-w-[480px] gap-4`}>
@@ -52,6 +58,8 @@ export function TutorialDetail({ topic }: Props) {
       </div>
 
       <p className="text-sm text-muted">{TUTORIAL_EXPLANATIONS[topic]}</p>
+
+      {videoId && <YouTubeEmbed videoId={videoId} title={`${TUTORIAL_TITLES[topic]} tutorial`} />}
 
       {categories.length > 1 && (
         <div className="flex flex-wrap gap-2">
@@ -73,33 +81,37 @@ export function TutorialDetail({ topic }: Props) {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 items-center bg-base rounded-xl px-4 py-6">
-        <span data-testid="tutorial-expression" className="font-mono text-2xl font-bold text-foreground">
-          {operation.humanReadable()} = {revealed ? operation.result() : "?"}
-        </span>
+      {operation && (
+        <div className="flex flex-col gap-3 items-center bg-base rounded-xl px-4 py-6">
+          <span data-testid="tutorial-expression" className="font-mono text-2xl font-bold text-foreground">
+            {operation.humanReadable()} = {revealed ? operation.result() : "?"}
+          </span>
 
-        {hint.hasHint() && (
-          <div data-testid="hint-card" className="w-full">
-            <HintCard steps={hint.getSteps()} />
+          {hint!.hasHint() && (
+            <div data-testid="hint-card" className="w-full">
+              <HintCard steps={hint!.getSteps()} />
+            </div>
+          )}
+
+          <div className="flex gap-4 mt-1">
+            <button
+              onClick={() => setRevealed((r) => !r)}
+              className="text-xs text-accent hover:underline cursor-pointer"
+            >
+              {revealed ? "Hide answer" : "Show answer"}
+            </button>
+            <button onClick={() => newExample()} className="text-xs text-muted hover:text-foreground cursor-pointer">
+              New example
+            </button>
           </div>
-        )}
-
-        <div className="flex gap-4 mt-1">
-          <button
-            onClick={() => setRevealed((r) => !r)}
-            className="text-xs text-accent hover:underline cursor-pointer"
-          >
-            {revealed ? "Hide answer" : "Show answer"}
-          </button>
-          <button onClick={() => newExample()} className="text-xs text-muted hover:text-foreground cursor-pointer">
-            New example
-          </button>
         </div>
-      </div>
+      )}
 
-      <button onClick={practiceThis} className={`${primaryButton} text-center`}>
-        Practice {CATEGORY_LABELS[codename] ?? codename}
-      </button>
+      {codename && (
+        <button onClick={practiceThis} className={`${primaryButton} text-center`}>
+          Practice {CATEGORY_LABELS[codename] ?? codename}
+        </button>
+      )}
     </div>
   );
 }

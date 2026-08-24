@@ -53,3 +53,21 @@ test("practicing this category starts Practice and navigates there", () => {
   expect(state.type).toBe("playing");
   expect(state.type === "playing" && state.config.categoryCodename).toBe("1dx1d");
 });
+
+test("squaring's video switches to match the selected category", () => {
+  render(<TutorialDetail topic="squaring" />);
+
+  expect(screen.getByTitle("Squaring tutorial").getAttribute("src")).toContain("WW_VLPJ__V0");
+
+  fireEvent.click(screen.getByRole("button", { name: "2d²" }));
+  expect(screen.getByTitle("Squaring tutorial").getAttribute("src")).toContain("_CUWlWjFreM");
+});
+
+test("Major System has a video and explanation but no interactive example or Practice CTA", () => {
+  render(<TutorialDetail topic="majorSystem" />);
+
+  expect(screen.getByTitle("Major System tutorial").getAttribute("src")).toContain("Fv0Si7UJHKw");
+  expect(screen.queryByTestId("hint-card")).toBeNull();
+  expect(screen.queryByTestId("tutorial-expression")).toBeNull();
+  expect(screen.queryByRole("button", { name: /Practice/ })).toBeNull();
+});
