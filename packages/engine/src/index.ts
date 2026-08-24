@@ -1,6 +1,6 @@
 // The shared domain model — Operations, Trial scoring, Level completion.
 // Used by both apps/frontend (gameplay) and apps/backend (independent
-// server-side verification of what a client reports). See ADR-0001.
+// server-side verification of what a client reports). See ADR-0005.
 
 export { Operation, Addition, Multiplication, Squaring } from "./operations/operation";
 export {

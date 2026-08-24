@@ -32,8 +32,8 @@ export function LoginForm() {
 
   const verifyCode = useMutation({
     // Carries the current anonymous session's token (if any) so the
-    // backend can fold its trials/level_stats into this email on success
-    // (ADR-0009) — a no-op server-side if there isn't one.
+    // backend can fold its trials/level_stats into this email on success —
+    // a no-op server-side if there isn't one.
     mutationFn: (vars: { email: string; code: string }) =>
       Api.verifyOtp(vars.email, vars.code, authState.type === "anonymous" ? authState.token : undefined),
     onSuccess: (result, vars) => {

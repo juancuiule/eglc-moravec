@@ -1,6 +1,6 @@
 # backend
 
-Fastify + SQLite (`node:sqlite`, no native dependency). Deployed self-hosted via Docker. Depends on the shared `packages/engine` domain model to independently re-validate client-submitted trials — see `docs/adr/` for the history: ADR-0001 named the trigger for extracting `engine`, ADR-0002 (superseded by ADR-0005) originally deferred server-side re-validation.
+Fastify + SQLite (`node:sqlite`, no native dependency). Deployed self-hosted via Docker. Depends on the shared `packages/engine` domain model to independently re-validate client-submitted trials — see `docs/adr/0005-backend-revalidates-correctness.md`.
 
 ## Local dev
 
@@ -23,4 +23,4 @@ docker compose up --build -d
 curl http://localhost:3000/health   # {"status":"ok","db":true}
 ```
 
-The SQLite file lives in the `moravec-data` Docker volume (mounted at `/app/data`), so it survives container restarts and rebuilds. No CI/CD and no automated DB backup yet — both are deliberately deferred (see the monorepo-backend planning notes in `.scratch/`).
+The SQLite file lives in the `moravec-data` Docker volume (mounted at `/app/data`), so it survives container restarts and rebuilds. No CI/CD and no automated DB backup yet — both are deliberately deferred.

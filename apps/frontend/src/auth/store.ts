@@ -11,7 +11,7 @@ import { getOrCreateDeviceId } from "../storage/deviceId";
 // ─── States ────────────────────────────────────────────────────────────────────
 
 export type AuthLoggedOut = { type: "loggedOut" };
-/** A low-friction device-id identity, minted automatically — no email ever given (ADR-0009). */
+/** A low-friction device-id identity, minted automatically — no email ever given. */
 export type AuthAnonymous = { type: "anonymous"; token: string };
 export type AuthLoggedIn = { type: "loggedIn"; token: string; email: string };
 

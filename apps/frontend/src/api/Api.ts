@@ -107,7 +107,7 @@ export const Api = {
    * `anonymousToken`, when the caller currently holds one, is sent as this
    * request's own Bearer token — the backend resolves it and, if it really
    * is an anonymous (device-id) identity, merges its trials/level_stats
-   * into the newly-verified email account before returning (ADR-0009).
+   * into the newly-verified email account before returning.
    */
   verifyOtp(email: string, code: string, anonymousToken?: string): Promise<OtpVerified> {
     return requestJson<OtpVerified>("/auth/otp/verify", {

@@ -58,7 +58,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
 
   // Unauthenticated, no OTP round-trip — mints a low-friction anonymous
   // identity so a player's trials always have somewhere to sync to, even
-  // before they ever give an email (ADR-0009).
+  // before they ever give an email.
   app.post("/auth/device", async (request, reply) => {
     const body = request.body as { deviceId?: unknown };
     const deviceId = typeof body.deviceId === "string" ? body.deviceId : "";

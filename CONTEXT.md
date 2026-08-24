@@ -1,6 +1,6 @@
 # Moravec
 
-A mental-math training game: the player solves timed arithmetic Trials, progressing through Levels, with an optional Practice mode and a backend that syncs progress across devices for logged-in Users.
+A mental-math training game: the player solves timed arithmetic Trials, progressing through Levels, with an optional Practice mode and a backend that syncs progress across devices for every player, logged in or not.
 
 ## Language
 
@@ -43,8 +43,12 @@ A step-by-step decomposition an Operation can offer for its current Trial, stopp
 _Avoid_: Answer key, solution, walkthrough.
 
 **LevelStats**:
-The best recorded run for a Level: stars, total time, and when it was achieved. A new run overwrites it only if it scores more stars, or the same stars in less time.
+The best-ever **Level run** for a Level: stars, total time, and when it was achieved. A new run overwrites it only if it scores more stars, or the same stars in less time — the Level run itself is never discarded even when it isn't the best one (see Level run).
 _Avoid_: High score, record, best run.
+
+**Level run**:
+One playthrough of a Level from start to Finished, identified by a client-generated id threaded through every Trial in it. The backend keeps every run's outcome, not just the best — LevelStats only caches the best one, for the Levels page.
+_Avoid_: Attempt, playthrough — as standalone terms; say "Level run".
 
 **PersistedTrial**:
 The flattened, storable form of a TrialResult — level number, Operation category, correctness, timing — written to trial history for stats aggregation across all played sessions.
@@ -57,15 +61,19 @@ _Avoid_: View, route, page.
 ### Backend domain
 
 **User**:
-A player identified in the backend by a salted hash of their email address. No plaintext email is stored at rest.
+A player identified in the backend by a salted hash — of their email address once they log in, or of a client-generated device id before that (see Anonymous session). No plaintext email is stored at rest.
 _Avoid_: Account, player, customer.
 
+**Anonymous session**:
+A low-friction User identity minted automatically the moment the app first loads, before a player ever gives an email — no OTP round-trip. Lets Sync work from a player's very first Level. Logging in with OTP *upgrades* it: the anonymous identity's Trial history and LevelStats are merged into the newly-verified email User, and the anonymous session is discarded.
+_Avoid_: Guest account, temporary account.
+
 **OTP login**:
-The authentication flow: the player enters their email, receives a one-time numeric code by email, and submits it to establish a session. There is no password and no persistent plaintext email.
+The authentication flow: the player enters their email, receives a one-time numeric code by email, and submits it to establish a session. There is no password and no persistent plaintext email. If the player already had an Anonymous session, this upgrades it rather than starting fresh.
 _Avoid_: Magic link, passwordless login, sign-in.
 
 **Sync**:
-Reconciling a logged-in User's local Level/Practice progress with the backend. Has two directions: a push of each Trial's result immediately after a Level (fire-and-forget, doesn't block play), and a pull of the User's remote LevelStats on OTP login, merged into local state using the same better-record comparison LevelStats already uses.
+Reconciling a User's local Level progress with the backend — active for any session, anonymous or logged in. Has two directions: a push of each Trial's result immediately after a Level (fire-and-forget, doesn't block play; the payload includes full per-keystroke timing, which is research signal in its own right, not just an anti-cheat measure), and a pull of the User's remote LevelStats on OTP login, merged into local state using the same better-record comparison LevelStats already uses. Practice sessions are never synced — local-only by design.
 _Avoid_: Backup, save, upload.
 
 ### Research background
@@ -86,13 +94,15 @@ Two decisions from that original app are why Moravec looks the way it does, not 
 
 Non-obvious architecture decisions and their reasoning. Full rationale lives in `docs/adr/`; this is the map, not the territory — read the linked ADR before changing the thing it covers.
 
-**Monorepo shape**: pnpm workspaces, three packages. `packages/engine` is the shared domain model (Operation, Trial scoring, Level completion) used independently by both `apps/frontend` (gameplay) and `apps/backend` (server-side re-validation of what a client reports — ADR-0001, ADR-0005). `apps/frontend` is a Next.js App Router app; `apps/backend` is Fastify + SQLite.
+**Monorepo shape**: pnpm workspaces, three packages. `packages/engine` is the shared domain model (Operation, Trial scoring, Level completion) used independently by both `apps/frontend` (gameplay) and `apps/backend` (server-side re-validation of what a client reports — ADR-0005). `apps/frontend` is a Next.js App Router app; `apps/backend` is Fastify + SQLite.
 
 **Dev loop has no build step for `engine`**: both `pnpm dev:frontend` and `pnpm dev:backend` resolve `engine` straight from `packages/engine/src` — types included — via a `"development"` package.json export condition (`customConditions: ["development"]` in both apps' tsconfigs) plus Turbopack's `transpilePackages`. Editing engine source hot-reloads both apps immediately, no `pnpm --filter engine build` in the loop. This only works because `engine/src` uses extensionless relative imports (bundler-style, matching frontend); production `dist/` is built by tsup (esbuild), which bundles into a single flat file so Node's real ESM loader never sees an unresolved extension. Don't reintroduce `.js`-suffixed internal imports in `engine/src` — that was the exact thing blocking Turbopack before this was fixed.
 
-**Auth is cookie-based, validated server-side before render** (ADR-0007): a `moravec_session` cookie carries `{token, email}`; `proxy.ts` (Next 16 renamed `middleware.ts` → `proxy.ts`) revalidates it against the backend before `/` or `/login` render, and `/login` itself is a Server Component that redirects if already logged in, delegating the interactive form to a Client Component.
+**Auth is cookie-based, validated server-side before render** (ADR-0007): a `moravec_session` cookie carries `{token, email}`, with `email: null` for an Anonymous session; `proxy.ts` (Next 16 renamed `middleware.ts` → `proxy.ts`) revalidates it against the backend before `/` or `/login` render, and `/login` itself is a Server Component that redirects only when `email` is set — an anonymous session must still reach the login form, since that's how it upgrades.
 
-**Level routes exist but level-unlock is intentionally still client-side** (ADR-0008): `/level/[levelNumber]` reads local `LevelStats` to decide access, not a backend check. This was a deliberate choice, not an oversight — level-unlock was never a security boundary worth backend enforcement. The ADR also lays out the real reason to eventually add anonymous device-id accounts: cross-device continuity for players who never log in with email, not gating. See the "Local-first + account upgrade" plan below before building this.
+**Level routes exist but level-unlock is intentionally still client-side** (ADR-0008): `/level/[levelNumber]` reads local `LevelStats` to decide access, not a backend check. This was a deliberate choice, not an oversight — level-unlock was never a security boundary worth backend enforcement. Anonymous accounts (ADR-0008's other half, since built) exist for cross-device *continuity*, not for gating — see the Anonymous session / Sync entries above.
+
+**TanStack Query is scoped to component-rendered loading/error state, not every backend call**: `useQuery`/`useMutation` only where a component needs to show that request's pending/error state (e.g. `/login`'s OTP flow). Fire-and-forget calls (Level-finish Sync) and already-server-rendered ones (the admin fetch, the post-login LevelStats pull) call `Api` directly instead, bypassing React Query entirely.
 
 **Tailwind v4 theme**: every color and the one non-default type size used anywhere in the frontend comes from `@theme` tokens in `apps/frontend/app/globals.css`, named by role (`panel`, `accent`, `danger`, …) not value. No component should reach for a raw hex.
 

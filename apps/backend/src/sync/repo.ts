@@ -165,8 +165,8 @@ export function getLevelRunsForUser(db: DatabaseSync, emailHash: string): LevelR
 
 /**
  * Folds an anonymous identity's data into a real, newly-verified one —
- * called once, server-side, at the moment of the email upgrade (see
- * ADR-0009). trial_results and level_runs are append-only history, so
+ * called once, server-side, at the moment of the email upgrade.
+ * trial_results and level_runs are append-only history, so
  * those just get re-keyed; level_stats has a "best record" concept, so
  * each level only overwrites the destination's row if it's actually
  * better (same comparison the ordinary email→email sync path already

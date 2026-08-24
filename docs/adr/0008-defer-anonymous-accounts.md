@@ -1,3 +1,5 @@
+> **Partially superseded.** The anonymous-account idea this ADR named as future work (below) was later picked up and built: every player now gets a client-generated device-id session automatically, upgraded to a real email User on OTP login (see CONTEXT.md's Sync/User/Anonymous session entries). The level-unlock reasoning below is still the live decision, unaffected by that — level-unlock has not moved server-side.
+
 # Defer anonymous device-id accounts and server-side level authorization
 
 Giving Levels real routes (`/level/[levelNumber]`) raised a natural next question: since a level's URL is now typeable, should the backend decide whether a player is allowed to play it, the way it already independently re-validates trial correctness (ADR-0005)? The blocker is that today only email-verified players have a backend session at all — an anonymous player has no identity the backend could check anything against. The proposal on the table: make every player logged in, with email accounts kept for cross-device sync as today, and a device-id-based anonymous account for everyone else, so the backend has *someone* to authorize against either way.

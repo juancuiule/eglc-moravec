@@ -10,7 +10,7 @@ import { pushResults } from "../sync/pushResults";
  * session automatically (see AuthBoot/ensureSession), so LoggedOut here
  * only means that first request hasn't resolved yet or failed; trials
  * pushed while anonymous are folded into a real account later if the
- * player logs in (ADR-0009's merge).
+ * player logs in.
  */
 export function persistFinishedLevel(state: Finished, authState: AuthState): void {
   const { config, results, stars } = state;

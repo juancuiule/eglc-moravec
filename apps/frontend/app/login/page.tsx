@@ -11,7 +11,7 @@ export default async function LoginPage() {
   // already-logged-in player never sees the login form flash on screen.
   //
   // An anonymous (device-id) session must NOT redirect away — every player
-  // gets one automatically (ADR-0009), and this page is exactly how an
+  // gets one automatically, and this page is exactly how an
   // anonymous player upgrades to a real, cross-device account. Only a
   // session with a real email means "already logged in."
   const cookieStore = await cookies();
