@@ -13,7 +13,7 @@ type Props = {
   trialId: number;
   hintVisible: boolean;
   onSubmitAnswer: (answer: number, keystrokes: Keystroke[], hasErased: boolean) => void;
-  onTimeUp: (keystrokes: Keystroke[], hasErased: boolean) => void;
+  onTimeUp: (answer: number | null, keystrokes: Keystroke[], hasErased: boolean) => void;
   onAdvance: () => void;
   /** Left side of the header row (trial count / correct count). */
   headerLeft: ReactNode;
@@ -24,6 +24,12 @@ type Props = {
   /** Extra line rendered inside the feedback overlay, alongside the correct/wrong message. */
   extraFeedback?: (result: BaseTrialResult) => ReactNode;
 };
+
+/** Parses the calculator's current raw input, or null if it's empty/unparseable. */
+function parsedAnswer(raw: string): number | null {
+  const parsed = parseInt(raw, 10);
+  return raw !== "" && !isNaN(parsed) ? parsed : null;
+}
 
 const ROWS = [
   ["1", "2", "3"],
@@ -75,7 +81,7 @@ export function AnsweringPanel({
       setRemaining(left);
       if (left === 0) {
         clearInterval(id);
-        onTimeUp(keystrokesRef.current, hasErasedRef.current);
+        onTimeUp(parsedAnswer(answerRef.current), keystrokesRef.current, hasErasedRef.current);
       }
     }, 100);
     return () => clearInterval(id);
@@ -144,9 +150,8 @@ export function AnsweringPanel({
   }
 
   function doSubmit() {
-    const parsed = parseInt(answerRef.current, 10);
-    if (answerRef.current !== "" && !isNaN(parsed))
-      onSubmitAnswer(parsed, keystrokesRef.current, hasErasedRef.current);
+    const parsed = parsedAnswer(answerRef.current);
+    if (parsed !== null) onSubmitAnswer(parsed, keystrokesRef.current, hasErasedRef.current);
   }
 
   const isReviewing = playingState.type === "reviewing";

@@ -39,13 +39,25 @@ describe("createPracticeStore", () => {
       expect(next.playingState.type).toBe("reviewing");
     });
 
-    it("timeUp moves to reviewing with correct=false", () => {
-      store.getState().timeUp();
+    it("timeUp moves to reviewing with correct=false when nothing was typed", () => {
+      store.getState().timeUp(null);
       const s = store.getState().state;
       if (s.type !== "playing" || s.playingState.type !== "reviewing") throw new Error();
       expect(s.playingState.result.correct).toBe(false);
       expect(s.playingState.result.timeExceeded).toBe(true);
       expect(s.playingState.result.answer).toBeNull();
+    });
+
+    it("timeUp credits a correct answer that was typed but never submitted", () => {
+      const s0 = store.getState().state;
+      if (s0.type !== "playing") throw new Error();
+      const correct = s0.currentOperation.result();
+
+      store.getState().timeUp(correct);
+      const s = store.getState().state;
+      if (s.type !== "playing" || s.playingState.type !== "reviewing") throw new Error();
+      expect(s.playingState.result.correct).toBe(true);
+      expect(s.playingState.result.answer).toBe(correct);
     });
 
     it("advance loops back to answering (never finishes)", () => {
@@ -82,7 +94,7 @@ describe("createPracticeStore", () => {
     });
 
     it("timeout answer is not penalised — still advances normally", () => {
-      store.getState().timeUp();
+      store.getState().timeUp(null);
       store.getState().advance();
       const s = store.getState().state;
       expect(s.type).toBe("playing");

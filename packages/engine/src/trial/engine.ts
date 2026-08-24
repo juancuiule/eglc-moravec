@@ -68,15 +68,22 @@ export function scoreAnswer(
   };
 }
 
-/** Score a trial whose timer ran out before an answer was submitted. */
+/**
+ * Score a trial whose timer ran out before the player pressed Submit.
+ * `answer` is whatever was entered into the calculator at that moment (or
+ * null if nothing was) — still evaluated for correctness, not discarded,
+ * since a correct-but-late entry is a real, distinct outcome (see
+ * trialCounts' "retry the same slot" rule) from a genuinely wrong one.
+ */
 export function scoreTimeout(
   operation: Operation,
+  answer: number | null,
   inputs: TrialInputs,
 ): BaseTrialResult {
   return {
     operation,
-    answer: null,
-    correct: false,
+    answer,
+    correct: answer !== null && answer === operation.result(),
     timeExceeded: true,
     timeTaken: operation.solveTime(),
     hintShown: inputs.hintShown,

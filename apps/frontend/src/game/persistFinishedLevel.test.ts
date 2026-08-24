@@ -42,6 +42,7 @@ function makeFinished(): Finished {
   return {
     type: "finished",
     config: { levelNumber: 4, level: LEVELS["1"], totalTrials: 20 },
+    runId: "run-abc",
     results: [makeResult(1000), makeResult(1500)],
     correctInTime: 2,
     levelCompleted: true,

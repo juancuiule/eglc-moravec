@@ -59,6 +59,8 @@ export const HINTS_PER_LEVEL = 3;
 export type Playing = {
   type: "playing";
   config: GameConfig;
+  /** Identifies this one playthrough — generated fresh per attempt (including each Replay) — so its trials can be grouped back together after they're flattened into trial_results. */
+  runId: string;
   currentOperation: Operation; // current trial's operation
   seenOperations: Set<string>; // humanReadable() strings shown this level
   trialsConsumed: number;       // slots used: increments on wrong + correct-in-time
@@ -72,6 +74,7 @@ export type Playing = {
 export type Finished = {
   type: "finished";
   config: GameConfig;
+  runId: string;
   results: TrialResult[];
   correctInTime: number;
   levelCompleted: boolean; // correctInTime >= LEVEL_COMPLETE_THRESHOLD
@@ -97,10 +100,12 @@ export type GameStore = {
   submitAnswer: (answer: number, keystrokes?: Keystroke[], hasErased?: boolean) => void;
 
   /**
-   * Mark the current trial as timed out.
+   * Mark the current trial as timed out. `answer` is whatever was entered
+   * into the calculator when the timer hit zero (or null if nothing was) —
+   * still scored for correctness, not discarded.
    * Valid from: Playing › Answering
    */
-  timeUp: (keystrokes?: Keystroke[], hasErased?: boolean) => void;
+  timeUp: (answer: number | null, keystrokes?: Keystroke[], hasErased?: boolean) => void;
 
   /**
    * Advance after the result is shown.
@@ -144,6 +149,7 @@ function startPlaying(config: GameConfig, trialId = 0): Playing {
   return {
     type: "playing",
     config,
+    runId: crypto.randomUUID(),
     currentOperation: firstOp,
     seenOperations: seen,
     trialsConsumed: 0,
@@ -208,12 +214,12 @@ export function createGameStore() {
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
 
-    timeUp(keystrokes = [], hasErased = false) {
+    timeUp(answer, keystrokes = [], hasErased = false) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
 
-      const base = scoreTimeout(state.currentOperation, {
+      const base = scoreTimeout(state.currentOperation, answer, {
         keystrokes,
         hasErased,
         hintShown: state.hintVisible,
@@ -245,6 +251,7 @@ export function createGameStore() {
           state: {
             type: "finished",
             config: state.config,
+            runId: state.runId,
             results,
             correctInTime,
             levelCompleted: correctInTime >= LEVEL_COMPLETE_THRESHOLD,

@@ -107,13 +107,26 @@ describe("createGameStore", () => {
       expect(next.playingState.type).toBe("reviewing");
     });
 
-    it("timeUp moves to reviewing with correct=false and timeExceeded=true", () => {
-      store.getState().timeUp();
+    it("timeUp moves to reviewing with correct=false and timeExceeded=true when nothing was typed", () => {
+      store.getState().timeUp(null);
       const s = store.getState().state;
       if (s.type !== "playing" || s.playingState.type !== "reviewing") throw new Error("unexpected");
       expect(s.playingState.result.correct).toBe(false);
       expect(s.playingState.result.timeExceeded).toBe(true);
       expect(s.playingState.result.answer).toBeNull();
+    });
+
+    it("timeUp credits a correct answer that was typed but never submitted", () => {
+      const s0 = store.getState().state;
+      if (s0.type !== "playing") throw new Error();
+      const correct = s0.currentOperation.result();
+
+      store.getState().timeUp(correct);
+      const s = store.getState().state;
+      if (s.type !== "playing" || s.playingState.type !== "reviewing") throw new Error("unexpected");
+      expect(s.playingState.result.correct).toBe(true);
+      expect(s.playingState.result.timeExceeded).toBe(true);
+      expect(s.playingState.result.answer).toBe(correct);
     });
 
     it("submitAnswer records timeExceeded=true when answer is late", () => {
@@ -226,6 +239,16 @@ describe("createGameStore", () => {
       const solveTime = s.currentOperation.solveTime();
       vi.spyOn(Date, "now").mockReturnValue(1_000_000 + solveTime + 1);
       store.getState().submitAnswer(s.currentOperation.result());
+      store.getState().advance();
+      const next = store.getState().state;
+      if (next.type !== "playing") throw new Error();
+      expect(next.trialsConsumed).toBe(0);
+    });
+
+    it("advance after a correct-but-late timeUp also does NOT increment trialsConsumed", () => {
+      const s = store.getState().state;
+      if (s.type !== "playing") throw new Error();
+      store.getState().timeUp(s.currentOperation.result());
       store.getState().advance();
       const next = store.getState().state;
       if (next.type !== "playing") throw new Error();

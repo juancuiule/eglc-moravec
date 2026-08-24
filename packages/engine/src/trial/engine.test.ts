@@ -85,19 +85,34 @@ describe("scoreAnswer", () => {
 });
 
 describe("scoreTimeout", () => {
-  it("marks the trial as wrong, timed out, with a null answer", () => {
+  it("marks the trial as wrong, timed out, with a null answer when nothing was typed", () => {
     const op = makeOp();
-    const result = scoreTimeout(op, { hintShown: false });
+    const result = scoreTimeout(op, null, { hintShown: false });
     expect(result.correct).toBe(false);
     expect(result.timeExceeded).toBe(true);
     expect(result.answer).toBeNull();
     expect(result.timeTaken).toBe(op.solveTime());
   });
 
+  it("credits a correct answer that was typed but never submitted before time ran out", () => {
+    const op = makeOp();
+    const result = scoreTimeout(op, op.result(), { hintShown: false });
+    expect(result.correct).toBe(true);
+    expect(result.timeExceeded).toBe(true);
+    expect(result.answer).toBe(op.result());
+  });
+
+  it("marks a wrong-but-typed answer as incorrect, not null", () => {
+    const op = makeOp();
+    const result = scoreTimeout(op, op.result() + 99, { hintShown: false });
+    expect(result.correct).toBe(false);
+    expect(result.answer).toBe(op.result() + 99);
+  });
+
   it("carries through keystrokes, hasErased, and hintShown", () => {
     const op = makeOp();
     const keystrokes = [{ key: "⌫", t: 5 }];
-    const result = scoreTimeout(op, { keystrokes, hasErased: true, hintShown: true });
+    const result = scoreTimeout(op, null, { keystrokes, hasErased: true, hintShown: true });
     expect(result.keystrokes).toBe(keystrokes);
     expect(result.hasErased).toBe(true);
     expect(result.hintShown).toBe(true);

@@ -61,8 +61,10 @@ export type PracticeStore = {
   /**
    * Time ran out. Valid from: playing › answering.
    * In practice, this is not penalised — just triggers review then advance.
+   * `answer` is whatever was entered when the timer hit zero (or null),
+   * still scored for correctness, not discarded.
    */
-  timeUp: (keystrokes?: Keystroke[], hasErased?: boolean) => void;
+  timeUp: (answer: number | null, keystrokes?: Keystroke[], hasErased?: boolean) => void;
 
   /** Advance to next trial. Valid from: playing › reviewing. */
   advance: () => void;
@@ -114,12 +116,12 @@ export function createPracticeStore() {
       set({ state: { ...state, playingState: { type: "reviewing", result } } });
     },
 
-    timeUp(keystrokes = [], hasErased = false) {
+    timeUp(answer, keystrokes = [], hasErased = false) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
 
-      const result: PracticeTrialResult = scoreTimeout(state.currentOperation, {
+      const result: PracticeTrialResult = scoreTimeout(state.currentOperation, answer, {
         keystrokes,
         hasErased,
         hintShown: state.hintVisible,
