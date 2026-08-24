@@ -19,7 +19,7 @@ export function PracticeSummary({ state }: Props) {
 
   function handleBack() {
     reset();
-    router.push("/");
+    router.push("/practice");
   }
 
   return (
