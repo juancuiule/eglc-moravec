@@ -3,7 +3,7 @@ import {
   parseTrialResults,
   isBetterLevelRecord,
   evaluateTrialResult,
-  deriveLevelStats,
+  deriveLevelRuns,
 } from "./logic.js";
 
 const validTrial = {
@@ -19,6 +19,7 @@ const validTrial = {
   hintShown: false,
   streakAtSubmit: 2,
   hintsAvailableAtStart: 3,
+  levelRunId: "run-abc",
 };
 
 describe("parseTrialResults", () => {
@@ -97,6 +98,11 @@ describe("parseTrialResults", () => {
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
+  it("rejects a trial with a wrong-typed levelRunId", () => {
+    const trial = { ...validTrial, levelRunId: 123 };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
   it("rejects null and non-object bodies", () => {
     expect(parseTrialResults(null)).toBeNull();
     expect(parseTrialResults("nope")).toBeNull();
@@ -112,11 +118,12 @@ describe("evaluateTrialResult", () => {
     expect(evaluated.clientTimeExceeded).toBe(false);
   });
 
-  it("passes hintShown, streakAtSubmit, and hintsAvailableAtStart through unchanged", () => {
+  it("passes hintShown, streakAtSubmit, hintsAvailableAtStart, and levelRunId through unchanged", () => {
     const evaluated = evaluateTrialResult(validTrial);
     expect(evaluated.hintShown).toBe(false);
     expect(evaluated.streakAtSubmit).toBe(2);
     expect(evaluated.hintsAvailableAtStart).toBe(3);
+    expect(evaluated.levelRunId).toBe("run-abc");
   });
 
   it("overrides a client claim that disagrees with the server's own recomputation, keeping the claim for auditing", () => {
@@ -143,46 +150,57 @@ function evaluatedTrial(overrides: Partial<ReturnType<typeof evaluateTrialResult
     hintShown: false,
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
+    levelRunId: "run-1",
     ...overrides,
   };
 }
 
-describe("deriveLevelStats", () => {
-  it("derives stars/totalTime for a single level from its trial batch", () => {
+describe("deriveLevelRuns", () => {
+  it("derives stars/totalTime/levelCompleted for a single run from its trial batch", () => {
     const trials = [
       evaluatedTrial({ timeTaken: 1000 }),
       evaluatedTrial({ timeTaken: 2000 }),
       evaluatedTrial({ correct: false, timeTaken: 3000 }),
     ];
 
-    const [summary] = deriveLevelStats(trials);
+    const [summary] = deriveLevelRuns(trials);
+    expect(summary.levelRunId).toBe("run-1");
     expect(summary.levelNumber).toBe(4);
     expect(summary.totalTime).toBe(6000); // sums every trial, not just correct-in-time ones
     expect(summary.stars).toBe(0); // 2 correct-in-time < LEVEL_COMPLETE_THRESHOLD (15)
+    expect(summary.levelCompleted).toBe(false);
   });
 
-  it("bases stars on the server-computed correct/timeExceeded, not the client's claim", () => {
+  it("bases stars/completion on the server-computed correct/timeExceeded, not the client's claim", () => {
     const trials = Array.from({ length: 20 }, () =>
       evaluatedTrial({ correct: false, clientCorrect: true }), // client claims correct; server disagrees
     );
 
-    const [summary] = deriveLevelStats(trials);
+    const [summary] = deriveLevelRuns(trials);
     expect(summary.stars).toBe(0);
+    expect(summary.levelCompleted).toBe(false);
   });
 
-  it("groups a mixed batch by levelNumber, scoring each independently", () => {
+  it("marks a run completed once correct-in-time trials reach the threshold", () => {
+    const trials = Array.from({ length: 20 }, () => evaluatedTrial());
+    const [summary] = deriveLevelRuns(trials);
+    expect(summary.levelCompleted).toBe(true);
+    expect(summary.stars).toBe(3);
+  });
+
+  it("groups a mixed batch by levelRunId, scoring each run independently", () => {
     const trials = [
-      ...Array.from({ length: 20 }, () => evaluatedTrial({ levelNumber: 1 })), // 20 correct-in-time → 3 stars
-      evaluatedTrial({ levelNumber: 2, correct: false }), // 0 correct-in-time → 0 stars
+      ...Array.from({ length: 20 }, () => evaluatedTrial({ levelRunId: "run-1", levelNumber: 1 })), // 20 correct-in-time → 3 stars
+      evaluatedTrial({ levelRunId: "run-2", levelNumber: 2, correct: false }), // 0 correct-in-time → 0 stars
     ];
 
-    const summaries = deriveLevelStats(trials);
-    expect(summaries.find((s) => s.levelNumber === 1)?.stars).toBe(3);
-    expect(summaries.find((s) => s.levelNumber === 2)?.stars).toBe(0);
+    const summaries = deriveLevelRuns(trials);
+    expect(summaries.find((s) => s.levelRunId === "run-1")).toMatchObject({ levelNumber: 1, stars: 3 });
+    expect(summaries.find((s) => s.levelRunId === "run-2")).toMatchObject({ levelNumber: 2, stars: 0 });
   });
 
   it("returns an empty array for no trials", () => {
-    expect(deriveLevelStats([])).toEqual([]);
+    expect(deriveLevelRuns([])).toEqual([]);
   });
 });
 

@@ -28,6 +28,7 @@ function trial(overrides: Partial<EvaluatedTrialResult> = {}): EvaluatedTrialRes
     hintShown: false,
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
+    levelRunId: "run-1",
     ...overrides,
   };
 }

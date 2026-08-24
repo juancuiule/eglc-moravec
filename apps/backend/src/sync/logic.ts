@@ -1,4 +1,4 @@
-import { reconstructOperation, evaluateTrial, starsForScore } from "engine";
+import { reconstructOperation, evaluateTrial, starsForScore, LEVEL_COMPLETE_THRESHOLD } from "engine";
 
 export type KeystrokeInput = {
   key: string;
@@ -24,6 +24,7 @@ export type TrialResultInput = {
   hintShown: boolean;
   streakAtSubmit: number;
   hintsAvailableAtStart: number;
+  levelRunId: string;
 };
 
 function isTrialResultInput(value: unknown): value is TrialResultInput {
@@ -43,7 +44,8 @@ function isTrialResultInput(value: unknown): value is TrialResultInput {
     (r.answer === null || typeof r.answer === "number") &&
     typeof r.hintShown === "boolean" &&
     typeof r.streakAtSubmit === "number" &&
-    typeof r.hintsAvailableAtStart === "number"
+    typeof r.hintsAvailableAtStart === "number" &&
+    typeof r.levelRunId === "string"
   );
 }
 
@@ -68,6 +70,7 @@ export type EvaluatedTrialResult = {
   hintShown: boolean;
   streakAtSubmit: number;
   hintsAvailableAtStart: number;
+  levelRunId: string;
 };
 
 /**
@@ -93,34 +96,44 @@ export function evaluateTrialResult(input: TrialResultInput): EvaluatedTrialResu
     hintShown: input.hintShown,
     streakAtSubmit: input.streakAtSubmit,
     hintsAvailableAtStart: input.hintsAvailableAtStart,
+    levelRunId: input.levelRunId,
   };
 }
 
-export type LevelStatsSummary = {
+export type LevelRunSummary = {
+  levelRunId: string;
   levelNumber: number;
   stars: 0 | 1 | 2 | 3;
   totalTime: number;
+  levelCompleted: boolean;
 };
 
 /**
- * Derive each finished Level's stars/totalTime from a batch of validated
- * trials, using the same threshold rule the client uses
- * (packages/engine's starsForScore) — but applied to the server's own
- * recomputed correctness, not the client's claim. In practice one
- * POST /sync/results call carries exactly one Level's trials; trials are
- * grouped by levelNumber regardless, so a mixed batch is still scored
- * correctly per Level.
+ * Derive each individual level-run's outcome (stars/totalTime/completed)
+ * from a batch of validated trials, grouped by levelRunId rather than
+ * levelNumber — a batch is expected to carry exactly one run today (one
+ * POST /sync/results call per finished Level), but grouping by the run's
+ * own id rather than assuming that shape is what actually makes each run's
+ * record correct even if that assumption ever stops holding. Stars/
+ * completion use the server's own recomputed correctness (packages/engine's
+ * starsForScore/LEVEL_COMPLETE_THRESHOLD), never the client's claim.
  */
-export function deriveLevelStats(trials: readonly EvaluatedTrialResult[]): LevelStatsSummary[] {
-  const byLevel = new Map<number, EvaluatedTrialResult[]>();
+export function deriveLevelRuns(trials: readonly EvaluatedTrialResult[]): LevelRunSummary[] {
+  const byRun = new Map<string, EvaluatedTrialResult[]>();
   trials.forEach((t) => {
-    byLevel.set(t.levelNumber, [...(byLevel.get(t.levelNumber) ?? []), t]);
+    byRun.set(t.levelRunId, [...(byRun.get(t.levelRunId) ?? []), t]);
   });
 
-  return Array.from(byLevel.entries()).map(([levelNumber, levelTrials]) => {
-    const correctInTime = levelTrials.filter((t) => t.correct && !t.timeExceeded).length;
-    const totalTime = levelTrials.reduce((sum, t) => sum + t.timeTaken, 0);
-    return { levelNumber, stars: starsForScore(correctInTime), totalTime };
+  return Array.from(byRun.entries()).map(([levelRunId, runTrials]) => {
+    const correctInTime = runTrials.filter((t) => t.correct && !t.timeExceeded).length;
+    const totalTime = runTrials.reduce((sum, t) => sum + t.timeTaken, 0);
+    return {
+      levelRunId,
+      levelNumber: runTrials[0].levelNumber,
+      stars: starsForScore(correctInTime),
+      totalTime,
+      levelCompleted: correctInTime >= LEVEL_COMPLETE_THRESHOLD,
+    };
   });
 }
 

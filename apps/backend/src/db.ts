@@ -34,7 +34,8 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      played_at INTEGER NOT NULL,
      hint_shown INTEGER NOT NULL DEFAULT 0,
      streak_at_submit INTEGER NOT NULL DEFAULT 0,
-     hints_available_at_start INTEGER NOT NULL DEFAULT 0
+     hints_available_at_start INTEGER NOT NULL DEFAULT 0,
+     level_run_id TEXT NOT NULL DEFAULT ''
    )`,
   `CREATE INDEX IF NOT EXISTS trial_results_email_hash_idx ON trial_results (email_hash)`,
   `CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)`,
@@ -53,6 +54,21 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      completed_at INTEGER NOT NULL,
      PRIMARY KEY (email_hash, level_number)
    )`,
+  // Every attempt at a Level, not just the best one — level_stats above
+  // stays the best-ever cache the Levels page reads, this is the full
+  // history. id is the client-generated levelRunId (see game/index.ts),
+  // which is also what trial_results.level_run_id groups back to this row.
+  `CREATE TABLE IF NOT EXISTS level_runs (
+     id TEXT PRIMARY KEY,
+     email_hash TEXT NOT NULL,
+     level_number INTEGER NOT NULL,
+     stars INTEGER NOT NULL,
+     total_time INTEGER NOT NULL,
+     level_completed INTEGER NOT NULL,
+     played_at INTEGER NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS level_runs_email_hash_idx ON level_runs (email_hash)`,
+  `CREATE INDEX IF NOT EXISTS level_runs_level_number_idx ON level_runs (level_number)`,
 ];
 
 // `CREATE TABLE IF NOT EXISTS` is a no-op against a table that already
@@ -101,12 +117,30 @@ function migrateHintAndStreakColumns(db: DatabaseSync): void {
   }
 }
 
+// Existing rows predate level-run grouping and have no run to backfill
+// against — default to '' (ungroupable), same spirit as the hint/streak
+// columns' 0 default.
+function migrateLevelRunIdColumn(db: DatabaseSync): void {
+  const columns = new Set(
+    (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
+      (c) => c.name,
+    ),
+  );
+  if (!columns.has("level_run_id")) {
+    db.exec("ALTER TABLE trial_results ADD COLUMN level_run_id TEXT NOT NULL DEFAULT ''");
+  }
+  // Outside the if: needs to run for a fresh database too, where the column
+  // already exists from CREATE TABLE and this branch never executes.
+  db.exec("CREATE INDEX IF NOT EXISTS trial_results_level_run_id_idx ON trial_results (level_run_id)");
+}
+
 export function openDb(path: string): DatabaseSync {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   SCHEMA_STATEMENTS.forEach((statement) => db.exec(statement));
   migrateClientCorrectnessColumns(db);
   migrateHintAndStreakColumns(db);
+  migrateLevelRunIdColumn(db);
   return db;
 }
 

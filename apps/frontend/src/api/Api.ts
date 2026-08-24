@@ -20,6 +20,7 @@ export type SyncTrial = {
   hintShown: boolean;
   streakAtSubmit: number;
   hintsAvailableAtStart: number;
+  levelRunId: string;
 };
 
 export type LevelStats = {

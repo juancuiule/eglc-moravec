@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import type { EvaluatedTrialResult } from "./logic.js";
+import type { EvaluatedTrialResult, LevelRunSummary } from "./logic.js";
 
 export type LevelStatsRow = {
   email_hash: string;
@@ -50,8 +50,8 @@ export function insertTrialResults(
 ): void {
   const insertTrial = db.prepare(
     `INSERT INTO trial_results
-       (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start, level_run_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insertKeystroke = db.prepare(
     `INSERT INTO trial_keystrokes (trial_result_id, key, t) VALUES (?, ?, ?)`,
@@ -70,6 +70,7 @@ export function insertTrialResults(
       t.hintShown ? 1 : 0,
       t.streakAtSubmit,
       t.hintsAvailableAtStart,
+      t.levelRunId,
     );
     t.keystrokes.forEach((k) => {
       insertKeystroke.run(lastInsertRowid, k.key, k.t);
@@ -91,6 +92,7 @@ export type TrialResultRow = {
   hint_shown: number;
   streak_at_submit: number;
   hints_available_at_start: number;
+  level_run_id: string;
 };
 
 export function getTrialResultsForUser(db: DatabaseSync, emailHash: string): TrialResultRow[] {
@@ -113,4 +115,49 @@ export function getKeystrokesForTrialResult(
   return db
     .prepare("SELECT * FROM trial_keystrokes WHERE trial_result_id = ? ORDER BY id")
     .all(trialResultId) as KeystrokeRow[];
+}
+
+export type LevelRunRow = {
+  id: string;
+  email_hash: string;
+  level_number: number;
+  stars: number;
+  total_time: number;
+  level_completed: number;
+  played_at: number;
+};
+
+/**
+ * Records every attempt at a Level, not just the best — level_stats stays
+ * the best-ever cache the Levels page reads. `INSERT OR IGNORE` because id
+ * (the client-generated levelRunId) is a natural dedup key: a retried sync
+ * of the same batch should not double-record the same run.
+ */
+export function insertLevelRuns(
+  db: DatabaseSync,
+  emailHash: string,
+  runs: readonly LevelRunSummary[],
+  playedAt: number,
+): void {
+  const insertRun = db.prepare(
+    `INSERT OR IGNORE INTO level_runs (id, email_hash, level_number, stars, total_time, level_completed, played_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  );
+  runs.forEach((run) => {
+    insertRun.run(
+      run.levelRunId,
+      emailHash,
+      run.levelNumber,
+      run.stars,
+      run.totalTime,
+      run.levelCompleted ? 1 : 0,
+      playedAt,
+    );
+  });
+}
+
+export function getLevelRunsForUser(db: DatabaseSync, emailHash: string): LevelRunRow[] {
+  return db
+    .prepare("SELECT * FROM level_runs WHERE email_hash = ? ORDER BY played_at")
+    .all(emailHash) as LevelRunRow[];
 }

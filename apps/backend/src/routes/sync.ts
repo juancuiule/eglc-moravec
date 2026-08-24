@@ -5,10 +5,11 @@ import {
   parseTrialResults,
   isBetterLevelRecord,
   evaluateTrialResult,
-  deriveLevelStats,
+  deriveLevelRuns,
 } from "../sync/logic.js";
 import {
   insertTrialResults,
+  insertLevelRuns,
   getLevelStatsRow,
   upsertLevelStatsRow,
   getAllLevelStatsForUser,
@@ -25,11 +26,14 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
     const evaluated = trials.map(evaluateTrialResult);
     insertTrialResults(db, emailHash, evaluated);
 
-    deriveLevelStats(evaluated).forEach((ls) => {
-      const existing = getLevelStatsRow(db, emailHash, ls.levelNumber);
+    const runs = deriveLevelRuns(evaluated);
+    insertLevelRuns(db, emailHash, runs, Date.now());
+
+    runs.forEach((run) => {
+      const existing = getLevelStatsRow(db, emailHash, run.levelNumber);
       const existingRecord = existing ? { stars: existing.stars, totalTime: existing.total_time } : null;
-      if (isBetterLevelRecord(ls, existingRecord)) {
-        upsertLevelStatsRow(db, emailHash, ls.levelNumber, ls.stars, ls.totalTime, Date.now());
+      if (isBetterLevelRecord(run, existingRecord)) {
+        upsertLevelStatsRow(db, emailHash, run.levelNumber, run.stars, run.totalTime, Date.now());
       }
     });
 

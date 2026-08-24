@@ -36,6 +36,7 @@ function makeTrial(overrides: Partial<PersistedTrial> = {}): PersistedTrial {
     hintShown: false,
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
+    levelRunId: "run-abc",
     ...overrides,
   };
 }
@@ -64,6 +65,7 @@ describe("pushResults", () => {
         hintShown: false,
         streakAtSubmit: 0,
         hintsAvailableAtStart: 3,
+        levelRunId: "run-abc",
       },
     ]);
   });

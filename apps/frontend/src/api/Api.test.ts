@@ -79,6 +79,7 @@ test("syncResults resolves on success", async () => {
         hintShown: false,
         streakAtSubmit: 0,
         hintsAvailableAtStart: 3,
+        levelRunId: "run-abc",
         operands: [2, 3],
         answer: 5,
       },

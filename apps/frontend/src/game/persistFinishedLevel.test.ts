@@ -64,7 +64,7 @@ describe("persistFinishedLevel", () => {
     persistFinishedLevel(state, loggedOut);
 
     expect(updateLevelRecord).toHaveBeenCalledWith(4, { stars: 2, totalTime: 2500 });
-    expect(buildPersistedTrials).toHaveBeenCalledWith(state.config, state.results);
+    expect(buildPersistedTrials).toHaveBeenCalledWith(state.config, state.results, state.runId);
     expect(appendTrials).toHaveBeenCalledWith([{ fake: "persisted-trial" }]);
   });
 

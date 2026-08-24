@@ -1,11 +1,16 @@
 import { describe, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { FastifyInstance } from "fastify";
 import { openDb } from "../db.js";
 import { buildApp } from "../app.js";
 import { loadConfig } from "../config.js";
 import { getOtpRow } from "../auth/repo.js";
-import { getTrialResultsForUser, getKeystrokesForTrialResult } from "../sync/repo.js";
+import {
+  getTrialResultsForUser,
+  getKeystrokesForTrialResult,
+  getLevelRunsForUser,
+} from "../sync/repo.js";
 import { hashEmail } from "../auth/logic.js";
 
 const TEST_SECRET = "test-secret";
@@ -42,6 +47,7 @@ const trial = {
   hintShown: true,
   streakAtSubmit: 4,
   hintsAvailableAtStart: 3,
+  levelRunId: "run-xyz",
 };
 
 describe("POST /sync/results", () => {
@@ -73,6 +79,7 @@ describe("POST /sync/results", () => {
       hint_shown: 1,
       streak_at_submit: 4,
       hints_available_at_start: 3,
+      level_run_id: "run-xyz",
     });
 
     const keystrokes = getKeystrokesForTrialResult(db, rows[0].id);
@@ -141,7 +148,7 @@ describe("POST /sync/results", () => {
 
 // A trial for level `levelNumber`, correct-in-time iff `correct`. Category
 // is always 1d+1d (solveTime 7000ms), so a 1000ms trial is always in time.
-function trialFor(levelNumber: number, correct: boolean) {
+function trialFor(levelNumber: number, correct: boolean, levelRunId: string) {
   return {
     levelNumber,
     categoryCodename: "1d+1d",
@@ -155,13 +162,22 @@ function trialFor(levelNumber: number, correct: boolean) {
     hintShown: false,
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
+    levelRunId,
   };
 }
 
-function batchFor(levelNumber: number, correctCount: number, wrongCount: number) {
+// Every trial in one batch shares a run id — a fresh one per call by
+// default, so two batches for the same level (e.g. a replay) are still
+// two distinct, independently recorded runs.
+function batchFor(
+  levelNumber: number,
+  correctCount: number,
+  wrongCount: number,
+  levelRunId: string = randomUUID(),
+) {
   return [
-    ...Array.from({ length: correctCount }, () => trialFor(levelNumber, true)),
-    ...Array.from({ length: wrongCount }, () => trialFor(levelNumber, false)),
+    ...Array.from({ length: correctCount }, () => trialFor(levelNumber, true, levelRunId)),
+    ...Array.from({ length: wrongCount }, () => trialFor(levelNumber, false, levelRunId)),
   ];
 }
 
@@ -241,5 +257,53 @@ describe("GET /sync/level-stats (derived from POST /sync/results)", () => {
     const { app } = setup();
     const getRes = await app.inject({ method: "GET", url: "/sync/level-stats" });
     expect(getRes.statusCode).toBe(401);
+  });
+});
+
+describe("level_runs (every attempt, not just the best)", () => {
+  it("records a run for each sync, even when a later run is worse", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    await postResults(app, token, batchFor(1, 20, 0)); // run 1: 3 stars
+    await postResults(app, token, batchFor(1, 15, 0)); // run 2: 1 star — worse, but still its own record
+
+    const runs = getLevelRunsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(runs).toHaveLength(2);
+    expect(runs.map((r) => r.stars).sort()).toEqual([1, 3]);
+
+    // level_stats (the best-ever cache) still only reflects the better run
+    const getRes = await app.inject({
+      method: "GET",
+      url: "/sync/level-stats",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3 });
+  });
+
+  it("each run keeps its own levelRunId as the row id", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const runId = randomUUID();
+
+    await postResults(app, token, batchFor(2, 17, 0, runId));
+
+    const [run] = getLevelRunsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(run.id).toBe(runId);
+    expect(run.level_number).toBe(2);
+    expect(run.level_completed).toBe(1);
+  });
+
+  it("retrying the same run id does not double-record it", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const runId = randomUUID();
+    const batch = batchFor(1, 20, 0, runId);
+
+    await postResults(app, token, batch);
+    await postResults(app, token, batch); // simulated retry of the exact same batch
+
+    const runs = getLevelRunsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(runs).toHaveLength(1);
   });
 });
