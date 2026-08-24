@@ -1,6 +1,6 @@
 # backend
 
-Fastify + SQLite (`node:sqlite`, no native dependency). Deployed self-hosted via Docker. Depends on the shared `packages/engine` domain model to independently re-validate client-submitted trials — see `docs/adr/0005-backend-revalidates-correctness.md`.
+Fastify + SQLite (`node:sqlite`, no native dependency). Deployed self-hosted via Docker. Depends on the shared `packages/engine` domain model to independently re-validate client-submitted trials — see `CONTEXT.md`'s "backend independently re-validates trial correctness" entry.
 
 ## Local dev
 

@@ -77,7 +77,8 @@ export type EvaluatedTrialResult = {
  * Independently re-derives correctness/timing from a trial's own reported
  * operands/answer/timeTaken, using packages/engine — the same scoring rules
  * the client itself uses. A disagreement with the client's claim is never an
- * error: both are returned, and the caller stores both (see ADR-0005).
+ * error: both are returned, and the caller stores both (see CONTEXT.md's
+ * "backend independently re-validates trial correctness" entry).
  */
 export function evaluateTrialResult(input: TrialResultInput): EvaluatedTrialResult {
   const operation = reconstructOperation(input.categoryCodename, input.operands);

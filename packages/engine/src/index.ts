@@ -1,6 +1,7 @@
 // The shared domain model — Operations, Trial scoring, Level completion.
 // Used by both apps/frontend (gameplay) and apps/backend (independent
-// server-side verification of what a client reports). See ADR-0005.
+// server-side verification of what a client reports — see CONTEXT.md's
+// "backend independently re-validates trial correctness" entry).
 
 export { Operation, Addition, Multiplication, Squaring } from "./operations/operation";
 export {

@@ -89,7 +89,7 @@ const SCHEMA_STATEMENTS: readonly string[] = [
 // exists with an older column set, so a new NOT NULL column needs an
 // explicit, idempotent migration on top — added here as each becomes
 // necessary. Existing rows predate the client/server correctness split
-// (ticket 05/ADR-0005), so their claim is backfilled from what was, at
+// (ticket 05), so their claim is backfilled from what was, at
 // the time, the only recorded value.
 function migrateClientCorrectnessColumns(db: DatabaseSync): void {
   const columns = new Set(
