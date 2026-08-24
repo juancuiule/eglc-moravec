@@ -44,6 +44,36 @@ test("verifyOtp throws on an invalid code", async () => {
   await expect(Api.verifyOtp("player@example.com", "000000")).rejects.toThrow("invalid_code");
 });
 
+test("verifyOtp attaches an anonymous token as this request's own Bearer header, when given one", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ token: "tok", expiresAt: 123 }));
+  await Api.verifyOtp("player@example.com", "123456", "anon-tok");
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining("/auth/otp/verify"),
+    expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer anon-tok" }) }),
+  );
+});
+
+test("verifyOtp sends no Authorization header without an anonymous token", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ token: "tok", expiresAt: 123 }));
+  await Api.verifyOtp("player@example.com", "123456");
+  const [, options] = vi.mocked(fetch).mock.calls[0];
+  expect((options?.headers as Record<string, string>).Authorization).toBeUndefined();
+});
+
+test("registerDevice resolves with a session token", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ token: "tok", expiresAt: 123 }));
+  await expect(Api.registerDevice("device-1")).resolves.toEqual({ token: "tok", expiresAt: 123 });
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining("/auth/device"),
+    expect.objectContaining({ method: "POST", body: JSON.stringify({ deviceId: "device-1" }) }),
+  );
+});
+
+test("registerDevice throws the backend's error on failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "invalid_request" }, false));
+  await expect(Api.registerDevice("")).rejects.toThrow("invalid_request");
+});
+
 test("checkSession resolves true when the session is valid", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse({ ok: true }));
   await expect(Api.checkSession("tok")).resolves.toBe(true);

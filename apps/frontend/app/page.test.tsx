@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import HomePage from "./page";
+import { authStore } from "@/auth/store";
 
 // Minimal localStorage mock, matching the convention used elsewhere in this
 // codebase — the auth store reads it at module/mount time.
@@ -26,6 +27,17 @@ beforeEach(() => {
 test("shows the Log in link when logged out", () => {
   render(<HomePage />);
   expect(screen.getByRole("link", { name: "Log in" })).toBeDefined();
+});
+
+test("also shows the Log in link when anonymous — an anonymous session isn't a logged-in one", () => {
+  authStore.setState({ state: { type: "anonymous", token: "anon-tok" } });
+  try {
+    render(<HomePage />);
+    expect(screen.getByRole("link", { name: "Log in" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Log out" })).toBeNull();
+  } finally {
+    authStore.setState({ state: { type: "loggedOut" } });
+  }
 });
 
 test("links to Play, Practice, Stats, and Tutorials routes", () => {

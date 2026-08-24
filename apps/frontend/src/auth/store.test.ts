@@ -4,6 +4,7 @@ vi.mock("../api/Api", () => ({
   Api: {
     checkSession: vi.fn(),
     logout: vi.fn(),
+    registerDevice: vi.fn(),
   },
 }));
 
@@ -11,6 +12,10 @@ vi.mock("../storage/session", () => ({
   loadSession: vi.fn(),
   saveSession: vi.fn(),
   clearSession: vi.fn(),
+}));
+
+vi.mock("../storage/deviceId", () => ({
+  getOrCreateDeviceId: vi.fn(() => "device-1"),
 }));
 
 import { createAuthStore } from "./store";
@@ -49,6 +54,62 @@ describe("createAuthStore", () => {
     const store = createAuthStore();
     store.getState().hydrate();
     expect(Api.checkSession).not.toHaveBeenCalled();
+  });
+
+  it("hydrate() restores an anonymous state from a persisted session with a null email", () => {
+    vi.mocked(loadSession).mockReturnValue({ token: "t1", email: null });
+    const store = createAuthStore();
+    store.getState().hydrate();
+    expect(store.getState().state).toEqual({ type: "anonymous", token: "t1" });
+  });
+
+  it("loginAnonymous persists a null-email session and moves to anonymous", () => {
+    const store = createAuthStore();
+
+    store.getState().loginAnonymous({ token: "anon-tok" });
+
+    expect(store.getState().state).toEqual({ type: "anonymous", token: "anon-tok" });
+    expect(saveSession).toHaveBeenCalledWith({ token: "anon-tok", email: null });
+  });
+
+  describe("ensureSession", () => {
+    it("mints and stores an anonymous session when starting loggedOut", async () => {
+      vi.mocked(Api.registerDevice).mockResolvedValue({ token: "anon-tok", expiresAt: 123 });
+      const store = createAuthStore();
+
+      await store.getState().ensureSession();
+
+      expect(Api.registerDevice).toHaveBeenCalledWith("device-1");
+      expect(store.getState().state).toEqual({ type: "anonymous", token: "anon-tok" });
+    });
+
+    it("is a no-op when already anonymous", async () => {
+      vi.mocked(loadSession).mockReturnValue({ token: "t1", email: null });
+      const store = createAuthStore();
+      store.getState().hydrate();
+
+      await store.getState().ensureSession();
+
+      expect(Api.registerDevice).not.toHaveBeenCalled();
+    });
+
+    it("is a no-op when already loggedIn", async () => {
+      vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
+      const store = createAuthStore();
+      store.getState().hydrate();
+
+      await store.getState().ensureSession();
+
+      expect(Api.registerDevice).not.toHaveBeenCalled();
+    });
+
+    it("leaves state loggedOut when the request fails, without throwing", async () => {
+      vi.mocked(Api.registerDevice).mockRejectedValue(new Error("network down"));
+      const store = createAuthStore();
+
+      await expect(store.getState().ensureSession()).resolves.toBeUndefined();
+      expect(store.getState().state).toEqual({ type: "loggedOut" });
+    });
   });
 
   it("login persists the session and moves to loggedIn", () => {

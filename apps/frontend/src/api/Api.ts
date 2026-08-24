@@ -103,8 +103,23 @@ export const Api = {
     return requestVoid("/auth/otp/request", { method: "POST", body: { email } });
   },
 
-  verifyOtp(email: string, code: string): Promise<OtpVerified> {
-    return requestJson<OtpVerified>("/auth/otp/verify", { method: "POST", body: { email, code } });
+  /**
+   * `anonymousToken`, when the caller currently holds one, is sent as this
+   * request's own Bearer token — the backend resolves it and, if it really
+   * is an anonymous (device-id) identity, merges its trials/level_stats
+   * into the newly-verified email account before returning (ADR-0009).
+   */
+  verifyOtp(email: string, code: string, anonymousToken?: string): Promise<OtpVerified> {
+    return requestJson<OtpVerified>("/auth/otp/verify", {
+      method: "POST",
+      body: { email, code },
+      token: anonymousToken,
+    });
+  },
+
+  /** Mints a low-friction anonymous session for this device — no email, no OTP round-trip. */
+  registerDevice(deviceId: string): Promise<OtpVerified> {
+    return requestJson<OtpVerified>("/auth/device", { method: "POST", body: { deviceId } });
   },
 
   async checkSession(token: string): Promise<boolean> {

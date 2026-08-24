@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { normalizeEmail, isValidEmail, hashEmail, canRequestNewOtp, isOtpValid } from "./logic.js";
+import {
+  normalizeEmail,
+  isValidEmail,
+  hashEmail,
+  hashDeviceId,
+  canRequestNewOtp,
+  isOtpValid,
+} from "./logic.js";
 
 describe("normalizeEmail", () => {
   it("trims and lowercases", () => {
@@ -32,6 +39,20 @@ describe("hashEmail", () => {
 
   it("differs for a different secret", () => {
     expect(hashEmail("a@b.com", "secret1")).not.toBe(hashEmail("a@b.com", "secret2"));
+  });
+});
+
+describe("hashDeviceId", () => {
+  it("is deterministic for the same device id + secret", () => {
+    expect(hashDeviceId("device-abc", "secret")).toBe(hashDeviceId("device-abc", "secret"));
+  });
+
+  it("differs for a different secret", () => {
+    expect(hashDeviceId("device-abc", "secret1")).not.toBe(hashDeviceId("device-abc", "secret2"));
+  });
+
+  it("never collides with hashEmail for the same underlying string and secret", () => {
+    expect(hashDeviceId("a@b.com", "secret")).not.toBe(hashEmail("a@b.com", "secret"));
   });
 });
 

@@ -5,6 +5,7 @@ import {
   normalizeEmail,
   isValidEmail,
   hashEmail,
+  hashDeviceId,
   canRequestNewOtp,
   isOtpValid,
 } from "../auth/logic.js";
@@ -15,9 +16,11 @@ import {
   incrementOtpAttempts,
   deleteOtpRow,
   upsertUser,
+  isAnonymousUser,
   createSession,
   deleteSession,
 } from "../auth/repo.js";
+import { mergeAnonymousIdentity } from "../sync/repo.js";
 import { sendOtpEmail } from "../auth/email.js";
 import { bearerToken, resolveEmailHash } from "../auth/session.js";
 
@@ -53,6 +56,27 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
     return reply.send({ ok: true });
   });
 
+  // Unauthenticated, no OTP round-trip — mints a low-friction anonymous
+  // identity so a player's trials always have somewhere to sync to, even
+  // before they ever give an email (ADR-0009).
+  app.post("/auth/device", async (request, reply) => {
+    const body = request.body as { deviceId?: unknown };
+    const deviceId = typeof body.deviceId === "string" ? body.deviceId : "";
+
+    if (deviceId === "") {
+      return reply.code(400).send({ error: "invalid_request" });
+    }
+
+    const emailHash = hashDeviceId(deviceId, config.emailHashSecret);
+    const now = Date.now();
+    upsertUser(db, emailHash, now, true);
+    const token = generateSessionToken();
+    const expiresAt = now + config.sessionTtlMs;
+    createSession(db, token, emailHash, expiresAt);
+
+    return reply.send({ token, expiresAt });
+  });
+
   app.post("/auth/otp/verify", async (request, reply) => {
     const body = request.body as { email?: unknown; code?: unknown };
     const email = typeof body.email === "string" ? body.email : "";
@@ -72,11 +96,23 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
       return reply.code(401).send({ error: "invalid_code" });
     }
 
+    // Resolved *before* minting the new session, from whatever token this
+    // request happened to carry — only acted on below if it turns out to
+    // genuinely be an anonymous identity's own token, never another real
+    // account's (that would merge one player's data into a different one).
+    const anonToken = bearerToken(request.headers.authorization);
+    const anonEmailHash = resolveEmailHash(db, anonToken);
+
     deleteOtpRow(db, emailHash);
     upsertUser(db, emailHash, now);
     const token = generateSessionToken();
     const expiresAt = now + config.sessionTtlMs;
     createSession(db, token, emailHash, expiresAt);
+
+    if (anonToken !== null && anonEmailHash !== null && anonEmailHash !== emailHash && isAnonymousUser(db, anonEmailHash)) {
+      mergeAnonymousIdentity(db, anonEmailHash, emailHash, now);
+      deleteSession(db, anonToken);
+    }
 
     return reply.send({ token, expiresAt });
   });

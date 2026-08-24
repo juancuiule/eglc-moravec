@@ -4,7 +4,14 @@ import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
 import { pushResults } from "../sync/pushResults";
 
-/** Persists a finished Level locally, and syncs it to the backend if the player is logged in. */
+/**
+ * Persists a finished Level locally, and syncs it to the backend for any
+ * session at all — anonymous or logged in. Every player gets an anonymous
+ * session automatically (see AuthBoot/ensureSession), so LoggedOut here
+ * only means that first request hasn't resolved yet or failed; trials
+ * pushed while anonymous are folded into a real account later if the
+ * player logs in (ADR-0009's merge).
+ */
 export function persistFinishedLevel(state: Finished, authState: AuthState): void {
   const { config, results, stars } = state;
   const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
@@ -13,7 +20,7 @@ export function persistFinishedLevel(state: Finished, authState: AuthState): voi
   const persistedTrials = buildPersistedTrials(config, results, state.runId);
   appendTrials(persistedTrials);
 
-  if (authState.type === "loggedIn") {
+  if (authState.type !== "loggedOut") {
     pushResults(authState.token, results, persistedTrials);
   }
 }

@@ -5,9 +5,15 @@ import { dirname } from "node:path";
 // Schema grows here as tables are needed — applied in order, each
 // statement idempotent via IF NOT EXISTS.
 const SCHEMA_STATEMENTS: readonly string[] = [
+  // is_anonymous distinguishes a device-id identity (minted via
+  // POST /auth/device, no email ever collected) from a real email-verified
+  // one — both share this one email_hash column (see hashDeviceId), so
+  // without this flag the server can't tell them apart from the hash alone
+  // when deciding whether a session is safe to merge-and-discard on login.
   `CREATE TABLE IF NOT EXISTS users (
      email_hash TEXT PRIMARY KEY,
-     created_at INTEGER NOT NULL
+     created_at INTEGER NOT NULL,
+     is_anonymous INTEGER NOT NULL DEFAULT 0
    )`,
   `CREATE TABLE IF NOT EXISTS otp_codes (
      email_hash TEXT PRIMARY KEY,
@@ -134,6 +140,18 @@ function migrateLevelRunIdColumn(db: DatabaseSync): void {
   db.exec("CREATE INDEX IF NOT EXISTS trial_results_level_run_id_idx ON trial_results (level_run_id)");
 }
 
+// Existing users all predate anonymous accounts and are, by definition,
+// real email-verified ones — default 0 (not anonymous) is exactly correct
+// for backfill here, no ambiguity like the hint/streak/run-id columns had.
+function migrateUserIsAnonymousColumn(db: DatabaseSync): void {
+  const columns = new Set(
+    (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map((c) => c.name),
+  );
+  if (!columns.has("is_anonymous")) {
+    db.exec("ALTER TABLE users ADD COLUMN is_anonymous INTEGER NOT NULL DEFAULT 0");
+  }
+}
+
 export function openDb(path: string): DatabaseSync {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
@@ -141,6 +159,7 @@ export function openDb(path: string): DatabaseSync {
   migrateClientCorrectnessColumns(db);
   migrateHintAndStreakColumns(db);
   migrateLevelRunIdColumn(db);
+  migrateUserIsAnonymousColumn(db);
   return db;
 }
 

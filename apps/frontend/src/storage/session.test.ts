@@ -36,6 +36,11 @@ describe("loadSession / saveSession / clearSession (browser cookie)", () => {
     expect(loadSession()).toEqual({ token: "tok", email: "a@b.com" });
   });
 
+  it("round-trips an anonymous session (null email)", () => {
+    saveSession({ token: "tok", email: null });
+    expect(loadSession()).toEqual({ token: "tok", email: null });
+  });
+
   it("clearSession removes the cookie", () => {
     saveSession({ token: "tok", email: "a@b.com" });
     clearSession();

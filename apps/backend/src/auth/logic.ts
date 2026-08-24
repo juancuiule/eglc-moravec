@@ -15,6 +15,15 @@ export function hashEmail(email: string, secret: string): string {
   return createHmac("sha256", secret).update(normalizeEmail(email)).digest("hex");
 }
 
+/**
+ * Same idea as hashEmail, for a client-generated anonymous device id
+ * instead of an email — namespaced with a fixed prefix so a crafted
+ * device id can never land on the same hash as a real email's.
+ */
+export function hashDeviceId(deviceId: string, secret: string): string {
+  return createHmac("sha256", secret).update(`device:${deviceId}`).digest("hex");
+}
+
 export function canRequestNewOtp(
   lastRequestedAt: number | null,
   now: number,

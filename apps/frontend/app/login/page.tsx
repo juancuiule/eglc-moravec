@@ -9,9 +9,14 @@ export default async function LoginPage() {
   // route ever renders — a plain presence check here is enough, no need to
   // hit the backend again. Redirecting server-side means a returning,
   // already-logged-in player never sees the login form flash on screen.
+  //
+  // An anonymous (device-id) session must NOT redirect away — every player
+  // gets one automatically (ADR-0009), and this page is exactly how an
+  // anonymous player upgrades to a real, cross-device account. Only a
+  // session with a real email means "already logged in."
   const cookieStore = await cookies();
   const session = parseSessionCookie(cookieStore.get(SESSION_COOKIE)?.value);
-  if (session) redirect("/");
+  if (session?.email) redirect("/");
 
   return (
     <Centered>

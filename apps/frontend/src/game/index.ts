@@ -1,5 +1,6 @@
 import { createStore } from "zustand/vanilla";
 import { createRandomOperation, Level } from "../level";
+import { randomId } from "../randomId";
 import {
   Operation,
   scoreAnswer,
@@ -142,20 +143,6 @@ function pickFreshOperation(level: Level, seen: Set<string>): Operation {
   return createRandomOperation(level);
 }
 
-/**
- * crypto.randomUUID() only exists in a secure context (HTTPS or
- * localhost) — this app is deployed self-hosted over plain HTTP on a LAN
- * (e.g. http://raspberrypi.local), where it's undefined. getRandomValues
- * has no such restriction, so build the UUID from that instead.
- */
-function randomRunId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
-  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10xx
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
 function startPlaying(config: GameConfig, trialId = 0): Playing {
   const seen = new Set<string>();
   const firstOp = createRandomOperation(config.level);
@@ -163,7 +150,7 @@ function startPlaying(config: GameConfig, trialId = 0): Playing {
   return {
     type: "playing",
     config,
-    runId: randomRunId(),
+    runId: randomId(),
     currentOperation: firstOp,
     seenOperations: seen,
     trialsConsumed: 0,

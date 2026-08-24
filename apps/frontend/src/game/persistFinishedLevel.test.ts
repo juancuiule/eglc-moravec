@@ -51,6 +51,7 @@ function makeFinished(): Finished {
 }
 
 const loggedOut: AuthState = { type: "loggedOut" };
+const anonymous: AuthState = { type: "anonymous", token: "anon-tok" };
 const loggedIn: AuthState = { type: "loggedIn", token: "tok123", email: "a@b.com" };
 
 describe("persistFinishedLevel", () => {
@@ -80,6 +81,17 @@ describe("persistFinishedLevel", () => {
 
     expect(pushResults).toHaveBeenCalledWith(
       "tok123",
+      state.results,
+      [{ fake: "persisted-trial" }],
+    );
+  });
+
+  it("also syncs results when anonymous — every session gets pushed, not just logged-in ones", () => {
+    const state = makeFinished();
+    persistFinishedLevel(state, anonymous);
+
+    expect(pushResults).toHaveBeenCalledWith(
+      "anon-tok",
       state.results,
       [{ fake: "persisted-trial" }],
     );

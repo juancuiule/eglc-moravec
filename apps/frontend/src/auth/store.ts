@@ -2,6 +2,7 @@ import { createStore } from "zustand/vanilla";
 import { useStore } from "zustand";
 import { Api } from "../api/Api";
 import { loadSession, saveSession, clearSession, type PersistedSession } from "../storage/session";
+import { getOrCreateDeviceId } from "../storage/deviceId";
 
 // Session *validation* against the backend happens in proxy.ts, before
 // "/" or "/login" ever render — not here. By the time this store hydrates,
@@ -10,9 +11,11 @@ import { loadSession, saveSession, clearSession, type PersistedSession } from ".
 // ─── States ────────────────────────────────────────────────────────────────────
 
 export type AuthLoggedOut = { type: "loggedOut" };
+/** A low-friction device-id identity, minted automatically — no email ever given (ADR-0009). */
+export type AuthAnonymous = { type: "anonymous"; token: string };
 export type AuthLoggedIn = { type: "loggedIn"; token: string; email: string };
 
-export type AuthState = AuthLoggedOut | AuthLoggedIn;
+export type AuthState = AuthLoggedOut | AuthAnonymous | AuthLoggedIn;
 
 // ─── Store ─────────────────────────────────────────────────────────────────────
 
@@ -30,8 +33,19 @@ export type AuthStore = {
    */
   hydrate: () => void;
 
+  /**
+   * If hydrate() left state at LoggedOut (no session cookie at all), mints
+   * a fresh anonymous session so trials always have somewhere to sync to,
+   * even before the player ever gives an email. Best-effort: a failed
+   * request just leaves the player LoggedOut, same as before this existed.
+   */
+  ensureSession: () => Promise<void>;
+
+  /** Record a newly-minted anonymous session. */
+  loginAnonymous: (session: { token: string }) => void;
+
   /** Record a successful login: persists the session and moves to LoggedIn. */
-  login: (session: PersistedSession) => void;
+  login: (session: { token: string; email: string }) => void;
 
   /** Log out and forget the session. Valid from: LoggedIn. */
   logout: () => void;
@@ -40,7 +54,10 @@ export type AuthStore = {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function stateFromPersisted(session: PersistedSession | null): AuthState {
-  return session ? { type: "loggedIn", token: session.token, email: session.email } : { type: "loggedOut" };
+  if (!session) return { type: "loggedOut" };
+  return session.email === null
+    ? { type: "anonymous", token: session.token }
+    : { type: "loggedIn", token: session.token, email: session.email };
 }
 
 // ─── Factory ───────────────────────────────────────────────────────────────────
@@ -51,6 +68,22 @@ export function createAuthStore() {
 
     hydrate() {
       set({ state: stateFromPersisted(loadSession()) });
+    },
+
+    async ensureSession() {
+      if (get().state.type !== "loggedOut") return;
+      try {
+        const deviceId = getOrCreateDeviceId();
+        const session = await Api.registerDevice(deviceId);
+        get().loginAnonymous({ token: session.token });
+      } catch {
+        // best-effort; trials just stay local-only until this succeeds, same as before this existed
+      }
+    },
+
+    loginAnonymous(session) {
+      saveSession({ token: session.token, email: null });
+      set({ state: { type: "anonymous", token: session.token } });
     },
 
     login(session) {

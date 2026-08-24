@@ -13,6 +13,28 @@ afterEach(() => {
 });
 
 describe("openDb", () => {
+  it("creates users with is_anonymous on a fresh database", () => {
+    const db = openDb(":memory:");
+    const columns = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    expect(columns).toEqual(expect.arrayContaining(["email_hash", "created_at", "is_anonymous"]));
+  });
+
+  it("migrates a pre-anonymous-accounts database, defaulting is_anonymous to 0", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "old.sqlite");
+
+    const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE users (email_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL)`);
+    legacyDb.exec(`INSERT INTO users (email_hash, created_at) VALUES ('hash1', 1700000000000)`);
+    legacyDb.close();
+
+    const migrated = openDb(dbPath);
+    const row = migrated.prepare("SELECT * FROM users").get() as Record<string, number>;
+    expect(row.is_anonymous).toBe(0);
+  });
+
   it("creates trial_results with client_correct/client_time_exceeded on a fresh database", () => {
     const db = openDb(":memory:");
     const columns = (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(

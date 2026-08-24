@@ -40,11 +40,24 @@ export function deleteOtpRow(db: DatabaseSync, emailHash: string): void {
   db.prepare("DELETE FROM otp_codes WHERE email_hash = ?").run(emailHash);
 }
 
-export function upsertUser(db: DatabaseSync, emailHash: string, createdAt: number): void {
+export function upsertUser(
+  db: DatabaseSync,
+  emailHash: string,
+  createdAt: number,
+  isAnonymous: boolean = false,
+): void {
   db.prepare(
-    `INSERT INTO users (email_hash, created_at) VALUES (?, ?)
+    `INSERT INTO users (email_hash, created_at, is_anonymous) VALUES (?, ?, ?)
      ON CONFLICT(email_hash) DO NOTHING`,
-  ).run(emailHash, createdAt);
+  ).run(emailHash, createdAt, isAnonymous ? 1 : 0);
+}
+
+/** False for an unknown emailHash too — only a confirmed anonymous user merges away on login. */
+export function isAnonymousUser(db: DatabaseSync, emailHash: string): boolean {
+  const row = db.prepare("SELECT is_anonymous FROM users WHERE email_hash = ?").get(emailHash) as
+    | { is_anonymous: number }
+    | undefined;
+  return row?.is_anonymous === 1;
 }
 
 export type SessionRow = { token: string; email_hash: string; expires_at: number };

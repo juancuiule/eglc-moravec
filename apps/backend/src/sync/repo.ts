@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { EvaluatedTrialResult, LevelRunSummary } from "./logic.js";
+import { isBetterLevelRecord } from "./logic.js";
 
 export type LevelStatsRow = {
   email_hash: string;
@@ -160,4 +161,28 @@ export function getLevelRunsForUser(db: DatabaseSync, emailHash: string): LevelR
   return db
     .prepare("SELECT * FROM level_runs WHERE email_hash = ? ORDER BY played_at")
     .all(emailHash) as LevelRunRow[];
+}
+
+/**
+ * Folds an anonymous identity's data into a real, newly-verified one —
+ * called once, server-side, at the moment of the email upgrade (see
+ * ADR-0009). trial_results and level_runs are append-only history, so
+ * those just get re-keyed; level_stats has a "best record" concept, so
+ * each level only overwrites the destination's row if it's actually
+ * better (same comparison the ordinary email→email sync path already
+ * uses). The caller is responsible for confirming `from` is actually an
+ * anonymous user (see auth/repo.ts's isAnonymousUser) before calling this
+ * — merging one real account into another would be a real data leak.
+ */
+export function mergeAnonymousIdentity(db: DatabaseSync, from: string, to: string, now: number): void {
+  getAllLevelStatsForUser(db, from).forEach((row) => {
+    const existing = getLevelStatsRow(db, to, row.level_number);
+    const existingRecord = existing ? { stars: existing.stars, totalTime: existing.total_time } : null;
+    if (isBetterLevelRecord({ stars: row.stars, totalTime: row.total_time }, existingRecord)) {
+      upsertLevelStatsRow(db, to, row.level_number, row.stars, row.total_time, now);
+    }
+  });
+
+  db.prepare("UPDATE trial_results SET email_hash = ? WHERE email_hash = ?").run(to, from);
+  db.prepare("UPDATE level_runs SET email_hash = ? WHERE email_hash = ?").run(to, from);
 }

@@ -5,7 +5,8 @@ const MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 export type PersistedSession = {
   token: string;
-  email: string;
+  /** null for an anonymous (device-id) session — no email was ever given. */
+  email: string | null;
 };
 
 /**
