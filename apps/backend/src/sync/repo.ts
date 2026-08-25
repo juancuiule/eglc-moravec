@@ -63,21 +63,33 @@ export function upsertLevelStatsIfBetter(
   }
 }
 
+/**
+ * Inserts each Trial (and its keystrokes) only if it hasn't been recorded
+ * yet — INSERT OR IGNORE, keyed on the client-generated id, so a retried
+ * push (e.g. after a dropped response, now that pushes are actually
+ * retried) never double-inserts. Returns only the Trials that were
+ * genuinely new this call; the caller uses that to decide what still needs
+ * level_runs/level_stats derivation, since an already-recorded Trial was
+ * already accounted for the first time it arrived.
+ */
 export function insertTrialResults(
   db: DatabaseSync,
   emailHash: string,
   trials: readonly EvaluatedTrialResult[],
-): void {
+): EvaluatedTrialResult[] {
   const insertTrial = db.prepare(
-    `INSERT INTO trial_results
-       (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start, level_run_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR IGNORE INTO trial_results
+       (id, email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start, level_run_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insertKeystroke = db.prepare(
     `INSERT INTO trial_keystrokes (trial_result_id, key, t) VALUES (?, ?, ?)`,
   );
+
+  const newlyInserted: EvaluatedTrialResult[] = [];
   trials.forEach((t) => {
-    const { lastInsertRowid } = insertTrial.run(
+    const { changes } = insertTrial.run(
+      t.id,
       emailHash,
       t.levelNumber,
       t.categoryCodename,
@@ -92,14 +104,18 @@ export function insertTrialResults(
       t.hintsAvailableAtStart,
       t.levelRunId,
     );
+    if (Number(changes) === 0) return; // already recorded from an earlier push
+
     t.keystrokes.forEach((k) => {
-      insertKeystroke.run(lastInsertRowid, k.key, k.t);
+      insertKeystroke.run(t.id, k.key, k.t);
     });
+    newlyInserted.push(t);
   });
+  return newlyInserted;
 }
 
 export type TrialResultRow = {
-  id: number;
+  id: string;
   email_hash: string;
   level_number: number;
   category_codename: string;
@@ -115,22 +131,40 @@ export type TrialResultRow = {
   level_run_id: string;
 };
 
+/**
+ * Looks up a single Trial by its client-generated id, scoped to `emailHash`
+ * so an id never resolves to another user's row even in a freak collision.
+ * Used to recover a Trial's authoritative correct/timeExceeded when a
+ * pushed batch re-submits one already recorded from an earlier push.
+ */
+export function getTrialResultById(
+  db: DatabaseSync,
+  emailHash: string,
+  id: string,
+): TrialResultRow | undefined {
+  return db
+    .prepare("SELECT * FROM trial_results WHERE id = ? AND email_hash = ?")
+    .get(id, emailHash) as TrialResultRow | undefined;
+}
+
 export function getTrialResultsForUser(db: DatabaseSync, emailHash: string): TrialResultRow[] {
   return db
-    .prepare("SELECT * FROM trial_results WHERE email_hash = ? ORDER BY id")
+    // id is a client-generated string (see trial_results' CREATE TABLE
+    // comment) — not chronological, unlike played_at.
+    .prepare("SELECT * FROM trial_results WHERE email_hash = ? ORDER BY played_at")
     .all(emailHash) as TrialResultRow[];
 }
 
 export type KeystrokeRow = {
   id: number;
-  trial_result_id: number;
+  trial_result_id: string;
   key: string;
   t: number;
 };
 
 export function getKeystrokesForTrialResult(
   db: DatabaseSync,
-  trialResultId: number,
+  trialResultId: string,
 ): KeystrokeRow[] {
   return db
     .prepare("SELECT * FROM trial_keystrokes WHERE trial_result_id = ? ORDER BY id")
@@ -150,8 +184,13 @@ export type LevelRunRow = {
 /**
  * Records every attempt at a Level, not just the best — level_stats stays
  * the best-ever cache the Levels page reads. `INSERT OR IGNORE` because id
- * (the client-generated levelRunId) is a natural dedup key: a retried sync
- * of the same batch should not double-record the same run.
+ * (the client-generated levelRunId) is a natural dedup key: a retried push
+ * of the same batch should not double-record the same run. Known,
+ * accepted limitation: because this never UPDATEs an existing row, if a
+ * single run's trials ever arrive split across two separate push calls
+ * (see deriveLevelRuns' comment in sync/logic.ts), whichever call reaches
+ * here first permanently commits its outcome — a later call carrying the
+ * rest of that same run's trials is silently ignored, not merged in.
  */
 export function insertLevelRuns(
   db: DatabaseSync,

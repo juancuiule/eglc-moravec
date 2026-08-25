@@ -6,12 +6,21 @@ export type OtpVerified = { token: string; expiresAt: number };
 
 export type Keystroke = { key: string; t: number };
 
-/** Wire shape of one finished Trial pushed to /sync/results. */
-export type SyncTrial = {
+/**
+ * Wire shape of one Trial pushed to /sync/trial-results/push. `id` is the
+ * client-generated dedup key; `clientCorrect`/`clientTimeExceeded` are the
+ * player's own immutable claim; `correct`/`timeExceeded` are the client's
+ * optimistic guess going out, and the backend's independently-recomputed,
+ * authoritative value coming back in the response.
+ */
+export type TrialResultPush = {
+  id: string;
   levelNumber: number;
   categoryCodename: string;
   correct: boolean;
   timeExceeded: boolean;
+  clientCorrect: boolean;
+  clientTimeExceeded: boolean;
   timeTaken: number;
   playedAt: number; // epoch ms
   keystrokes: Keystroke[];
@@ -131,8 +140,14 @@ export const Api = {
     return requestVoid("/auth/logout", { method: "POST", token });
   },
 
-  syncResults(token: string, trials: SyncTrial[]): Promise<void> {
-    return requestVoid("/sync/results", { method: "POST", token, body: { trials } });
+  /** Returns the backend's authoritative version of every pushed Trial (see TrialResultPush). */
+  async pushTrialResults(token: string, trials: TrialResultPush[]): Promise<TrialResultPush[]> {
+    const data = await requestJson<{ trials: TrialResultPush[] }>("/sync/trial-results/push", {
+      method: "POST",
+      token,
+      body: { trials },
+    });
+    return data.trials;
   },
 
   async pullLevelStats(token: string): Promise<PersistedLevelStats> {

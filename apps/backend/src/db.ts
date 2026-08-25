@@ -28,8 +28,15 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      email_hash TEXT NOT NULL,
      expires_at INTEGER NOT NULL
    )`,
+  // id is the client-generated Trial id (see RxDB's trialResults collection,
+  // apps/frontend/src/sync/trialResults) — needed so a retried push can't
+  // double-insert the same Trial once sync retries are real. Changed from
+  // an integer autoincrement, which CREATE TABLE IF NOT EXISTS cannot
+  // migrate on an already-existing table (unlike the ADD COLUMN migrations
+  // below) — this requires a genuinely fresh database, not an upgrade of
+  // one already running the old schema.
   `CREATE TABLE IF NOT EXISTS trial_results (
-     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     id TEXT PRIMARY KEY,
      email_hash TEXT NOT NULL,
      level_number INTEGER NOT NULL,
      category_codename TEXT NOT NULL,
@@ -48,7 +55,7 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)`,
   `CREATE TABLE IF NOT EXISTS trial_keystrokes (
      id INTEGER PRIMARY KEY AUTOINCREMENT,
-     trial_result_id INTEGER NOT NULL,
+     trial_result_id TEXT NOT NULL,
      key TEXT NOT NULL,
      t INTEGER NOT NULL
    )`,

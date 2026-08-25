@@ -11,11 +11,22 @@ function isKeystrokeInput(value: unknown): value is KeystrokeInput {
   return typeof k.key === "string" && typeof k.t === "number";
 }
 
-export type TrialResultInput = {
+/**
+ * Wire shape of one Trial pushed via RxDB's push-replication protocol (see
+ * apps/frontend/src/sync/trialResults). `id` is the client-generated
+ * primary key, used as the dedup key for a retried push.
+ * `clientCorrect`/`clientTimeExceeded` are the player's own claim; the
+ * incoming `correct`/`timeExceeded` fields (the client's own optimistic
+ * mirror of that claim) are intentionally not read here at all — they get
+ * fully replaced by this module's own recomputation regardless of what the
+ * client sent.
+ */
+export type TrialResultPushInput = {
+  id: string;
   levelNumber: number;
   categoryCodename: string;
-  correct: boolean; // client-submitted claim
-  timeExceeded: boolean; // client-submitted claim
+  clientCorrect: boolean;
+  clientTimeExceeded: boolean;
   timeTaken: number;
   playedAt: number;
   keystrokes: KeystrokeInput[];
@@ -27,14 +38,15 @@ export type TrialResultInput = {
   levelRunId: string;
 };
 
-function isTrialResultInput(value: unknown): value is TrialResultInput {
+function isTrialResultPushInput(value: unknown): value is TrialResultPushInput {
   if (typeof value !== "object" || value === null) return false;
   const r = value as Record<string, unknown>;
   return (
+    typeof r.id === "string" &&
     typeof r.levelNumber === "number" &&
     typeof r.categoryCodename === "string" &&
-    typeof r.correct === "boolean" &&
-    typeof r.timeExceeded === "boolean" &&
+    typeof r.clientCorrect === "boolean" &&
+    typeof r.clientTimeExceeded === "boolean" &&
     typeof r.timeTaken === "number" &&
     typeof r.playedAt === "number" &&
     Array.isArray(r.keystrokes) &&
@@ -49,15 +61,16 @@ function isTrialResultInput(value: unknown): value is TrialResultInput {
   );
 }
 
-/** Parses and validates a sync request body; null means the body was malformed. */
-export function parseTrialResults(body: unknown): TrialResultInput[] | null {
+/** Parses and validates a push-replication request body; null means the body was malformed. */
+export function parseTrialResultPushes(body: unknown): TrialResultPushInput[] | null {
   if (typeof body !== "object" || body === null) return null;
   const trials = (body as { trials?: unknown }).trials;
   if (!Array.isArray(trials)) return null;
-  return trials.every(isTrialResultInput) ? trials : null;
+  return trials.every(isTrialResultPushInput) ? trials : null;
 }
 
 export type EvaluatedTrialResult = {
+  id: string;
   levelNumber: number;
   categoryCodename: string;
   correct: boolean; // server-computed (authoritative)
@@ -80,17 +93,18 @@ export type EvaluatedTrialResult = {
  * error: both are returned, and the caller stores both (see CONTEXT.md's
  * "backend independently re-validates trial correctness" entry).
  */
-export function evaluateTrialResult(input: TrialResultInput): EvaluatedTrialResult {
+export function evaluateTrialResult(input: TrialResultPushInput): EvaluatedTrialResult {
   const operation = reconstructOperation(input.categoryCodename, input.operands);
   const { correct, timeExceeded } = evaluateTrial(operation, input.answer, input.timeTaken);
 
   return {
+    id: input.id,
     levelNumber: input.levelNumber,
     categoryCodename: input.categoryCodename,
     correct,
     timeExceeded,
-    clientCorrect: input.correct,
-    clientTimeExceeded: input.timeExceeded,
+    clientCorrect: input.clientCorrect,
+    clientTimeExceeded: input.clientTimeExceeded,
     timeTaken: input.timeTaken,
     playedAt: input.playedAt,
     keystrokes: input.keystrokes,
@@ -112,12 +126,16 @@ export type LevelRunSummary = {
 /**
  * Derive each individual level-run's outcome (stars/totalTime/completed)
  * from a batch of validated trials, grouped by levelRunId rather than
- * levelNumber — a batch is expected to carry exactly one run today (one
- * POST /sync/results call per finished Level), but grouping by the run's
- * own id rather than assuming that shape is what actually makes each run's
- * record correct even if that assumption ever stops holding. Stars/
- * completion use the server's own recomputed correctness (packages/engine's
- * starsForScore/LEVEL_COMPLETE_THRESHOLD), never the client's claim.
+ * levelNumber — a batch is expected to carry exactly one run's trials (one
+ * finished Level pushed together as a single bulk write), grouped by the
+ * run's own id rather than assumed positionally. This does NOT protect
+ * against a single run's trials arriving split across two separate push
+ * calls (e.g. an offline backlog large enough to exceed the client's push
+ * batchSize) — insertLevelRuns' INSERT OR IGNORE means whichever call
+ * arrives first permanently commits its (possibly partial) outcome; see its
+ * own comment in sync/repo.ts. Stars/completion use the server's own
+ * recomputed correctness (packages/engine's starsForScore/
+ * LEVEL_COMPLETE_THRESHOLD), never the client's claim.
  */
 export function deriveLevelRuns(trials: readonly EvaluatedTrialResult[]): LevelRunSummary[] {
   const byRun = new Map<string, EvaluatedTrialResult[]>();

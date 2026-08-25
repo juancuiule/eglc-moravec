@@ -1,18 +1,18 @@
 import type { Finished } from "./index";
-import type { AuthState } from "../auth/store";
 import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
-import { pushResults } from "../sync/pushResults";
+import { queueTrialResults } from "../sync/trialResults/queue";
 
 /**
- * Persists a finished Level locally, and syncs it to the backend for any
- * session at all — anonymous or logged in. Every player gets an anonymous
- * session automatically (see AuthBoot/ensureSession), so LoggedOut here
- * only means that first request hasn't resolved yet or failed; trials
- * pushed while anonymous are folded into a real account later if the
- * player logs in.
+ * Persists a finished Level locally, and queues it for sync to the backend —
+ * for any session at all, anonymous or logged in. Every player gets an
+ * anonymous session automatically (see AuthBoot/ensureSession); the queued
+ * local write doesn't need a token itself (that's only needed once the
+ * background push replication actually talks to the backend — see
+ * sync/trialResults/replication.ts, which reads the current session fresh
+ * when it runs), so this no longer needs the caller's auth state at all.
  */
-export function persistFinishedLevel(state: Finished, authState: AuthState): void {
+export function persistFinishedLevel(state: Finished): void {
   const { config, results, stars } = state;
   const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
 
@@ -20,7 +20,5 @@ export function persistFinishedLevel(state: Finished, authState: AuthState): voi
   const persistedTrials = buildPersistedTrials(config, results, state.runId);
   appendTrials(persistedTrials);
 
-  if (authState.type !== "loggedOut") {
-    pushResults(authState.token, results, persistedTrials);
-  }
+  void queueTrialResults(results, persistedTrials);
 }

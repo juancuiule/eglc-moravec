@@ -9,18 +9,17 @@ vi.mock("../storage/trialHistory", () => ({
   buildPersistedTrials: vi.fn(() => [{ fake: "persisted-trial" }]),
 }));
 
-vi.mock("../sync/pushResults", () => ({
-  pushResults: vi.fn(),
+vi.mock("../sync/trialResults/queue", () => ({
+  queueTrialResults: vi.fn(),
 }));
 
 import { persistFinishedLevel } from "./persistFinishedLevel";
 import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
-import { pushResults } from "../sync/pushResults";
+import { queueTrialResults } from "../sync/trialResults/queue";
 import { Addition } from "engine";
 import type { Level } from "../level";
 import type { Finished, TrialResult } from "./index";
-import type { AuthState } from "../auth/store";
 
 // A fixed fixture, not the real catalog's level 1 — tests shouldn't depend
 // on production Level content (which now lives in the backend).
@@ -54,10 +53,6 @@ function makeFinished(): Finished {
   };
 }
 
-const loggedOut: AuthState = { type: "loggedOut" };
-const anonymous: AuthState = { type: "anonymous", token: "anon-tok" };
-const loggedIn: AuthState = { type: "loggedIn", token: "tok123", email: "a@b.com" };
-
 describe("persistFinishedLevel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -66,38 +61,17 @@ describe("persistFinishedLevel", () => {
 
   it("always updates the local level record and trial history", () => {
     const state = makeFinished();
-    persistFinishedLevel(state, loggedOut);
+    persistFinishedLevel(state);
 
     expect(updateLevelRecord).toHaveBeenCalledWith(4, { stars: 2, totalTime: 2500 });
     expect(buildPersistedTrials).toHaveBeenCalledWith(state.config, state.results, state.runId);
     expect(appendTrials).toHaveBeenCalledWith([{ fake: "persisted-trial" }]);
   });
 
-  it("does not sync to the backend when logged out", () => {
-    persistFinishedLevel(makeFinished(), loggedOut);
-
-    expect(pushResults).not.toHaveBeenCalled();
-  });
-
-  it("syncs results when logged in", () => {
+  it("queues the Trial results for sync — unconditionally, no auth state needed", () => {
     const state = makeFinished();
-    persistFinishedLevel(state, loggedIn);
+    persistFinishedLevel(state);
 
-    expect(pushResults).toHaveBeenCalledWith(
-      "tok123",
-      state.results,
-      [{ fake: "persisted-trial" }],
-    );
-  });
-
-  it("also syncs results when anonymous — every session gets pushed, not just logged-in ones", () => {
-    const state = makeFinished();
-    persistFinishedLevel(state, anonymous);
-
-    expect(pushResults).toHaveBeenCalledWith(
-      "anon-tok",
-      state.results,
-      [{ fake: "persisted-trial" }],
-    );
+    expect(queueTrialResults).toHaveBeenCalledWith(state.results, [{ fake: "persisted-trial" }]);
   });
 });

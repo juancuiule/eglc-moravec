@@ -24,13 +24,14 @@ function codeFor(db: DatabaseSync, email: string): string {
   return row.code;
 }
 
-// A minimal, valid /sync/results trial — level/category/operands don't
-// matter for these tests, only that the payload is accepted.
+// A minimal, valid /sync/trial-results/push trial — level/category/operands
+// don't matter for these tests, only that the payload is accepted.
 const trial = {
+  id: "trial-1",
   levelNumber: 5,
   categoryCodename: "1d+1d",
-  correct: true,
-  timeExceeded: false,
+  clientCorrect: true,
+  clientTimeExceeded: false,
   timeTaken: 1000,
   playedAt: 1_700_000_000_000,
   keystrokes: [],
@@ -242,15 +243,15 @@ describe("POST /auth/device", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync/trial-results/push",
       headers: { authorization: `Bearer ${token1}` },
       payload: { trials: [trial] },
     });
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync/trial-results/push",
       headers: { authorization: `Bearer ${token2}` },
-      payload: { trials: [{ ...trial, levelRunId: "run-2" }] },
+      payload: { trials: [{ ...trial, id: "trial-2", levelRunId: "run-2" }] },
     });
 
     const deviceEmailHash = hashDeviceId("device-1", TEST_SECRET);
@@ -271,9 +272,11 @@ describe("anonymous → email upgrade merge", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync/trial-results/push",
       headers: { authorization: `Bearer ${anonToken}` },
-      payload: { trials: Array.from({ length: 20 }, () => trial) }, // 20 correct-in-time → completes the level
+      // 20 correct-in-time → completes the level; each needs its own id or
+      // the retry-dedup logic would collapse them into a single row.
+      payload: { trials: Array.from({ length: 20 }, (_, i) => ({ ...trial, id: `trial-${i}` })) },
     });
 
     await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
@@ -321,7 +324,7 @@ describe("anonymous → email upgrade merge", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync/trial-results/push",
       headers: { authorization: `Bearer ${tokenA}` },
       payload: { trials: [trial] },
     });

@@ -94,32 +94,33 @@ test("logout throws on failure", async () => {
   await expect(Api.logout("tok")).rejects.toThrow();
 });
 
-test("syncResults resolves on success", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse({ ok: true, stored: 1 }));
-  await expect(
-    Api.syncResults("tok", [
-      {
-        levelNumber: 1,
-        categoryCodename: "1d+1d",
-        correct: true,
-        timeExceeded: false,
-        timeTaken: 1200,
-        playedAt: Date.now(),
-        keystrokes: [],
-        hintShown: false,
-        streakAtSubmit: 0,
-        hintsAvailableAtStart: 3,
-        levelRunId: "run-abc",
-        operands: [2, 3],
-        answer: 5,
-      },
-    ]),
-  ).resolves.toBeUndefined();
+const PUSHED_TRIAL = {
+  id: "trial-1",
+  levelNumber: 1,
+  categoryCodename: "1d+1d",
+  correct: true,
+  timeExceeded: false,
+  clientCorrect: true,
+  clientTimeExceeded: false,
+  timeTaken: 1200,
+  playedAt: Date.now(),
+  keystrokes: [],
+  hintShown: false,
+  streakAtSubmit: 0,
+  hintsAvailableAtStart: 3,
+  levelRunId: "run-abc",
+  operands: [2, 3],
+  answer: 5,
+};
+
+test("pushTrialResults resolves with the backend's authoritative trials on success", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ trials: [PUSHED_TRIAL] }));
+  await expect(Api.pushTrialResults("tok", [PUSHED_TRIAL])).resolves.toEqual([PUSHED_TRIAL]);
 });
 
-test("syncResults throws on failure", async () => {
+test("pushTrialResults throws on failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "unauthenticated" }, false));
-  await expect(Api.syncResults("tok", [])).rejects.toThrow("unauthenticated");
+  await expect(Api.pushTrialResults("tok", [])).rejects.toThrow("unauthenticated");
 });
 
 test("pullLevelStats resolves with the remote LevelStats map on success", async () => {

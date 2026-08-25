@@ -14,8 +14,11 @@ function setup(): { db: DatabaseSync; app: FastifyInstance } {
   return { db, app };
 }
 
+let nextTrialId = 0;
+
 function trial(overrides: Partial<EvaluatedTrialResult> = {}): EvaluatedTrialResult {
   return {
+    id: `trial-${nextTrialId++}`,
     levelNumber: 1,
     categoryCodename: "1d+1d",
     correct: true,

@@ -4,7 +4,6 @@ import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useRxCollection, useRxDocument } from "rxdb/plugins/react";
 import { useGame, gameStore } from "@/game/store";
-import { authStore } from "@/auth/store";
 import { watchStoreTransition } from "@/storeWatch";
 import { persistFinishedLevel } from "@/game/persistFinishedLevel";
 import { loadLevelStats, isLevelUnlocked } from "@/storage/levelStats";
@@ -84,7 +83,7 @@ export function LevelPlay({ levelNumber, level }: Props) {
       (s) => s.state.type === "finished",
       (s) => {
         if (s.state.type !== "finished") return;
-        persistFinishedLevel(s.state, authStore.getState().state);
+        persistFinishedLevel(s.state);
       },
     );
   }, []);

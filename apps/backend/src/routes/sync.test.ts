@@ -34,11 +34,21 @@ async function loginAndGetToken(db: DatabaseSync, app: FastifyInstance): Promise
   return verifyRes.json().token as string;
 }
 
+async function pushTrials(app: FastifyInstance, token: string | undefined, trials: unknown[]) {
+  return app.inject({
+    method: "POST",
+    url: "/sync/trial-results/push",
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    payload: { trials },
+  });
+}
+
 const trial = {
+  id: "trial-1",
   levelNumber: 5,
   categoryCodename: "2dx1d",
-  correct: true,
-  timeExceeded: false,
+  clientCorrect: true,
+  clientTimeExceeded: false,
   timeTaken: 3400,
   playedAt: 1_700_000_000_000,
   keystrokes: [{ key: "4", t: 120 }, { key: "2", t: 890 }],
@@ -50,24 +60,22 @@ const trial = {
   levelRunId: "run-xyz",
 };
 
-describe("POST /sync/results", () => {
-  it("stores trials for the authenticated user", async () => {
+describe("POST /sync/trial-results/push", () => {
+  it("stores a pushed Trial and returns it back enriched with the server's authoritative correctness", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    const res = await app.inject({
-      method: "POST",
-      url: "/sync/results",
-      headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
-    });
+    const res = await pushTrials(app, token, [trial]);
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ ok: true, stored: 1 });
+    expect(res.json()).toMatchObject({
+      trials: [{ ...trial, correct: true, timeExceeded: false }],
+    });
 
     const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
+      id: "trial-1",
       level_number: 5,
       category_codename: "2dx1d",
       correct: 1,
@@ -89,7 +97,7 @@ describe("POST /sync/results", () => {
 
   it("rejects an unauthenticated request", async () => {
     const { app } = setup();
-    const res = await app.inject({ method: "POST", url: "/sync/results", payload: { trials: [trial] } });
+    const res = await pushTrials(app, undefined, [trial]);
     expect(res.statusCode).toBe(401);
   });
 
@@ -97,12 +105,7 @@ describe("POST /sync/results", () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    const res = await app.inject({
-      method: "POST",
-      url: "/sync/results",
-      headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [{ oops: true }] },
-    });
+    const res = await pushTrials(app, token, [{ oops: true }]);
 
     expect(res.statusCode).toBe(400);
   });
@@ -110,39 +113,75 @@ describe("POST /sync/results", () => {
   it("stores nothing for another user's requests", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
-    await app.inject({
-      method: "POST",
-      url: "/sync/results",
-      headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
-    });
+    await pushTrials(app, token, [trial]);
 
     const otherUserHash = hashEmail("someone-else@example.com", TEST_SECRET);
     expect(getTrialResultsForUser(db, otherUserHash)).toHaveLength(0);
   });
 
-  it("stores the server's own recomputation, not the client's claim, when they disagree — without rejecting the sync", async () => {
+  it("stores the server's own recomputation, not the client's claim, when they disagree — without rejecting the push", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
     // operands say 12 * 5 = 60, but the client claims a wrong answer was correct
-    const mismatchedTrial = { ...trial, answer: 999, correct: true };
+    const mismatchedTrial = { ...trial, answer: 999, clientCorrect: true };
 
-    const res = await app.inject({
-      method: "POST",
-      url: "/sync/results",
-      headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [mismatchedTrial] },
-    });
+    const res = await pushTrials(app, token, [mismatchedTrial]);
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ ok: true, stored: 1 });
+    expect(res.json().trials[0]).toMatchObject({
+      correct: false, // server-computed wins
+      clientCorrect: true, // original claim kept for auditing
+    });
 
     const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(rows[0]).toMatchObject({
-      correct: 0, // server-computed wins
-      client_correct: 1, // original claim kept for auditing
+      correct: 0,
+      client_correct: 1,
     });
+  });
+
+  it("retrying an already-pushed Trial (same id) does not double-insert it, and still returns its authoritative correctness", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    await pushTrials(app, token, [trial]);
+    const retryRes = await pushTrials(app, token, [trial]); // simulated retry of the exact same push
+
+    expect(retryRes.statusCode).toBe(200);
+    expect(retryRes.json().trials[0]).toMatchObject({ id: "trial-1", correct: true, timeExceeded: false });
+
+    const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(rows).toHaveLength(1);
+  });
+
+  it("falls back to this request's own recomputation, without crashing, if the id collides with a different user's Trial", async () => {
+    const { db, app } = setup();
+    const tokenA = await loginAndGetToken(db, app); // player@example.com
+    await pushTrials(app, tokenA, [trial]); // "trial-1" now belongs to player@example.com
+
+    // A different account pushes a Trial under the exact same id —
+    // astronomically unlikely in reality (ids are UUIDs) but simulated
+    // directly here since it can't be forced through the real generator.
+    const otherEmail = "someone-else@example.com";
+    await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: otherEmail } });
+    const rowB = getOtpRow(db, hashEmail(otherEmail, TEST_SECRET));
+    const verifyB = await app.inject({
+      method: "POST",
+      url: "/auth/otp/verify",
+      payload: { email: otherEmail, code: rowB!.code },
+    });
+    const tokenB = verifyB.json().token as string;
+
+    const res = await pushTrials(app, tokenB, [trial]);
+
+    expect(res.statusCode).toBe(200); // never a 500, even on this collision
+    expect(res.json().trials[0]).toMatchObject({ id: "trial-1", correct: true, timeExceeded: false });
+
+    // The colliding id was never actually recorded for the second user —
+    // INSERT OR IGNORE silently no-oped since the id already belonged to
+    // the first user.
+    expect(getTrialResultsForUser(db, hashEmail(otherEmail, TEST_SECRET))).toHaveLength(0);
   });
 });
 
@@ -150,10 +189,11 @@ describe("POST /sync/results", () => {
 // is always 1d+1d (solveTime 7000ms), so a 1000ms trial is always in time.
 function trialFor(levelNumber: number, correct: boolean, levelRunId: string) {
   return {
+    id: randomUUID(),
     levelNumber,
     categoryCodename: "1d+1d",
-    correct: true, // client's claim is irrelevant here — the server recomputes from operands/answer
-    timeExceeded: false,
+    clientCorrect: true, // client's claim is irrelevant here — the server recomputes from operands/answer
+    clientTimeExceeded: false,
     timeTaken: 1000,
     playedAt: 1_700_000_000_000,
     keystrokes: [],
@@ -181,25 +221,12 @@ function batchFor(
   ];
 }
 
-async function postResults(
-  app: FastifyInstance,
-  token: string,
-  trials: ReturnType<typeof trialFor>[],
-) {
-  return app.inject({
-    method: "POST",
-    url: "/sync/results",
-    headers: { authorization: `Bearer ${token}` },
-    payload: { trials },
-  });
-}
-
-describe("GET /sync/level-stats (derived from POST /sync/results)", () => {
+describe("GET /sync/level-stats (derived from POST /sync/trial-results/push)", () => {
   it("derives and stores a level record from a synced trial batch", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    const res = await postResults(app, token, batchFor(4, 17, 0)); // 17 correct-in-time → 2 stars
+    const res = await pushTrials(app, token, batchFor(4, 17, 0)); // 17 correct-in-time → 2 stars
     expect(res.statusCode).toBe(200);
 
     const getRes = await app.inject({
@@ -215,8 +242,8 @@ describe("GET /sync/level-stats (derived from POST /sync/results)", () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    await postResults(app, token, batchFor(1, 20, 0)); // 3 stars
-    await postResults(app, token, batchFor(1, 15, 0)); // worse: 1 star
+    await pushTrials(app, token, batchFor(1, 20, 0)); // 3 stars
+    await pushTrials(app, token, batchFor(1, 15, 0)); // worse: 1 star
 
     const getRes = await app.inject({
       method: "GET",
@@ -230,8 +257,8 @@ describe("GET /sync/level-stats (derived from POST /sync/results)", () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    await postResults(app, token, batchFor(1, 15, 0)); // 1 star
-    await postResults(app, token, batchFor(1, 20, 0)); // better: 3 stars
+    await pushTrials(app, token, batchFor(1, 15, 0)); // 1 star
+    await pushTrials(app, token, batchFor(1, 20, 0)); // better: 3 stars
 
     const getRes = await app.inject({
       method: "GET",
@@ -265,8 +292,8 @@ describe("level_runs (every attempt, not just the best)", () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    await postResults(app, token, batchFor(1, 20, 0)); // run 1: 3 stars
-    await postResults(app, token, batchFor(1, 15, 0)); // run 2: 1 star — worse, but still its own record
+    await pushTrials(app, token, batchFor(1, 20, 0)); // run 1: 3 stars
+    await pushTrials(app, token, batchFor(1, 15, 0)); // run 2: 1 star — worse, but still its own record
 
     const runs = getLevelRunsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(runs).toHaveLength(2);
@@ -286,7 +313,7 @@ describe("level_runs (every attempt, not just the best)", () => {
     const token = await loginAndGetToken(db, app);
     const runId = randomUUID();
 
-    await postResults(app, token, batchFor(2, 17, 0, runId));
+    await pushTrials(app, token, batchFor(2, 17, 0, runId));
 
     const [run] = getLevelRunsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(run.id).toBe(runId);
@@ -294,14 +321,14 @@ describe("level_runs (every attempt, not just the best)", () => {
     expect(run.level_completed).toBe(1);
   });
 
-  it("retrying the same run id does not double-record it", async () => {
+  it("retrying the same batch (same run id, same trial ids) does not double-record the run", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
     const runId = randomUUID();
     const batch = batchFor(1, 20, 0, runId);
 
-    await postResults(app, token, batch);
-    await postResults(app, token, batch); // simulated retry of the exact same batch
+    await pushTrials(app, token, batch);
+    await pushTrials(app, token, batch); // simulated retry of the exact same batch
 
     const runs = getLevelRunsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(runs).toHaveLength(1);
