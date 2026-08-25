@@ -19,7 +19,7 @@ One Operation presented to the player, from the moment it's shown until the play
 _Avoid_: Question, round, attempt.
 
 **TrialResult**:
-The scored outcome of one Trial: whether the answer was correct, whether it exceeded the Operation's solve time, how long it took, whether a Hint was shown, and (within a Level) the correct-in-time streak at that point. Produced by scoring a submitted answer or a timeout.
+The scored outcome of one Trial: whether the answer was correct, whether it exceeded the Operation's solve time, how long it took, whether a Hint was shown, and (within a Level) the correct-answer streak at that point. Produced by scoring a submitted answer or a timeout.
 _Avoid_: Answer, response, score.
 
 **Answering / Reviewing**:
@@ -27,7 +27,7 @@ The two phases within one Trial. Answering is the timed phase, while the player 
 _Avoid_: Waiting, feedback (as a phase name — feedback is what's shown *during* Reviewing).
 
 **Level**:
-A named mix of Operation categories and their relative weights, identified by a level number, that a fixed-length Trial session draws from. A Level is *completed* when the player answers at least 15 of 20 Trials correctly within time.
+A named mix of Operation categories and their relative weights, identified by a level number, that a fixed-length Trial session draws from. A Level is *completed* when the player answers at least 15 of 20 Trials correctly.
 _Avoid_: Stage, round, difficulty tier.
 
 **GameConfig**:
@@ -97,6 +97,10 @@ Non-obvious architecture decisions and their reasoning, captured directly here r
 **Monorepo shape**: pnpm workspaces, three packages. `packages/engine` is the shared domain model (Operation, Trial scoring, Level completion) used independently by both `apps/frontend` (gameplay) and `apps/backend` (server-side re-validation of what a client reports, see below). `apps/frontend` is a Next.js App Router app; `apps/backend` is Fastify + SQLite.
 
 **The backend independently re-validates trial correctness, not just trust**: `POST /sync/results` recomputes `correct`/`timeExceeded` for every incoming trial from its operands, answer, and reported `timeTaken`, using `engine`'s own scoring rules — the same ones the client uses. The server's own computed values are what `trial_results.correct`/`time_exceeded` actually store (the columns everything analytical, admin stats included, reads); the client's original claim is kept alongside in `client_correct`/`client_time_exceeded`, for auditing, never discarded. A disagreement between the two is not an error — the sync still succeeds, nothing is surfaced to the player, nothing overrides local `LevelStats` — this is a backend-internal integrity signal only. `timeTaken` itself is still client-reported, not independently measured by the server; that remains a separate, larger problem than re-scoring correctness from an already-known duration.
+
+**"Correct" is the only success metric — timing is recorded, not a gate**: a Trial that's correct counts as correct whether it was submitted in time or the clock auto-submitted whatever was typed when it ran out. `timeExceeded` is descriptive metadata — still stored, still shown (e.g. in average solve time) — never a second condition alongside `correct` for stars, Level completion, streaks, or effectiveness stats (the player's Stats screen and admin alike). This wasn't always true: an earlier version required "correct AND in-time" everywhere, and separately forced a correct-but-late answer to silently retry its Trial slot with a fresh Operation while the displayed Trial number stayed frozen. Both were removed together — every outcome (right, wrong, or timed out) now consumes exactly one of the Level's fixed Trial slots, so the player always sees exactly `totalTrials` Operations, never more.
+
+**A timeout always reports `timeTaken` as exactly `Operation.solveTime()`, never more**: `scoreTimeout` doesn't measure real elapsed time — it reports the solve-time cap itself. This is why `engine`'s shared `evaluateTrial` compares with `>=`, not `>`, when deriving `timeExceeded` from `timeTaken`. A strict `>` silently classifies every genuine timeout as *not* exceeded — for both the client's own live scoring and the backend's independent re-validation — since the reported duration can never land a hair past the cap. Don't "simplify" this back to `>`; it looks redundant with the `timeExceeded: true` a timeout obviously deserves, but it's the one thing making the boundary case actually true.
 
 **Dev loop has no build step for `engine`**: both `pnpm dev:frontend` and `pnpm dev:backend` resolve `engine` straight from `packages/engine/src` — types included — via a `"development"` package.json export condition (`customConditions: ["development"]` in both apps' tsconfigs) plus Turbopack's `transpilePackages`. Editing engine source hot-reloads both apps immediately, no `pnpm --filter engine build` in the loop. This only works because `engine/src` uses extensionless relative imports (bundler-style, matching frontend); production `dist/` is built by tsup (esbuild), which bundles into a single flat file so Node's real ESM loader never sees an unresolved extension. Don't reintroduce `.js`-suffixed internal imports in `engine/src` — that was the exact thing blocking Turbopack before this was fixed.
 
