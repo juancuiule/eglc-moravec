@@ -126,7 +126,7 @@ export function StatsScreen() {
                   <div className="flex flex-col gap-0.5">
                     <EffBar value={row.effectiveness} />
                     <span className="text-2xs text-muted-2">
-                      {row.correctInTime} / {row.total} correct in time
+                      {row.correctCount} / {row.total} correct
                     </span>
                   </div>
                   <span className="text-xs text-right text-muted">

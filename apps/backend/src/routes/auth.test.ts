@@ -273,7 +273,7 @@ describe("anonymous → email upgrade merge", () => {
       method: "POST",
       url: "/sync/results",
       headers: { authorization: `Bearer ${anonToken}` },
-      payload: { trials: Array.from({ length: 20 }, () => trial) }, // 20 correct-in-time → completes the level
+      payload: { trials: Array.from({ length: 20 }, () => trial) }, // 20 correct → completes the level
     });
 
     await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });

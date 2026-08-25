@@ -16,7 +16,7 @@ export function PracticePlayingScreen({ state }: Props) {
 
   const isReviewing = state.playingState.type === "reviewing";
   const hint = state.currentOperation.hint();
-  const correctInTime = state.results.filter((r) => r.correct && !r.timeExceeded).length;
+  const correctCount = state.results.filter((r) => r.correct).length;
   const totalDone = state.results.length;
 
   return (
@@ -40,7 +40,7 @@ export function PracticePlayingScreen({ state }: Props) {
       }
       headerLeft={
         <span>
-          {correctInTime} / {totalDone} correct
+          {correctCount} / {totalDone} correct
         </span>
       }
       headerRight={

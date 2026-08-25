@@ -126,14 +126,14 @@ export function deriveLevelRuns(trials: readonly EvaluatedTrialResult[]): LevelR
   });
 
   return Array.from(byRun.entries()).map(([levelRunId, runTrials]) => {
-    const correctInTime = runTrials.filter((t) => t.correct && !t.timeExceeded).length;
+    const correctCount = runTrials.filter((t) => t.correct).length;
     const totalTime = runTrials.reduce((sum, t) => sum + t.timeTaken, 0);
     return {
       levelRunId,
       levelNumber: runTrials[0].levelNumber,
-      stars: starsForScore(correctInTime),
+      stars: starsForScore(correctCount),
       totalTime,
-      levelCompleted: correctInTime >= LEVEL_COMPLETE_THRESHOLD,
+      levelCompleted: correctCount >= LEVEL_COMPLETE_THRESHOLD,
     };
   });
 }

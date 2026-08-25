@@ -14,8 +14,8 @@ export function PracticeSummary({ state }: Props) {
 
   const { results, config } = state;
   const total = results.length;
-  const correctInTime = results.filter((r) => r.correct && !r.timeExceeded).length;
-  const pct = total > 0 ? Math.round((correctInTime / total) * 100) : 0;
+  const correctCount = results.filter((r) => r.correct).length;
+  const pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
 
   function handleBack() {
     reset();
@@ -29,7 +29,7 @@ export function PracticeSummary({ state }: Props) {
       <div className="text-center">
         <span className="text-5xl font-bold text-accent">{pct}%</span>
         <p className="text-muted text-sm mt-1">
-          {correctInTime} of {total} correct in time
+          {correctCount} of {total} correct
         </p>
       </div>
 

@@ -9,7 +9,7 @@ export type LevelPerformanceRow = {
   level_number: number;
   attempt_count: number;
   user_count: number;
-  correct_in_time_count: number;
+  correct_count: number;
   avg_time_taken: number | null;
 };
 
@@ -20,8 +20,8 @@ export function getLevelPerformance(db: DatabaseSync): LevelPerformanceRow[] {
          level_number,
          COUNT(*) AS attempt_count,
          COUNT(DISTINCT email_hash) AS user_count,
-         SUM(CASE WHEN correct = 1 AND time_exceeded = 0 THEN 1 ELSE 0 END) AS correct_in_time_count,
-         AVG(CASE WHEN correct = 1 AND time_exceeded = 0 THEN time_taken ELSE NULL END) AS avg_time_taken
+         SUM(correct) AS correct_count,
+         AVG(CASE WHEN correct = 1 THEN time_taken ELSE NULL END) AS avg_time_taken
        FROM trial_results
        GROUP BY level_number
        ORDER BY level_number`,
@@ -33,7 +33,7 @@ export type CategoryPerformanceRow = {
   category_codename: string;
   attempt_count: number;
   user_count: number;
-  correct_in_time_count: number;
+  correct_count: number;
   avg_time_taken: number | null;
 };
 
@@ -44,8 +44,8 @@ export function getCategoryPerformance(db: DatabaseSync): CategoryPerformanceRow
          category_codename,
          COUNT(*) AS attempt_count,
          COUNT(DISTINCT email_hash) AS user_count,
-         SUM(CASE WHEN correct = 1 AND time_exceeded = 0 THEN 1 ELSE 0 END) AS correct_in_time_count,
-         AVG(CASE WHEN correct = 1 AND time_exceeded = 0 THEN time_taken ELSE NULL END) AS avg_time_taken
+         SUM(correct) AS correct_count,
+         AVG(CASE WHEN correct = 1 THEN time_taken ELSE NULL END) AS avg_time_taken
        FROM trial_results
        GROUP BY category_codename
        ORDER BY category_codename`,

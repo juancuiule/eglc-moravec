@@ -14,7 +14,7 @@ export function FinishedScreen({ state }: Props) {
   const reset = useGame((s) => s.reset);
   const replay = useGame((s) => s.replay);
 
-  const { correctInTime, levelCompleted, stars, results, config } = state;
+  const { correctCount, levelCompleted, stars, results, config } = state;
   const totalAttempts = results.length;
   const isLastLevel = config.levelNumber >= 150;
 
@@ -57,11 +57,11 @@ export function FinishedScreen({ state }: Props) {
 
       <p className="text-center text-lg">
         <span className={levelCompleted ? "text-teal font-bold text-2xl" : "text-danger font-bold text-2xl"}>
-          {correctInTime}
+          {correctCount}
         </span>
         <span className="text-muted">
           {" "}
-          / {totalAttempts} correct in time
+          / {totalAttempts} correct
         </span>
       </p>
 

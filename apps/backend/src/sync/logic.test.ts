@@ -166,12 +166,12 @@ describe("deriveLevelRuns", () => {
     const [summary] = deriveLevelRuns(trials);
     expect(summary.levelRunId).toBe("run-1");
     expect(summary.levelNumber).toBe(4);
-    expect(summary.totalTime).toBe(6000); // sums every trial, not just correct-in-time ones
-    expect(summary.stars).toBe(0); // 2 correct-in-time < LEVEL_COMPLETE_THRESHOLD (15)
+    expect(summary.totalTime).toBe(6000); // sums every trial, not just correct ones
+    expect(summary.stars).toBe(0); // 2 correct < LEVEL_COMPLETE_THRESHOLD (15)
     expect(summary.levelCompleted).toBe(false);
   });
 
-  it("bases stars/completion on the server-computed correct/timeExceeded, not the client's claim", () => {
+  it("bases stars/completion on the server-computed correct, not the client's claim", () => {
     const trials = Array.from({ length: 20 }, () =>
       evaluatedTrial({ correct: false, clientCorrect: true }), // client claims correct; server disagrees
     );
@@ -181,17 +181,24 @@ describe("deriveLevelRuns", () => {
     expect(summary.levelCompleted).toBe(false);
   });
 
-  it("marks a run completed once correct-in-time trials reach the threshold", () => {
+  it("marks a run completed once correct trials reach the threshold", () => {
     const trials = Array.from({ length: 20 }, () => evaluatedTrial());
     const [summary] = deriveLevelRuns(trials);
     expect(summary.levelCompleted).toBe(true);
     expect(summary.stars).toBe(3);
   });
 
+  it("counts a correct-but-late trial toward stars — timing no longer gates correctness", () => {
+    const trials = Array.from({ length: 20 }, () => evaluatedTrial({ timeExceeded: true }));
+    const [summary] = deriveLevelRuns(trials);
+    expect(summary.stars).toBe(3);
+    expect(summary.levelCompleted).toBe(true);
+  });
+
   it("groups a mixed batch by levelRunId, scoring each run independently", () => {
     const trials = [
-      ...Array.from({ length: 20 }, () => evaluatedTrial({ levelRunId: "run-1", levelNumber: 1 })), // 20 correct-in-time → 3 stars
-      evaluatedTrial({ levelRunId: "run-2", levelNumber: 2, correct: false }), // 0 correct-in-time → 0 stars
+      ...Array.from({ length: 20 }, () => evaluatedTrial({ levelRunId: "run-1", levelNumber: 1 })), // 20 correct → 3 stars
+      evaluatedTrial({ levelRunId: "run-2", levelNumber: 2, correct: false }), // 0 correct → 0 stars
     ];
 
     const summaries = deriveLevelRuns(trials);

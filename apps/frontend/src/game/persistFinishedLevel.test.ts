@@ -48,7 +48,7 @@ function makeFinished(): Finished {
     config: { levelNumber: 4, level: LEVEL_FIXTURE, totalTrials: 20 },
     runId: "run-abc",
     results: [makeResult(1000), makeResult(1500)],
-    correctInTime: 2,
+    correctCount: 2,
     levelCompleted: true,
     stars: 2,
   };

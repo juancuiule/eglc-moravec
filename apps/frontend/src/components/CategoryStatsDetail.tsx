@@ -14,7 +14,7 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
   const buckets = useMemo(() => computeHistogram(trials, codename), [trials, codename]);
   const maxCount = Math.max(1, ...buckets.map((b) => b.count));
   const categoryTrials = trials.filter((t) => t.categoryCodename === codename);
-  const correctInTime = categoryTrials.filter((t) => t.correct && !t.timeExceeded).length;
+  const correctCount = categoryTrials.filter((t) => t.correct).length;
 
   return (
     <div className={`${panel} p-6 gap-4`}>
@@ -26,11 +26,11 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
       </div>
 
       <p className="text-sm text-muted">
-        {correctInTime} correct in time · {categoryTrials.length} total trials
+        {correctCount} correct · {categoryTrials.length} total trials
       </p>
 
       {buckets.length === 0 ? (
-        <p className="text-center text-muted-2 py-8">No correct-in-time trials yet.</p>
+        <p className="text-center text-muted-2 py-8">No correct trials yet.</p>
       ) : (
         <div className="flex flex-col gap-2">
           <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">

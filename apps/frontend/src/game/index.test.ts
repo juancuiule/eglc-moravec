@@ -125,6 +125,22 @@ describe("createGameStore", () => {
       expect(next.playingState.result.timeExceeded).toBe(true);
     });
 
+    it("a correct-but-late answer does not break the streak — only being wrong does", () => {
+      const s = store.getState().state;
+      if (s.type !== "playing") throw new Error("not playing");
+      const solveTime = s.currentOperation.solveTime();
+      vi.spyOn(Date, "now").mockReturnValue(1_000_000 + solveTime + 1);
+      store.getState().submitAnswer(s.currentOperation.result());
+      store.getState().advance();
+
+      const next = store.getState().state;
+      if (next.type !== "playing") throw new Error("not playing");
+      store.getState().submitAnswer(next.currentOperation.result());
+      const after = store.getState().state;
+      if (after.type !== "playing" || after.playingState.type !== "reviewing") throw new Error();
+      expect(after.playingState.result.streakAtSubmit).toBe(1);
+    });
+
     it("advance after wrong answer records the result", () => {
       const s = store.getState().state;
       if (s.type !== "playing") throw new Error();
@@ -135,7 +151,7 @@ describe("createGameStore", () => {
       expect(next.results.length).toBe(1);
     });
 
-    it("advance after correct-in-time records the result", () => {
+    it("advance after correct-and-fast records the result", () => {
       const s = store.getState().state;
       if (s.type !== "playing") throw new Error();
       store.getState().submitAnswer(s.currentOperation.result());
@@ -275,19 +291,19 @@ describe("createGameStore", () => {
       expect(store.getState().state.type).toBe("finished");
     });
 
-    it("computes correctInTime correctly", () => {
+    it("computes correctCount correctly", () => {
       store.getState().load(makeConfig());
-      playTrials(15, true);   // 15 correct in time
+      playTrials(15, true);   // 15 correct
       playTrials(5, false);   // 5 wrong
       const s = store.getState().state;
       expect(s.type).toBe("finished");
       if (s.type !== "finished") return;
-      expect(s.correctInTime).toBe(15);
+      expect(s.correctCount).toBe(15);
       expect(s.levelCompleted).toBe(true);
       expect(s.stars).toBe(1);
     });
 
-    it("levelCompleted=false when correctInTime < 15", () => {
+    it("levelCompleted=false when correctCount < 15", () => {
       store.getState().load(makeConfig());
       playTrials(14, true);
       playTrials(6, false);
@@ -297,23 +313,23 @@ describe("createGameStore", () => {
       expect(s.stars).toBe(0);
     });
 
-    it("correct-but-late trials are not counted toward correctInTime", () => {
+    it("correct-but-late trials count toward correctCount, same as any other correct trial", () => {
       store.getState().load(makeConfig());
-      playTrials(10, true, false);   // 10 correct-in-time
+      playTrials(10, true, true);    // 10 correct-but-late — still count
       playTrials(10, false, false);  // 10 wrong (completes the 20 trials)
       const s = store.getState().state;
       if (s.type !== "finished") throw new Error("expected finished, got " + s.type);
-      expect(s.correctInTime).toBe(10);
+      expect(s.correctCount).toBe(10);
     });
 
-    it("correct-but-late trials still consume a slot — the player always sees exactly 20 trials", () => {
+    it("every outcome consumes a slot — the player always sees exactly 20 trials", () => {
       store.getState().load(makeConfig());
-      playTrials(5, true, true);    // 5 correct-but-late — count toward the 20, not toward correctInTime
-      playTrials(15, true, false);  // 15 correct-in-time (completes the 20 trials)
+      playTrials(5, true, true);    // 5 correct-but-late — still consumes a slot, still counts as correct
+      playTrials(15, true, false);  // 15 correct-and-fast
       const s = store.getState().state;
       if (s.type !== "finished") throw new Error("expected finished, got " + s.type);
       expect(s.results.length).toBe(20);
-      expect(s.correctInTime).toBe(15);
+      expect(s.correctCount).toBe(20);
     });
 
     it("replay() restarts from finished", () => {

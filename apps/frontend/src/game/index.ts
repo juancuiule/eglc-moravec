@@ -70,8 +70,8 @@ export type Finished = {
   config: GameConfig;
   runId: string;
   results: TrialResult[];
-  correctInTime: number;
-  levelCompleted: boolean; // correctInTime >= LEVEL_COMPLETE_THRESHOLD
+  correctCount: number;
+  levelCompleted: boolean; // correctCount >= LEVEL_COMPLETE_THRESHOLD
   stars: 0 | 1 | 2 | 3;
 };
 
@@ -159,7 +159,7 @@ function startPlaying(config: GameConfig, trialId = 0): Playing {
 function currentStreak(results: TrialResult[]): number {
   let streak = 0;
   for (let i = results.length - 1; i >= 0; i--) {
-    if (results[i].correct && !results[i].timeExceeded) streak++;
+    if (results[i].correct) streak++;
     else break;
   }
   return streak;
@@ -234,18 +234,16 @@ export function createGameStore() {
       const results = [...state.results, result];
 
       if (results.length >= state.config.totalTrials) {
-        const correctInTime = results.filter(
-          (r) => r.correct && !r.timeExceeded,
-        ).length;
+        const correctCount = results.filter((r) => r.correct).length;
         set({
           state: {
             type: "finished",
             config: state.config,
             runId: state.runId,
             results,
-            correctInTime,
-            levelCompleted: correctInTime >= LEVEL_COMPLETE_THRESHOLD,
-            stars: starsForScore(correctInTime),
+            correctCount,
+            levelCompleted: correctCount >= LEVEL_COMPLETE_THRESHOLD,
+            stars: starsForScore(correctCount),
           },
         });
       } else {

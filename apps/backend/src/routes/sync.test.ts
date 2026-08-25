@@ -146,8 +146,8 @@ describe("POST /sync/results", () => {
   });
 });
 
-// A trial for level `levelNumber`, correct-in-time iff `correct`. Category
-// is always 1d+1d (solveTime 7000ms), so a 1000ms trial is always in time.
+// A trial for level `levelNumber`, correct iff `correct`. Category is
+// always 1d+1d (solveTime 7000ms), and timeTaken is always well within it.
 function trialFor(levelNumber: number, correct: boolean, levelRunId: string) {
   return {
     levelNumber,
@@ -199,7 +199,7 @@ describe("GET /sync/level-stats (derived from POST /sync/results)", () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    const res = await postResults(app, token, batchFor(4, 17, 0)); // 17 correct-in-time → 2 stars
+    const res = await postResults(app, token, batchFor(4, 17, 0)); // 17 correct → 2 stars
     expect(res.statusCode).toBe(200);
 
     const getRes = await app.inject({

@@ -13,9 +13,9 @@ export type StatsTrial = {
 export type CategoryStats = {
   codename: string;
   total: number;
-  correctInTime: number;
+  correctCount: number;
   effectiveness: number; // 0–1
-  avgTimeMs: number | null; // null if no correct-in-time trials
+  avgTimeMs: number | null; // null if no correct trials
 };
 
 // Ordered list of all known categories, from simplest to hardest
@@ -38,7 +38,7 @@ export function computeHistogram(
   categoryCodename: string,
 ): HistogramBucket[] {
   const correct = trials.filter(
-    (t) => t.categoryCodename === categoryCodename && t.correct && !t.timeExceeded,
+    (t) => t.categoryCodename === categoryCodename && t.correct,
   );
   if (correct.length === 0) return [];
 
@@ -73,18 +73,17 @@ export function computeStats(trials: StatsTrial[]): CategoryStats[] {
 
   return allCodenames.map((codename) => {
     const list = byCategory.get(codename) ?? [];
-    const correctInTime = list.filter((t) => t.correct && !t.timeExceeded);
+    const correct = list.filter((t) => t.correct);
     const avgTimeMs =
-      correctInTime.length > 0
-        ? correctInTime.reduce((sum, t) => sum + t.timeTaken, 0) /
-          correctInTime.length
+      correct.length > 0
+        ? correct.reduce((sum, t) => sum + t.timeTaken, 0) / correct.length
         : null;
 
     return {
       codename,
       total: list.length,
-      correctInTime: correctInTime.length,
-      effectiveness: list.length > 0 ? correctInTime.length / list.length : 0,
+      correctCount: correct.length,
+      effectiveness: list.length > 0 ? correct.length / list.length : 0,
       avgTimeMs,
     };
   });
