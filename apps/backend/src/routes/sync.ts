@@ -57,17 +57,23 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
     return reply.send({ trials: responseTrials });
   });
 
+  /**
+   * Pull source for the levelStats RxDB collection (see
+   * apps/frontend/src/sync/levelStats) — every one of the user's Level-stats
+   * rows, as a flat array (each entry self-identifies by levelNumber, the
+   * RxDB primary key) rather than an object keyed by level number.
+   */
   app.get("/sync/level-stats", async (request: FastifyRequest, reply) => {
     const emailHash = resolveEmailHash(db, bearerToken(request.headers.authorization));
     if (emailHash === null) return reply.code(401).send({ error: "unauthenticated" });
 
     const rows = getAllLevelStatsForUser(db, emailHash);
-    const levelStats = Object.fromEntries(
-      rows.map((r) => [
-        String(r.level_number),
-        { stars: r.stars, totalTime: r.total_time, completedAt: new Date(r.completed_at).toISOString() },
-      ]),
-    );
+    const levelStats = rows.map((r) => ({
+      levelNumber: r.level_number,
+      stars: r.stars,
+      totalTime: r.total_time,
+      completedAt: r.completed_at,
+    }));
 
     return reply.send({ levelStats });
   });

@@ -123,10 +123,12 @@ test("pushTrialResults throws on failure", async () => {
   await expect(Api.pushTrialResults("tok", [])).rejects.toThrow("unauthenticated");
 });
 
-test("pullLevelStats resolves with the remote LevelStats map on success", async () => {
-  const levelStats = { "1": { stars: 3, totalTime: 1000, completedAt: "2026-01-01T00:00:00.000Z" } };
+test("pullLevelStats converts the backend's flat array into a keyed map", async () => {
+  const levelStats = [{ levelNumber: 1, stars: 3, totalTime: 1000, completedAt: 1_735_689_600_000 }];
   vi.mocked(fetch).mockResolvedValue(jsonResponse({ levelStats }));
-  await expect(Api.pullLevelStats("tok")).resolves.toEqual(levelStats);
+  await expect(Api.pullLevelStats("tok")).resolves.toEqual({
+    "1": { stars: 3, totalTime: 1000, completedAt: new Date(1_735_689_600_000).toISOString() },
+  });
 });
 
 test("pullLevelStats throws on failure", async () => {

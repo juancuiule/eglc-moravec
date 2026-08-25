@@ -9,14 +9,15 @@ import { getRxStorageDexie } from "rxdb/plugins/storage-dexie";
 import { wrappedValidateAjvStorage } from "rxdb/plugins/validate-ajv";
 import { levelSchema, type LevelDocType } from "../levels/schema";
 import { trialResultSchema, type TrialResultDocType } from "../sync/trialResults/schema";
+import { levelStatsSchema, type LevelStatsDocType } from "../sync/levelStats/schema";
 import { insecureContextHashFunction } from "./hashFunction";
 
 // One shared database for the whole app — every local-first collection
-// (Level catalog, Trial results today; Level stats in a later ticket) lives
-// here, so there is exactly one RxDatabaseProvider to set up at the root.
+// lives here, so there is exactly one RxDatabaseProvider to set up at the root.
 export type AppCollections = {
   levels: RxCollection<LevelDocType>;
   trialResults: RxCollection<TrialResultDocType>;
+  levelStats: RxCollection<LevelStatsDocType>;
 };
 
 export type AppDatabase = RxDatabase<AppCollections>;
@@ -54,6 +55,7 @@ export async function createAppDatabase(
   await db.addCollections({
     levels: { schema: levelSchema },
     trialResults: { schema: trialResultSchema },
+    levelStats: { schema: levelStatsSchema },
   });
   return db;
 }

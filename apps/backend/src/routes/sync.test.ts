@@ -221,6 +221,16 @@ function batchFor(
   ];
 }
 
+// GET /sync/level-stats returns a flat array (each entry self-identifies by
+// levelNumber, the RxDB primary key it's a pull source for), not an object
+// keyed by level number.
+function findLevelStat(
+  levelStats: { levelNumber: number }[],
+  levelNumber: number,
+): { levelNumber: number } | undefined {
+  return levelStats.find((s) => s.levelNumber === levelNumber);
+}
+
 describe("GET /sync/level-stats (derived from POST /sync/trial-results/push)", () => {
   it("derives and stores a level record from a synced trial batch", async () => {
     const { db, app } = setup();
@@ -235,7 +245,7 @@ describe("GET /sync/level-stats (derived from POST /sync/trial-results/push)", (
       headers: { authorization: `Bearer ${token}` },
     });
     expect(getRes.statusCode).toBe(200);
-    expect(getRes.json().levelStats["4"]).toMatchObject({ stars: 2, totalTime: 17000 });
+    expect(findLevelStat(getRes.json().levelStats, 4)).toMatchObject({ stars: 2, totalTime: 17000 });
   });
 
   it("does not downgrade an existing better record", async () => {
@@ -250,7 +260,7 @@ describe("GET /sync/level-stats (derived from POST /sync/trial-results/push)", (
       url: "/sync/level-stats",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3, totalTime: 20000 });
+    expect(findLevelStat(getRes.json().levelStats, 1)).toMatchObject({ stars: 3, totalTime: 20000 });
   });
 
   it("upgrades to a better record", async () => {
@@ -265,10 +275,10 @@ describe("GET /sync/level-stats (derived from POST /sync/trial-results/push)", (
       url: "/sync/level-stats",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3, totalTime: 20000 });
+    expect(findLevelStat(getRes.json().levelStats, 1)).toMatchObject({ stars: 3, totalTime: 20000 });
   });
 
-  it("GET returns an empty object for a user with no records", async () => {
+  it("GET returns an empty array for a user with no records", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
@@ -277,7 +287,7 @@ describe("GET /sync/level-stats (derived from POST /sync/trial-results/push)", (
       url: "/sync/level-stats",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(getRes.json()).toEqual({ levelStats: {} });
+    expect(getRes.json()).toEqual({ levelStats: [] });
   });
 
   it("rejects an unauthenticated GET", async () => {
@@ -305,7 +315,7 @@ describe("level_runs (every attempt, not just the best)", () => {
       url: "/sync/level-stats",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3 });
+    expect(findLevelStat(getRes.json().levelStats, 1)).toMatchObject({ stars: 3 });
   });
 
   it("each run keeps its own levelRunId as the row id", async () => {

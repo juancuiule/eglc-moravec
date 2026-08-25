@@ -40,6 +40,14 @@ export type LevelStats = {
 
 export type PersistedLevelStats = Record<string, LevelStats>;
 
+/** Wire shape of one entry from GET /sync/level-stats. */
+export type LevelStatsEntry = {
+  levelNumber: number;
+  stars: number;
+  totalTime: number;
+  completedAt: number; // epoch ms
+};
+
 export type PerformanceSummary = {
   attemptCount: number;
   userCount: number;
@@ -96,6 +104,11 @@ async function requestVoid(path: string, options: RequestOptions): Promise<void>
   if (!res.ok) throw new Error(await errorFrom(res));
 }
 
+/** Clamps a wire `stars` value into the type-safe range — a malformed or future backend value degrades to 0 rather than lying about a 1-3 star claim. */
+function asStarRating(stars: number): 0 | 1 | 2 | 3 {
+  return stars === 1 || stars === 2 || stars === 3 ? stars : 0;
+}
+
 // ─── Api ───────────────────────────────────────────────────────────────────────
 
 /**
@@ -150,12 +163,31 @@ export const Api = {
     return data.trials;
   },
 
-  async pullLevelStats(token: string): Promise<PersistedLevelStats> {
-    const data = await requestJson<{ levelStats: PersistedLevelStats }>("/sync/level-stats", {
+  /** The backend's flat array of every Level-stats record this user has — see sync/levelStats, which pulls from this directly. */
+  async pullLevelStatsEntries(token: string): Promise<LevelStatsEntry[]> {
+    const data = await requestJson<{ levelStats: LevelStatsEntry[] }>("/sync/level-stats", {
       method: "GET",
       token,
     });
     return data.levelStats;
+  },
+
+  /**
+   * Same backend data as `pullLevelStatsEntries`, reshaped into the keyed
+   * form this app's (soon-retired) localStorage cache already expects.
+   */
+  async pullLevelStats(token: string): Promise<PersistedLevelStats> {
+    const entries = await Api.pullLevelStatsEntries(token);
+    return Object.fromEntries(
+      entries.map((entry) => [
+        String(entry.levelNumber),
+        {
+          stars: asStarRating(entry.stars),
+          totalTime: entry.totalTime,
+          completedAt: new Date(entry.completedAt).toISOString(),
+        },
+      ]),
+    );
   },
 
   fetchAdminStats(): Promise<AdminStats> {

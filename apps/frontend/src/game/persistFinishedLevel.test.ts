@@ -13,10 +13,15 @@ vi.mock("../sync/trialResults/queue", () => ({
   queueTrialResults: vi.fn(),
 }));
 
+vi.mock("../sync/levelStats/optimisticWrite", () => ({
+  writeOptimisticLevelStats: vi.fn(),
+}));
+
 import { persistFinishedLevel } from "./persistFinishedLevel";
 import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
 import { queueTrialResults } from "../sync/trialResults/queue";
+import { writeOptimisticLevelStats } from "../sync/levelStats/optimisticWrite";
 import { Addition } from "engine";
 import type { Level } from "../level";
 import type { Finished, TrialResult } from "./index";
@@ -73,5 +78,12 @@ describe("persistFinishedLevel", () => {
     persistFinishedLevel(state);
 
     expect(queueTrialResults).toHaveBeenCalledWith(state.results, [{ fake: "persisted-trial" }]);
+  });
+
+  it("writes the optimistic Level-stats record alongside the localStorage one", () => {
+    const state = makeFinished();
+    persistFinishedLevel(state);
+
+    expect(writeOptimisticLevelStats).toHaveBeenCalledWith(4, { stars: 2, totalTime: 2500 });
   });
 });
