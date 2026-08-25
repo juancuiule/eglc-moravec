@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { trialCounts, createGameStore, TOTAL_TRIALS, HINTS_PER_LEVEL } from "./index";
-import type { TrialResult } from "./index";
-import { Addition } from "engine";
+import { createGameStore, TOTAL_TRIALS, HINTS_PER_LEVEL } from "./index";
 import type { Level } from "../level";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -17,46 +15,6 @@ function makeConfig(overrides: Partial<{ levelNumber: number; totalTrials: numbe
     totalTrials: overrides.totalTrials ?? TOTAL_TRIALS,
   };
 }
-
-/** Build a fake TrialResult without needing a real Operation. */
-function makeResult(
-  correct: boolean,
-  timeExceeded: boolean,
-): TrialResult {
-  const op = Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
-  return {
-    operation: op,
-    answer: correct ? op.result() : 0,
-    correct,
-    timeExceeded,
-    timeTaken: timeExceeded ? op.solveTime() + 1 : op.solveTime() - 1,
-    hintShown: false,
-    keystrokes: [],
-    hasErased: false,
-    streakAtSubmit: 0,
-    hintsAvailableAtStart: 3,
-  };
-}
-
-// ─── trialCounts ───────────────────────────────────────────────────────────────
-
-describe("trialCounts", () => {
-  it("counts a wrong answer", () => {
-    expect(trialCounts(makeResult(false, false))).toBe(true);
-  });
-
-  it("counts a timed-out answer", () => {
-    expect(trialCounts(makeResult(false, true))).toBe(true);
-  });
-
-  it("counts a correct-in-time answer", () => {
-    expect(trialCounts(makeResult(true, false))).toBe(true);
-  });
-
-  it("does NOT count a correct-but-late answer", () => {
-    expect(trialCounts(makeResult(true, true))).toBe(false);
-  });
-});
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -167,24 +125,24 @@ describe("createGameStore", () => {
       expect(next.playingState.result.timeExceeded).toBe(true);
     });
 
-    it("advance after wrong answer increments trialsConsumed", () => {
+    it("advance after wrong answer records the result", () => {
       const s = store.getState().state;
       if (s.type !== "playing") throw new Error();
       store.getState().submitAnswer(s.currentOperation.result() + 99);
       store.getState().advance();
       const next = store.getState().state;
       if (next.type !== "playing") throw new Error();
-      expect(next.trialsConsumed).toBe(1);
+      expect(next.results.length).toBe(1);
     });
 
-    it("advance after correct-in-time increments trialsConsumed", () => {
+    it("advance after correct-in-time records the result", () => {
       const s = store.getState().state;
       if (s.type !== "playing") throw new Error();
       store.getState().submitAnswer(s.currentOperation.result());
       store.getState().advance();
       const next = store.getState().state;
       if (next.type !== "playing") throw new Error();
-      expect(next.trialsConsumed).toBe(1);
+      expect(next.results.length).toBe(1);
     });
 
     it("requestHint sets hintVisible and decrements hintsRemaining", () => {
@@ -258,7 +216,7 @@ describe("createGameStore", () => {
       expect(reviewing.playingState.result.hintsAvailableAtStart).toBe(s.hintsRemaining);
     });
 
-    it("advance after correct-but-late does NOT increment trialsConsumed", () => {
+    it("advance after correct-but-late still records the result and advances (no retry-the-slot)", () => {
       const s = store.getState().state;
       if (s.type !== "playing") throw new Error();
       const solveTime = s.currentOperation.solveTime();
@@ -267,17 +225,17 @@ describe("createGameStore", () => {
       store.getState().advance();
       const next = store.getState().state;
       if (next.type !== "playing") throw new Error();
-      expect(next.trialsConsumed).toBe(0);
+      expect(next.results.length).toBe(1);
     });
 
-    it("advance after a correct-but-late timeUp also does NOT increment trialsConsumed", () => {
+    it("advance after a correct-but-late timeUp also records the result and advances", () => {
       const s = store.getState().state;
       if (s.type !== "playing") throw new Error();
       store.getState().timeUp(s.currentOperation.result());
       store.getState().advance();
       const next = store.getState().state;
       if (next.type !== "playing") throw new Error();
-      expect(next.trialsConsumed).toBe(0);
+      expect(next.results.length).toBe(1);
     });
   });
 
@@ -290,12 +248,14 @@ describe("createGameStore", () => {
       for (let i = 0; i < n; i++) {
         const s = store.getState().state;
         if (s.type !== "playing") throw new Error("not playing at trial " + i);
+        if (s.playingState.type !== "answering") throw new Error("not answering at trial " + i);
+        // Relative to this trial's own startedAt, not a fixed epoch — solve
+        // times vary across operation types (this level mixes addition and
+        // multiplication), so a fixed offset drifts out of sync after a few
+        // consecutive late trials.
+        const { startedAt } = s.playingState;
         const solveTime = s.currentOperation.solveTime();
-        if (late) {
-          vi.spyOn(Date, "now").mockReturnValue(1_000_000 + solveTime + 1);
-        } else {
-          vi.spyOn(Date, "now").mockReturnValue(1_000_000);
-        }
+        vi.spyOn(Date, "now").mockReturnValue(late ? startedAt + solveTime + 1 : startedAt);
         if (correct) {
           store.getState().submitAnswer(s.currentOperation.result());
         } else {
@@ -339,13 +299,21 @@ describe("createGameStore", () => {
 
     it("correct-but-late trials are not counted toward correctInTime", () => {
       store.getState().load(makeConfig());
-      // Play 20 counting trials: 10 correct-in-time, 10 wrong
-      // Also interleave some late-correct (which don't consume slots)
       playTrials(10, true, false);   // 10 correct-in-time
-      playTrials(10, false, false);  // 10 wrong (completes the 20 slots)
+      playTrials(10, false, false);  // 10 wrong (completes the 20 trials)
       const s = store.getState().state;
       if (s.type !== "finished") throw new Error("expected finished, got " + s.type);
       expect(s.correctInTime).toBe(10);
+    });
+
+    it("correct-but-late trials still consume a slot — the player always sees exactly 20 trials", () => {
+      store.getState().load(makeConfig());
+      playTrials(5, true, true);    // 5 correct-but-late — count toward the 20, not toward correctInTime
+      playTrials(15, true, false);  // 15 correct-in-time (completes the 20 trials)
+      const s = store.getState().state;
+      if (s.type !== "finished") throw new Error("expected finished, got " + s.type);
+      expect(s.results.length).toBe(20);
+      expect(s.correctInTime).toBe(15);
     });
 
     it("replay() restarts from finished", () => {

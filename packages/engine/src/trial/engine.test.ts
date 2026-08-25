@@ -32,6 +32,12 @@ describe("evaluateTrial", () => {
     const result = evaluateTrial(op, null, op.solveTime());
     expect(result.correct).toBe(false);
   });
+
+  it("marks timeTaken exactly at solveTime() as exceeded — a timeout always reports this exact value, never a hair more", () => {
+    const op = makeOp();
+    const result = evaluateTrial(op, op.result(), op.solveTime());
+    expect(result.timeExceeded).toBe(true);
+  });
 });
 
 describe("scoreAnswer", () => {

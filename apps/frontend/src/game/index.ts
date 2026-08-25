@@ -36,12 +36,6 @@ export type TrialResult = BaseTrialResult & {
   hintsAvailableAtStart: number;
 };
 
-// A trial only consumes a slot when it's wrong, or correct-within-time.
-// Correct-but-late = the player must retry the same slot.
-export function trialCounts(result: TrialResult): boolean {
-  return !(result.correct && result.timeExceeded);
-}
-
 // ─── Playing nested states ─────────────────────────────────────────────────────
 
 export type Reviewing = {
@@ -64,7 +58,6 @@ export type Playing = {
   runId: string;
   currentOperation: Operation; // current trial's operation
   seenOperations: Set<string>; // humanReadable() strings shown this level
-  trialsConsumed: number;       // slots used: increments on wrong + correct-in-time
   trialId: number;              // monotonically increasing, used to reset UI between trials
   results: TrialResult[];       // all submitted results
   playingState: PlayingState;
@@ -153,7 +146,6 @@ function startPlaying(config: GameConfig, trialId = 0): Playing {
     runId: randomId(),
     currentOperation: firstOp,
     seenOperations: seen,
-    trialsConsumed: 0,
     trialId,
     results: [],
     playingState: { type: "answering", startedAt: Date.now() },
@@ -240,10 +232,8 @@ export function createGameStore() {
 
       const { result } = state.playingState;
       const results = [...state.results, result];
-      const newTrialsConsumed =
-        state.trialsConsumed + (trialCounts(result) ? 1 : 0);
 
-      if (newTrialsConsumed >= state.config.totalTrials) {
+      if (results.length >= state.config.totalTrials) {
         const correctInTime = results.filter(
           (r) => r.correct && !r.timeExceeded,
         ).length;
@@ -267,7 +257,6 @@ export function createGameStore() {
             ...state,
             currentOperation: nextOp,
             seenOperations: newSeen,
-            trialsConsumed: newTrialsConsumed,
             trialId: state.trialId + 1,
             results,
             playingState: { type: "answering", startedAt: Date.now() },

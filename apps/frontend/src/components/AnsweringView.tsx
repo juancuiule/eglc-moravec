@@ -36,7 +36,7 @@ export function AnsweringView({ state }: Props) {
       }
       headerLeft={
         <span>
-          Trial {state.trialsConsumed + 1} / {state.config.totalTrials}
+          Trial {state.results.length + 1} / {state.config.totalTrials}
         </span>
       }
       headerRight={
