@@ -10,6 +10,13 @@ import { formatDuration } from "@/formatTime";
 import { panel, backLink } from "@/styles";
 import type { LevelDocType } from "@/levels/schema";
 
+// Module-level, not inline in the component: useLiveRxQuery's internal
+// subscription only re-runs when this object's identity changes, so a
+// fresh `{ selector: {} }` literal on every render would resubscribe every
+// render, forever (each subscription's first emission triggers a
+// setState-driven re-render, which creates the next fresh literal).
+const ALL_LEVELS_QUERY = { selector: {} };
+
 function RowStars({ stars, light }: { stars: 0 | 1 | 2 | 3; light?: boolean }) {
   return (
     <span className="text-sm shrink-0">
@@ -48,7 +55,7 @@ export function LevelsList() {
   // has actually failed, not while it's still in flight.
   const { results: localLevels } = useLiveRxQuery<LevelDocType>({
     collection: "levels",
-    query: { selector: {} },
+    query: ALL_LEVELS_QUERY,
   });
 
   useEffect(() => {
