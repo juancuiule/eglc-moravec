@@ -19,6 +19,8 @@ type Props = {
   headerLeft: ReactNode;
   /** Right side of the header row (hint budget, stop button, …). The countdown sits between the two. */
   headerRight: ReactNode;
+  /** Rendered directly above the timer bar (e.g. a per-trial history strip). */
+  aboveTimer?: ReactNode;
   /** Rendered between the timer bar and the operation display (e.g. a category label). */
   beforeOperation?: ReactNode;
   /** Extra line rendered inside the feedback overlay, alongside the correct/wrong message. */
@@ -48,6 +50,7 @@ export function AnsweringPanel({
   onAdvance,
   headerLeft,
   headerRight,
+  aboveTimer,
   beforeOperation,
   extraFeedback,
 }: Props) {
@@ -162,6 +165,8 @@ export function AnsweringPanel({
         </span>
         {headerRight}
       </div>
+
+      {aboveTimer}
 
       {/* Timer bar */}
       <div className={`h-1.5 bg-subtle rounded-full overflow-hidden transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}>
