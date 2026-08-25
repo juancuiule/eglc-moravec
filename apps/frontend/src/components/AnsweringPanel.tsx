@@ -166,7 +166,7 @@ export function AnsweringPanel({
         {headerRight}
       </div>
 
-      {aboveTimer}
+      {/* {aboveTimer} */}
 
       {/* Timer bar */}
       <div className={`h-1.5 bg-subtle rounded-full overflow-hidden transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}>
