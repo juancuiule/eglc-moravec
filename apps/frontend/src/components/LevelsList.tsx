@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { useLiveRxQuery } from "rxdb/plugins/react";
 import { Api } from "@/api/Api";
 import { loadLevelStats, isLevelUnlocked, type PersistedLevelStats } from "@/storage/levelStats";
 import { formatDuration } from "@/formatTime";
 import { panel, backLink } from "@/styles";
+import type { LevelDocType } from "@/levels/schema";
 
 function RowStars({ stars, light }: { stars: 0 | 1 | 2 | 3; light?: boolean }) {
   return (
@@ -35,10 +37,33 @@ export function LevelsList() {
 
   // Level numbers come from the backend's catalog — content that
   // can change without a frontend rebuild — not a static bundled map.
-  const { data: levelKeys, isLoading, isError } = useQuery({
+  const { data: fetchedLevelKeys, isLoading, isError } = useQuery({
     queryKey: ["levels"],
     queryFn: Api.fetchLevelNumbers,
   });
+
+  // Falls back to the locally-replicated catalog (see src/levels, src/db)
+  // when the live fetch fails — same policy as LevelPlay's own fallback:
+  // prefer the live result when it succeeds, only fall back once the fetch
+  // has actually failed, not while it's still in flight.
+  const { results: localLevels } = useLiveRxQuery<LevelDocType>({
+    collection: "levels",
+    query: { selector: {} },
+  });
+
+  useEffect(() => {
+    if (isError && localLevels.length > 0) {
+      console.warn("Levels: backend unreachable, using the locally-cached catalog.");
+    }
+  }, [isError, localLevels.length]);
+
+  const levelKeys = useMemo(() => {
+    if (fetchedLevelKeys) return fetchedLevelKeys;
+    if (isError && localLevels.length > 0) {
+      return localLevels.map((doc) => Number(doc.levelNumber)).sort((a, b) => a - b);
+    }
+    return undefined;
+  }, [fetchedLevelKeys, isError, localLevels]);
 
   const completedCount = Object.keys(stats).filter((k) => (stats[k]?.stars ?? 0) > 0).length;
 
@@ -57,8 +82,8 @@ export function LevelsList() {
         </p>
       )}
 
-      {isLoading && <p className="text-center text-sm text-muted py-8">Loading levels…</p>}
-      {isError && <p className="text-center text-sm text-danger py-8">Couldn't load levels.</p>}
+      {isLoading && !levelKeys && <p className="text-center text-sm text-muted py-8">Loading levels…</p>}
+      {isError && !levelKeys && <p className="text-center text-sm text-danger py-8">Couldn't load levels.</p>}
 
       {levelKeys && (
         <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto">
