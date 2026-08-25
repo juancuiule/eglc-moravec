@@ -103,8 +103,9 @@ export function canShowHint(
   hasHint: boolean,
   hintsRemaining?: number,
 ): boolean {
-  if (!hasHint) return false;
-  if (hintVisible) return false;
-  if (hintsRemaining !== undefined && hintsRemaining <= 0) return false;
-  return true;
+  return (
+    hasHint &&
+    !hintVisible &&
+    (hintsRemaining === undefined || hintsRemaining > 0)
+  );
 }
