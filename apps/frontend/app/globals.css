@@ -72,3 +72,19 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* Reduced motion gets an opacity-only crossfade instead of the translate+scale entrance. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation: fade-in-opacity-only 180ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+@keyframes fade-in-opacity-only {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
