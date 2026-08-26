@@ -227,7 +227,8 @@ export function AnsweringPanel({
             return (
               <button
                 key={key}
-                onPointerDown={() => handleButton(key)}
+                onPointerDown={() => press(key)}
+                onClick={() => handleButton(key)}
                 className={[
                   "h-14 rounded-xl font-semibold text-xl cursor-pointer select-none",
                   "transition-all duration-100",
@@ -246,7 +247,7 @@ export function AnsweringPanel({
         <button
           className="cursor-pointer bg-teal text-white w-full rounded-xl py-3 font-semibold text-lg hover:opacity-90 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
           disabled={!answer}
-          onPointerDown={doSubmit}
+          onClick={doSubmit}
         >
           Submit
         </button>
