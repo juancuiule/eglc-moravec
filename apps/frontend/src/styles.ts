@@ -33,6 +33,18 @@ export const button = cva("cursor-pointer rounded-lg", {
 });
 export type ButtonIntent = VariantProps<typeof button>["intent"];
 
+/**
+ * `button`'s styling for a real `<Link>` standing in for a button (primary
+ * navigation styled as a CTA, e.g. Home's "Play"). `<a>` is inline and
+ * doesn't center its own text, unlike a native `<button>` — every such
+ * caller needs the same `text-center block` on top of `button`'s classes,
+ * so it's baked in here instead of repeated at each call site. Callers still
+ * add their own extra layout classes (`flex-1`, …) same as with `button`.
+ */
+export function linkButton(options: Parameters<typeof button>[0]) {
+  return `${button(options)} text-center block`;
+}
+
 /** The "←" back-arrow affordance — used as both a <Link> and a plain onClick button. */
 export const backLink = "text-muted hover:text-foreground transition-colors text-lg leading-none";
 

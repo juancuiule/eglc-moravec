@@ -1,12 +1,13 @@
 "use client";
 
 import { formatDuration } from "@/formatTime";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { TOTAL_LEVELS } from "engine";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
-import { button, panel } from "../styles";
+import { button, linkButton, panel } from "../styles";
 import { StarsDisplay } from "./StarsDisplay";
 
 type Props = { state: Finished };
@@ -72,9 +73,9 @@ export function FinishedScreen({ state }: Props) {
 
       <div className="flex flex-col gap-2">
         {levelCompleted && !isLastLevel && (
-          <button className={button({ intent: "success" })} onClick={playNext}>
+          <Link href={`/level/${config.levelNumber + 1}`} className={linkButton({ intent: "success" })}>
             Play next level (N)
-          </button>
+          </Link>
         )}
         <button className={button({ intent: "primary" })} onClick={replay}>
           {levelCompleted ? "Replay (R)" : "Try again (R)"}
