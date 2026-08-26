@@ -17,7 +17,10 @@ export function isBetterLevelRecord(
   candidate: LevelRecordCandidate,
   existing: LevelRecordCandidate | null | undefined,
 ): boolean {
-  if (!existing) return true;
-  if (candidate.stars > existing.stars) return true;
-  return candidate.stars === existing.stars && candidate.totalTime < existing.totalTime;
+  return (
+    !existing ||
+    candidate.stars > existing.stars ||
+    (candidate.stars === existing.stars &&
+      candidate.totalTime < existing.totalTime)
+  );
 }
