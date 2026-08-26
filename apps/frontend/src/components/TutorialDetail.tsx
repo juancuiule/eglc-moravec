@@ -18,7 +18,6 @@ import {
 import { HintCard } from "./HintCard";
 import { YouTubeEmbed } from "./YouTubeEmbed";
 import { panel, backLink, button } from "../styles";
-import { practiceStore, usePractice } from "@/practice/store";
 
 type Props = { topic: TutorialTopic };
 
@@ -43,7 +42,6 @@ export function TutorialDetail({ topic }: Props) {
 
   function practiceThis() {
     if (!codename) return;
-    practiceStore.getState().start({ categoryCodename: codename });
     router.push(`/practice/${encodeURIComponent(codename)}`);
   }
 

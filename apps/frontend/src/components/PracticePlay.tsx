@@ -33,14 +33,12 @@ export function PracticePlay({ categoryCodename }: Props) {
   }, []);
 
   useEffect(() => {
-    const state = practiceStore.getState().state;
-    const alreadyThisCategory =
-      state.type !== "idle" &&
-      state.config.categoryCodename === categoryCodename;
-    if (alreadyThisCategory) return;
-
-    // Abandon a different category's in-progress run first (e.g. navigating
-    // straight from one practice URL to another's mid-play). An abandoned
+    // Entering this route should always yield a fresh run, whether it's a
+    // different category or a revisit of the same one — never resume a
+    // stale Playing/Stopped state left over from a previous visit. start()
+    // unconditionally overwrites the current state, so this also covers
+    // abandoning a different category's in-progress run (e.g. navigating
+    // straight from one practice URL to another's mid-play); an abandoned
     // run was never persisted anyway, only a Stopped one is.
     start({ categoryCodename });
   }, [categoryCodename, start]);

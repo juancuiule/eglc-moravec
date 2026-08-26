@@ -45,16 +45,15 @@ export function LevelPlay({ levelNumber, level }: Props) {
       return;
     }
 
-    const state = gameStore.getState().state;
-    const alreadyThisLevel =
-      state.type !== "loading" && state.config.levelNumber === levelNumber;
-    if (alreadyThisLevel) return;
-
-    // load() only starts from Loading or Finished — abandon a different
-    // level's in-progress run first (e.g. navigating straight from one
-    // level's URL to another's mid-play). An abandoned run was never
+    // Entering this route should always yield a fresh run, whether it's a
+    // different level or a revisit of the same one — never resume a stale
+    // Playing/Finished state left over from a previous visit. load() only
+    // starts from Loading or Finished, so reset first if still Playing (e.g.
+    // navigating straight from one level's URL to another's mid-play, or
+    // back into the same level mid-play). An abandoned run was never
     // persisted anyway, only a Finished one is.
-    if (state.type === "playing") gameStore.getState().reset();
+    const state = gameStore.getState().state;
+    if (state.type !== "loading") gameStore.getState().reset();
     load({ levelNumber, level, totalTrials: TOTAL_TRIALS });
   }, [levelNumber, level, load, router]);
 
