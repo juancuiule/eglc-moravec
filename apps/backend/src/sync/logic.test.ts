@@ -19,7 +19,8 @@ const validTrial = {
   hintShown: false,
   streakAtSubmit: 2,
   hintsAvailableAtStart: 3,
-  levelRunId: "run-abc",
+  runId: "run-abc",
+  runType: "level" as const,
 };
 
 describe("parseTrialResults", () => {
@@ -98,8 +99,23 @@ describe("parseTrialResults", () => {
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
-  it("rejects a trial with a wrong-typed levelRunId", () => {
-    const trial = { ...validTrial, levelRunId: 123 };
+  it("rejects a trial with a wrong-typed runId", () => {
+    const trial = { ...validTrial, runId: 123 };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("rejects a trial with an invalid runType", () => {
+    const trial = { ...validTrial, runType: "bogus" };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("accepts a Practice trial with runType practice and a null levelNumber", () => {
+    const trial = { ...validTrial, runType: "practice" as const, levelNumber: null };
+    expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
+  });
+
+  it("rejects a non-number, non-null levelNumber", () => {
+    const trial = { ...validTrial, levelNumber: "3" };
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
@@ -118,12 +134,18 @@ describe("evaluateTrialResult", () => {
     expect(evaluated.clientTimeExceeded).toBe(false);
   });
 
-  it("passes hintShown, streakAtSubmit, hintsAvailableAtStart, and levelRunId through unchanged", () => {
+  it("passes hintShown, streakAtSubmit, hintsAvailableAtStart, runId, and runType through unchanged", () => {
     const evaluated = evaluateTrialResult(validTrial);
     expect(evaluated.hintShown).toBe(false);
     expect(evaluated.streakAtSubmit).toBe(2);
     expect(evaluated.hintsAvailableAtStart).toBe(3);
-    expect(evaluated.levelRunId).toBe("run-abc");
+    expect(evaluated.runId).toBe("run-abc");
+    expect(evaluated.runType).toBe("level");
+  });
+
+  it("passes through a null levelNumber for a Practice trial", () => {
+    const trial = { ...validTrial, runType: "practice" as const, levelNumber: null };
+    expect(evaluateTrialResult(trial).levelNumber).toBeNull();
   });
 
   it("overrides a client claim that disagrees with the server's own recomputation, keeping the claim for auditing", () => {
@@ -150,7 +172,8 @@ function evaluatedTrial(overrides: Partial<ReturnType<typeof evaluateTrialResult
     hintShown: false,
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
-    levelRunId: "run-1",
+    runId: "run-1",
+    runType: "level" as const,
     ...overrides,
   };
 }
@@ -195,10 +218,10 @@ describe("deriveLevelRuns", () => {
     expect(summary.levelCompleted).toBe(true);
   });
 
-  it("groups a mixed batch by levelRunId, scoring each run independently", () => {
+  it("groups a mixed batch by run id, scoring each run independently", () => {
     const trials = [
-      ...Array.from({ length: 20 }, () => evaluatedTrial({ levelRunId: "run-1", levelNumber: 1 })), // 20 correct → 3 stars
-      evaluatedTrial({ levelRunId: "run-2", levelNumber: 2, correct: false }), // 0 correct → 0 stars
+      ...Array.from({ length: 20 }, () => evaluatedTrial({ runId: "run-1", levelNumber: 1 })), // 20 correct → 3 stars
+      evaluatedTrial({ runId: "run-2", levelNumber: 2, correct: false }), // 0 correct → 0 stars
     ];
 
     const summaries = deriveLevelRuns(trials);

@@ -12,7 +12,7 @@ function isKeystrokeInput(value: unknown): value is KeystrokeInput {
 }
 
 export type TrialResultInput = {
-  levelNumber: number;
+  levelNumber: number | null;
   categoryCodename: string;
   correct: boolean; // client-submitted claim
   timeExceeded: boolean; // client-submitted claim
@@ -24,14 +24,15 @@ export type TrialResultInput = {
   hintShown: boolean;
   streakAtSubmit: number;
   hintsAvailableAtStart: number;
-  levelRunId: string;
+  runId: string;
+  runType: "level" | "practice";
 };
 
 function isTrialResultInput(value: unknown): value is TrialResultInput {
   if (typeof value !== "object" || value === null) return false;
   const r = value as Record<string, unknown>;
   return (
-    typeof r.levelNumber === "number" &&
+    (r.levelNumber === null || typeof r.levelNumber === "number") &&
     typeof r.categoryCodename === "string" &&
     typeof r.correct === "boolean" &&
     typeof r.timeExceeded === "boolean" &&
@@ -45,7 +46,8 @@ function isTrialResultInput(value: unknown): value is TrialResultInput {
     typeof r.hintShown === "boolean" &&
     typeof r.streakAtSubmit === "number" &&
     typeof r.hintsAvailableAtStart === "number" &&
-    typeof r.levelRunId === "string"
+    typeof r.runId === "string" &&
+    (r.runType === "level" || r.runType === "practice")
   );
 }
 
@@ -58,7 +60,7 @@ export function parseTrialResults(body: unknown): TrialResultInput[] | null {
 }
 
 export type EvaluatedTrialResult = {
-  levelNumber: number;
+  levelNumber: number | null;
   categoryCodename: string;
   correct: boolean; // server-computed (authoritative)
   timeExceeded: boolean; // server-computed (authoritative)
@@ -70,7 +72,8 @@ export type EvaluatedTrialResult = {
   hintShown: boolean;
   streakAtSubmit: number;
   hintsAvailableAtStart: number;
-  levelRunId: string;
+  runId: string;
+  runType: "level" | "practice";
 };
 
 /**
@@ -97,7 +100,8 @@ export function evaluateTrialResult(input: TrialResultInput): EvaluatedTrialResu
     hintShown: input.hintShown,
     streakAtSubmit: input.streakAtSubmit,
     hintsAvailableAtStart: input.hintsAvailableAtStart,
-    levelRunId: input.levelRunId,
+    runId: input.runId,
+    runType: input.runType,
   };
 }
 
@@ -122,7 +126,7 @@ export type LevelRunSummary = {
 export function deriveLevelRuns(trials: readonly EvaluatedTrialResult[]): LevelRunSummary[] {
   const byRun = new Map<string, EvaluatedTrialResult[]>();
   trials.forEach((t) => {
-    byRun.set(t.levelRunId, [...(byRun.get(t.levelRunId) ?? []), t]);
+    byRun.set(t.runId, [...(byRun.get(t.runId) ?? []), t]);
   });
 
   return Array.from(byRun.entries()).map(([levelRunId, runTrials]) => {
@@ -130,7 +134,11 @@ export function deriveLevelRuns(trials: readonly EvaluatedTrialResult[]): LevelR
     const totalTime = runTrials.reduce((sum, t) => sum + t.timeTaken, 0);
     return {
       levelRunId,
-      levelNumber: runTrials[0].levelNumber,
+      // Non-null: the caller (routes/sync.ts) only ever passes the
+      // runType === "level" subset here, which always carries a real
+      // levelNumber — levelNumber is number | null only to accommodate
+      // Practice trials, which never reach this function.
+      levelNumber: runTrials[0].levelNumber!,
       stars: starsForScore(correctCount),
       totalTime,
       levelCompleted: correctCount >= LEVEL_COMPLETE_THRESHOLD,
