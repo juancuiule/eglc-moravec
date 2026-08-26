@@ -216,7 +216,7 @@ export function AnsweringPanel({
 
       {/* Calculator section */}
       <div className="relative flex flex-col gap-3">
-        <div className="bg-base border border-subtle rounded-xl px-4 py-3 text-right text-3xl font-mono min-h-[3.5rem] flex items-center justify-end select-none">
+        <div className="bg-base border border-subtle rounded-xl px-4 py-3 text-right text-3xl font-mono flex items-center justify-end select-none">
           {answer || <span className="text-disabled">0</span>}
         </div>
 

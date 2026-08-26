@@ -18,6 +18,7 @@ import {
 import { HintCard } from "./HintCard";
 import { YouTubeEmbed } from "./YouTubeEmbed";
 import { panel, backLink, button } from "../styles";
+import { practiceStore, usePractice } from "@/practice/store";
 
 type Props = { topic: TutorialTopic };
 
@@ -42,6 +43,7 @@ export function TutorialDetail({ topic }: Props) {
 
   function practiceThis() {
     if (!codename) return;
+    practiceStore.getState().start({ categoryCodename: codename });
     router.push(`/practice/${encodeURIComponent(codename)}`);
   }
 
@@ -50,15 +52,24 @@ export function TutorialDetail({ topic }: Props) {
   return (
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
-        <Link href="/tutorials" className={backLink} aria-label="Back to tutorials">
+        <Link
+          href="/tutorials"
+          className={backLink}
+          aria-label="Back to tutorials"
+        >
           ←
         </Link>
-        <h1 className="text-xl font-bold tracking-tight">{TUTORIAL_TITLES[topic]}</h1>
+        <h1 className="text-xl font-bold tracking-tight">
+          {TUTORIAL_TITLES[topic]}
+        </h1>
       </div>
 
       <p className="text-sm text-muted">{TUTORIAL_EXPLANATIONS[topic]}</p>
 
-      <YouTubeEmbed videoId={videoIdFor(topic)} title={`${TUTORIAL_TITLES[topic]} tutorial`} />
+      <YouTubeEmbed
+        videoId={videoIdFor(topic)}
+        title={`${TUTORIAL_TITLES[topic]} tutorial`}
+      />
 
       {topic === "majorSystem" && (
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 bg-base rounded-xl px-4 py-3 font-mono text-sm">
@@ -75,7 +86,9 @@ export function TutorialDetail({ topic }: Props) {
         {TUTORIAL_EXAMPLES[topic].map((example, i) => (
           <div key={i} className="flex flex-col gap-1">
             <HintCard steps={example.steps} />
-            {example.note && <p className="text-xs text-muted-2 px-1">{example.note}</p>}
+            {example.note && (
+              <p className="text-xs text-muted-2 px-1">{example.note}</p>
+            )}
           </div>
         ))}
       </div>
@@ -107,8 +120,12 @@ export function TutorialDetail({ topic }: Props) {
           )}
 
           <div className="flex flex-col gap-3 items-center bg-base rounded-xl px-4 py-6">
-            <span data-testid="tutorial-expression" className="font-mono text-2xl font-bold text-foreground">
-              {operation!.humanReadable()} = {revealed ? operation!.result() : "?"}
+            <span
+              data-testid="tutorial-expression"
+              className="font-mono text-2xl font-bold text-foreground"
+            >
+              {operation!.humanReadable()} ={" "}
+              {revealed ? operation!.result() : "?"}
             </span>
 
             {hint!.hasHint() && (
@@ -124,13 +141,19 @@ export function TutorialDetail({ topic }: Props) {
               >
                 {revealed ? "Hide answer" : "Show answer"}
               </button>
-              <button onClick={() => newExample()} className="text-xs text-muted hover:text-foreground cursor-pointer">
+              <button
+                onClick={() => newExample()}
+                className="text-xs text-muted hover:text-foreground cursor-pointer"
+              >
                 New example
               </button>
             </div>
           </div>
 
-          <button onClick={practiceThis} className={`${button({ intent: "primary" })} text-center`}>
+          <button
+            onClick={practiceThis}
+            className={`${button({ intent: "primary" })} text-center`}
+          >
             Practice {CATEGORY_LABELS[codename!] ?? codename}
           </button>
         </>
