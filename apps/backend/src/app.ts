@@ -22,6 +22,22 @@ export function buildApp(db: DatabaseSync, config: Config): FastifyInstance {
   // Auth is per-request Bearer tokens, not cookies, so a permissive origin
   // carries no CSRF risk — callers still need a real token to do anything.
   void app.register(cors, { origin: config.corsOrigin });
+  app.setErrorHandler<Error & { statusCode?: number; code?: string }>((error, request, reply) => {
+    request.log.error({ err: error }, "unhandled request error");
+
+    // Fastify (and any code that deliberately throws a client-facing error)
+    // sets statusCode on the error itself; an unset/500 statusCode means an
+    // unexpected internal failure whose raw message must not reach the
+    // client. Expected 4xx errors carry no sensitive detail, so their own
+    // code/message are safe to pass through.
+    const statusCode = error.statusCode ?? 500;
+    if (statusCode >= 400 && statusCode < 500) {
+      reply.code(statusCode).send({ error: error.code ?? "bad_request" });
+      return;
+    }
+
+    reply.code(500).send({ error: "internal_error" });
+  });
   registerHealthRoute(app, db);
   registerAuthRoutes(app, db, config);
   registerSyncRoutes(app, db);
