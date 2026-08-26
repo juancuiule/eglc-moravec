@@ -42,7 +42,8 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      hint_shown INTEGER NOT NULL DEFAULT 0,
      streak_at_submit INTEGER NOT NULL DEFAULT 0,
      hints_available_at_start INTEGER NOT NULL DEFAULT 0,
-     level_run_id TEXT NOT NULL DEFAULT ''
+     run_id TEXT NOT NULL DEFAULT '',
+     run_type TEXT NOT NULL DEFAULT 'level'
    )`,
   `CREATE INDEX IF NOT EXISTS trial_results_email_hash_idx ON trial_results (email_hash)`,
   `CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)`,
@@ -129,12 +130,13 @@ const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [
     column: "hints_available_at_start",
     ddl: "ALTER TABLE trial_results ADD COLUMN hints_available_at_start INTEGER NOT NULL DEFAULT 0",
   },
-  // Existing rows predate level-run grouping — '' (ungroupable) is exactly
-  // as unknown as the hint/streak columns' 0 default above.
+  // Existing rows predate Practice sync — every one of them is a Level
+  // trial by definition, so 'level' is exactly correct, not just a
+  // placeholder default.
   {
     table: "trial_results",
-    column: "level_run_id",
-    ddl: "ALTER TABLE trial_results ADD COLUMN level_run_id TEXT NOT NULL DEFAULT ''",
+    column: "run_type",
+    ddl: "ALTER TABLE trial_results ADD COLUMN run_type TEXT NOT NULL DEFAULT 'level'",
   },
   // Existing users all predate anonymous accounts and are, by definition,
   // real email-verified ones — 0 (not anonymous) is exactly correct, no
@@ -152,17 +154,36 @@ function tableColumns(db: DatabaseSync, table: string): Set<string> {
   );
 }
 
+// Ensures run_id exists, covering both migration paths: a database that
+// already has level_run_id (added by an older ticket) gets it renamed —
+// dropping the old index name too, so a migrated database doesn't carry two
+// indexes over the same (renamed) column — while a database old enough to
+// predate level_run_id entirely just gets run_id added fresh, '' meaning
+// exactly as ungroupable as it always was. Doesn't fit ColumnMigration's
+// single-DDL ADD-COLUMN shape, so it's its own step, run after
+// COLUMN_MIGRATIONS.
+function ensureRunIdColumn(db: DatabaseSync): void {
+  const columns = tableColumns(db, "trial_results");
+  if (columns.has("run_id")) return;
+  if (columns.has("level_run_id")) {
+    db.exec("ALTER TABLE trial_results RENAME COLUMN level_run_id TO run_id");
+    db.exec("DROP INDEX IF EXISTS trial_results_level_run_id_idx");
+  } else {
+    db.exec("ALTER TABLE trial_results ADD COLUMN run_id TEXT NOT NULL DEFAULT ''");
+  }
+}
+
 function applyColumnMigrations(db: DatabaseSync): void {
   COLUMN_MIGRATIONS.forEach(({ table, column, ddl, backfill }) => {
     if (tableColumns(db, table).has(column)) return;
     db.exec(ddl);
     if (backfill) db.exec(backfill);
   });
-  // Unconditional: needs to run for a fresh database too, where
-  // level_run_id already exists from CREATE TABLE and its migration above
-  // never fires.
+  ensureRunIdColumn(db);
+  // Unconditional: needs to run for a fresh database too, where run_id
+  // already exists from CREATE TABLE and the rename above never fires.
   db.exec(
-    "CREATE INDEX IF NOT EXISTS trial_results_level_run_id_idx ON trial_results (level_run_id)",
+    "CREATE INDEX IF NOT EXISTS trial_results_run_id_idx ON trial_results (run_id)",
   );
 }
 

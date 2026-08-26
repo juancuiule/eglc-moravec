@@ -86,6 +86,70 @@ describe("openDb", () => {
     expect(row.hints_available_at_start).toBe(0);
   });
 
+  it("creates trial_results with run_id and run_type on a fresh database", () => {
+    const db = openDb(":memory:");
+    const columns = (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    expect(columns).toEqual(expect.arrayContaining(["run_id", "run_type"]));
+    expect(columns).not.toContain("level_run_id");
+  });
+
+  it("migrates a pre-run-type database, renaming level_run_id to run_id and defaulting run_type to 'level'", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "old.sqlite");
+
+    // Simulate a deployed database from before Practice sync existed.
+    const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE trial_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email_hash TEXT NOT NULL,
+      level_number INTEGER NOT NULL,
+      category_codename TEXT NOT NULL,
+      correct INTEGER NOT NULL,
+      time_exceeded INTEGER NOT NULL,
+      client_correct INTEGER NOT NULL,
+      client_time_exceeded INTEGER NOT NULL,
+      time_taken INTEGER NOT NULL,
+      played_at INTEGER NOT NULL,
+      hint_shown INTEGER NOT NULL DEFAULT 0,
+      streak_at_submit INTEGER NOT NULL DEFAULT 0,
+      hints_available_at_start INTEGER NOT NULL DEFAULT 0,
+      level_run_id TEXT NOT NULL DEFAULT ''
+    )`);
+    legacyDb.exec(`CREATE INDEX trial_results_level_run_id_idx ON trial_results (level_run_id)`);
+    legacyDb.exec(
+      `INSERT INTO trial_results (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, level_run_id)
+       VALUES ('hash1', 1, '1d+1d', 1, 0, 1, 0, 1000, 1700000000000, 'old-run')`,
+    );
+    legacyDb.close();
+
+    const migrated = openDb(dbPath);
+    const row = migrated.prepare("SELECT * FROM trial_results").get() as Record<string, unknown>;
+    expect(row.run_id).toBe("old-run");
+    expect(row.run_type).toBe("level");
+    expect(row.level_run_id).toBeUndefined();
+  });
+
+  it("is idempotent — running the run_id/run_type migration twice does not error, and leaves exactly one run_id index", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "twice.sqlite");
+
+    openDb(dbPath).close();
+    const db = openDb(dbPath);
+
+    const columns = (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    expect(columns.filter((c) => c === "run_type")).toHaveLength(1);
+
+    const indexNames = (db.prepare("PRAGMA index_list(trial_results)").all() as { name: string }[]).map(
+      (i) => i.name,
+    );
+    expect(indexNames.filter((n) => n === "trial_results_run_id_idx")).toHaveLength(1);
+    expect(indexNames).not.toContain("trial_results_level_run_id_idx");
+  });
+
   it("migrates a pre-ticket-05 database, backfilling client claims from the existing correct/time_exceeded", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
     const dbPath = join(tmpDir, "old.sqlite");
