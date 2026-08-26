@@ -1,0 +1,40 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - moravec-data:/app/data
+    env_file:
+      - ./apps/backend/.env
+    environment:
+      DB_PATH: /app/data/moravec.sqlite
+      PORT: "3000"
+      NODE_ENV: production
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        # Baked into the client bundle at build time — must be reachable
+        # from the *browser*, not just from inside this container. Override
+        # for a real deploy, e.g. NEXT_PUBLIC_API_URL=http://raspberrypi.local:3000
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+    ports:
+      - "3001:3000"
+    environment:
+      # Runtime-only (not baked into the client bundle): overrides
+      # NEXT_PUBLIC_API_URL for code that runs inside this container
+      # (Server Components, route rendering) — "backend" resolves via
+      # Compose's internal network, where "localhost" would not.
+      API_URL: http://backend:3000
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+volumes:
+  moravec-data:

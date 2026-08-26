@@ -1,0 +1,81 @@
+"use client";
+
+import { authStore } from "@/auth/store";
+import { TOTAL_TRIALS } from "@/game/index";
+import { persistFinishedLevel } from "@/game/persistFinishedLevel";
+import { gameStore, useGame } from "@/game/store";
+import type { Level } from "@/level";
+import { isLevelUnlocked, loadLevelStats } from "@/storage/levelStats";
+import { watchStoreTransition } from "@/storeWatch";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { AnsweringView } from "./AnsweringView";
+import { FinishedScreen } from "./FinishedScreen";
+
+type Props = { levelNumber: number; level: Level };
+
+/**
+ * Hosts one Level's gameplay at /level/[levelNumber]. Whether the level
+ * number itself is real is checked server-side (see the route's page.tsx,
+ * which 404s otherwise) — whether *this player* has it unlocked can only be
+ * checked here, client-side, against local LevelStats (see the
+ * server-vs-client tradeoff this was scoped to when the routes were added).
+ */
+export function LevelPlay({ levelNumber, level }: Props) {
+  const router = useRouter();
+  const gameState = useGame((s) => s.state);
+  const load = useGame((s) => s.load);
+
+  // Persist + sync a Level the moment the game store reaches Finished —
+  // tied to the state transition, not to whether FinishedScreen renders.
+  useEffect(() => {
+    return watchStoreTransition(
+      gameStore,
+      (s) => s.state.type === "finished",
+      (s) => {
+        if (s.state.type !== "finished") return;
+        persistFinishedLevel(s.state, authStore.getState().state);
+      },
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!isLevelUnlocked(levelNumber, loadLevelStats())) {
+      router.replace("/");
+      return;
+    }
+
+    const state = gameStore.getState().state;
+    const alreadyThisLevel =
+      state.type !== "loading" && state.config.levelNumber === levelNumber;
+    if (alreadyThisLevel) return;
+
+    // load() only starts from Loading or Finished — abandon a different
+    // level's in-progress run first (e.g. navigating straight from one
+    // level's URL to another's mid-play). An abandoned run was never
+    // persisted anyway, only a Finished one is.
+    if (state.type === "playing") gameStore.getState().reset();
+    load({ levelNumber, level, totalTrials: TOTAL_TRIALS });
+  }, [levelNumber, level, load, router]);
+
+  const { type } = gameState;
+
+  switch (type) {
+    case "playing": {
+      const { config } = gameState;
+      if (config.levelNumber === levelNumber) {
+        return <AnsweringView state={gameState} />;
+      }
+      break;
+    }
+    case "finished": {
+      const { config } = gameState;
+      if (config.levelNumber === levelNumber) {
+        return <FinishedScreen state={gameState} />;
+      }
+      break;
+    }
+  }
+
+  return null; // briefly, while the effect above catches up
+}

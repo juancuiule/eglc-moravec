@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/*
+ * The app's whole palette, named by role rather than value. Every color and
+ * the one non-default type size used anywhere in the app should come from
+ * here — no component should reach for a raw hex or an arbitrary text size.
+ * Each --color-NAME key below generates a matching bg-NAME, text-NAME,
+ * border-NAME, and ring-NAME utility automatically (Tailwind v4's @theme
+ * convention).
+ *
+ * Values here are sampled from the original Moravec app's screenshots
+ * (pixel-picked, not eyeballed) — a light, two-tone brand: pink (accent)
+ * as the primary/highlight color, teal as the secondary "go forward" color
+ * for the biggest action on a screen. See CONTEXT.md's research-background
+ * section for why this app looked the way it did originally.
+ */
+@theme {
+  /* Surfaces, from recessed to elevated */
+  --color-base: #f0eff4; /* page background; also "recessed" surfaces inside a panel — input wells, table rows, calculator keys */
+  --color-panel: #ffffff; /* the elevated card every screen is built from */
+  --color-panel-accent: #fdf1f6; /* a panel surface calling attention to itself: an unplayed level cell, the hint card */
+
+  /* Edges and low-emphasis interactive surfaces (a border color doubles as
+     a subtle hover/pressed background throughout this UI) */
+  --color-subtle: #e3e2e8;
+  --color-subtle-accent: #f8d9e6; /* pairs with panel-accent */
+  --color-subtle-muted: #ebebee; /* pairs with a locked/disabled surface */
+
+  /* Text, most to least prominent */
+  --color-foreground: #262b3d;
+  --color-muted: #6b7280;
+  --color-muted-2: #9ca3af;
+  --color-disabled: #c6c6cc;
+
+  /* Brand — pink is the primary accent (highlights, secondary CTAs); teal
+     is the "go forward" color for the single biggest action on a screen
+     (start/submit/next). */
+  --color-accent: #ef2172;
+  --color-accent-soft: #fa7fae; /* accent-tinted body text, e.g. inside panel-accent */
+  --color-teal: #22a891;
+  --color-teal-bg: #e3f7f1; /* soft teal tint — the level-complete celebration surface */
+
+  /* Semantic states — correctness feedback and the timer's traffic light,
+     independent of the brand pink/teal above */
+  --color-success: #16a34a;
+  --color-success-bg: #eafaf0;
+  --color-success-solid: #16a34a; /* a success border, and a solid-fill success button */
+  --color-danger: #e11d48;
+  --color-danger-bg: #fdecef;
+  --color-danger-border: #f3aebe;
+  --color-warning: #eab308; /* the timer's mid-range tick, stats' mid-range effectiveness */
+
+  /* The one recurring non-default type size (badge-sized labels) */
+  --text-2xs: 0.625rem;
+  --font-mono: var(--font-overpass-mono);
+  /*--font-sans: var(--font-inter);*/
+
+  /* Entry transition for content that appears mid-interaction (hint
+     reveal, etc.) — short and ease-out per the animation guidance in
+     CONTEXT.md: fast initial movement reads as responsive, never as
+     sluggish the way ease-in would. */
+  --animate-fade-in: fade-in 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
