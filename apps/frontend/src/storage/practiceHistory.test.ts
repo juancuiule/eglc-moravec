@@ -7,6 +7,7 @@ import {
 import { Addition, Multiplication, type BaseTrialResult } from "engine";
 
 const STORAGE_KEY = "moravec:practiceHistory";
+const RUN_ID = "practice-run-abc-123";
 
 // Minimal localStorage mock, matching storage/levelStats.test.ts's convention
 const store: Record<string, string> = {};
@@ -49,7 +50,7 @@ describe("buildPersistedPracticeTrials", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
 
     const result = makeResult();
-    const [persisted] = buildPersistedPracticeTrials([result]);
+    const [persisted] = buildPersistedPracticeTrials([result], RUN_ID);
 
     expect(persisted).not.toHaveProperty("levelNumber");
     expect(persisted.categoryCodename).toBe(result.operation.categoryCodename());
@@ -58,6 +59,8 @@ describe("buildPersistedPracticeTrials", () => {
     expect(persisted.timeTaken).toBe(900);
     expect(persisted.keystrokes).toBe(result.keystrokes);
     expect(persisted.playedAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(persisted.hintShown).toBe(false);
+    expect(persisted.runId).toBe(RUN_ID);
 
     vi.useRealTimers();
   });
@@ -66,28 +69,27 @@ describe("buildPersistedPracticeTrials", () => {
     const additionOp = Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
     const multOp = Multiplication.create({ type: "multiplication", codename: "1dx1d", lDigits: 1, rDigits: 1 });
 
-    const persisted = buildPersistedPracticeTrials([
-      makeResult({ operation: additionOp }),
-      makeResult({ operation: multOp }),
-    ]);
+    const persisted = buildPersistedPracticeTrials(
+      [makeResult({ operation: additionOp }), makeResult({ operation: multOp })],
+      RUN_ID,
+    );
 
     expect(persisted[0].categoryCodename).toBe("1d+1d");
     expect(persisted[1].categoryCodename).toBe("1dx1d");
   });
 
   it("returns an empty array for no results", () => {
-    expect(buildPersistedPracticeTrials([])).toEqual([]);
+    expect(buildPersistedPracticeTrials([], RUN_ID)).toEqual([]);
   });
 
   it("assigns each trial its own timestamp, working backward by timeTaken from now", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:10.000Z"));
 
-    const persisted = buildPersistedPracticeTrials([
-      makeResult({ timeTaken: 1000 }),
-      makeResult({ timeTaken: 2000 }),
-      makeResult({ timeTaken: 3000 }),
-    ]);
+    const persisted = buildPersistedPracticeTrials(
+      [makeResult({ timeTaken: 1000 }), makeResult({ timeTaken: 2000 }), makeResult({ timeTaken: 3000 })],
+      RUN_ID,
+    );
 
     const timestamps = persisted.map((p) => p.playedAt);
     expect(new Set(timestamps).size).toBe(3);
@@ -107,15 +109,15 @@ describe("loadPracticeHistory / appendPracticeTrials", () => {
   });
 
   it("round-trips appended trials through storage", () => {
-    const persisted = buildPersistedPracticeTrials([makeResult()]);
+    const persisted = buildPersistedPracticeTrials([makeResult()], RUN_ID);
     appendPracticeTrials(persisted);
 
     expect(loadPracticeHistory()).toEqual(persisted);
   });
 
   it("accumulates across multiple appends", () => {
-    appendPracticeTrials(buildPersistedPracticeTrials([makeResult()]));
-    appendPracticeTrials(buildPersistedPracticeTrials([makeResult(), makeResult()]));
+    appendPracticeTrials(buildPersistedPracticeTrials([makeResult()], RUN_ID));
+    appendPracticeTrials(buildPersistedPracticeTrials([makeResult(), makeResult()], RUN_ID));
 
     expect(loadPracticeHistory()).toHaveLength(3);
   });

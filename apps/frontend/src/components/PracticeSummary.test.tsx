@@ -15,6 +15,7 @@ beforeEach(() => {
 const stoppedState: PracticeStopped = {
   type: "stopped",
   config: { categoryCodename: "1dx1d" },
+  runId: "practice-run-1",
   results: [],
 };
 

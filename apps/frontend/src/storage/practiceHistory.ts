@@ -14,11 +14,15 @@ export type PersistedPracticeTrial = {
   timeTaken: number;
   playedAt: string; // ISO date
   keystrokes: { key: string; t: number }[];
+  hintShown: boolean;
+  /** Identifies which single Practice session this trial belongs to — see PracticeStopped's runId. */
+  runId: string;
 };
 
 /** Map a stopped Practice session's trial results into the shape persisted to Practice history. */
 export function buildPersistedPracticeTrials(
   results: BaseTrialResult[],
+  runId: string,
 ): PersistedPracticeTrial[] {
   const playedAtTimestamps = computePlayedAtTimestamps(
     results.map((r) => r.timeTaken),
@@ -31,6 +35,8 @@ export function buildPersistedPracticeTrials(
     timeTaken: r.timeTaken,
     playedAt: new Date(playedAtTimestamps[i]).toISOString(),
     keystrokes: r.keystrokes,
+    hintShown: r.hintShown,
+    runId,
   }));
 }
 
