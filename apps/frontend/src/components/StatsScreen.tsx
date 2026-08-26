@@ -104,38 +104,51 @@ export function StatsScreen() {
             <span className="text-right">Avg time</span>
           </div>
 
-          {stats.map((row) => (
-            <div
-              key={row.codename}
-              onClick={() => row.total > 0 && setSelected(row.codename)}
-              className={[
-                "grid grid-cols-[6rem_1fr_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-base",
-                row.total > 0 ? "cursor-pointer hover:bg-panel-accent" : "",
-              ].join(" ")}
-            >
-              <span className="font-mono text-sm text-foreground">
-                {row.codename}
-              </span>
+          {stats.map((row) => {
+            const rowClassName = [
+              "grid grid-cols-[6rem_1fr_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-base w-full text-left",
+              row.total > 0 ? "cursor-pointer hover:bg-panel-accent" : "",
+            ].join(" ");
 
-              {row.total === 0 ? (
-                <span className="text-xs text-disabled col-span-2">
-                  No data yet
+            const content = (
+              <>
+                <span className="font-mono text-sm text-foreground">
+                  {row.codename}
                 </span>
-              ) : (
-                <>
-                  <div className="flex flex-col gap-0.5">
-                    <EffBar value={row.effectiveness} />
-                    <span className="text-2xs text-muted-2">
-                      {row.correctCount} / {row.total} correct
-                    </span>
-                  </div>
-                  <span className="text-xs text-right text-muted">
-                    {row.avgTimeMs !== null ? formatMs(row.avgTimeMs) : "—"}
+
+                {row.total === 0 ? (
+                  <span className="text-xs text-disabled col-span-2">
+                    No data yet
                   </span>
-                </>
-              )}
-            </div>
-          ))}
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-0.5">
+                      <EffBar value={row.effectiveness} />
+                      <span className="text-2xs text-muted-2">
+                        {row.correctCount} / {row.total} correct
+                      </span>
+                    </div>
+                    <span className="text-xs text-right text-muted">
+                      {row.avgTimeMs !== null ? formatMs(row.avgTimeMs) : "—"}
+                    </span>
+                  </>
+                )}
+              </>
+            );
+
+            // Only a row with data is actually navigable to the detail view —
+            // a real <button> for that (keyboard + screen-reader reachable),
+            // a plain <div> for the inert "no data yet" rows.
+            return row.total > 0 ? (
+              <button key={row.codename} onClick={() => setSelected(row.codename)} className={rowClassName}>
+                {content}
+              </button>
+            ) : (
+              <div key={row.codename} className={rowClassName}>
+                {content}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
