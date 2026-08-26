@@ -79,6 +79,7 @@ export function StatsScreen() {
           <button
             key={t}
             onClick={() => selectTab(t)}
+            aria-pressed={tab === t}
             className={[
               "flex-1 text-sm font-medium py-1.5 rounded-md transition-colors cursor-pointer",
               tab === t ? "bg-accent text-white" : "text-muted hover:text-foreground",

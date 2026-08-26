@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { StatsScreen } from "./StatsScreen";
 
@@ -49,4 +49,18 @@ test("a category row with no data is not rendered as an interactive control", as
 
   const row = await screen.findByText("1dx1d");
   expect(row.closest("button")).toBeNull();
+});
+
+test("the active Level/Practice tab exposes its selected state via aria-pressed, not color alone", () => {
+  render(<StatsScreen />);
+
+  const levelTab = screen.getByRole("button", { name: "Level" });
+  const practiceTab = screen.getByRole("button", { name: "Practice" });
+  expect(levelTab.getAttribute("aria-pressed")).toBe("true");
+  expect(practiceTab.getAttribute("aria-pressed")).toBe("false");
+
+  fireEvent.click(practiceTab);
+
+  expect(levelTab.getAttribute("aria-pressed")).toBe("false");
+  expect(practiceTab.getAttribute("aria-pressed")).toBe("true");
 });
