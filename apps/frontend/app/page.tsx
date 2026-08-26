@@ -15,13 +15,10 @@ export default function HomePage() {
     <div className={`${panel} p-6 gap-6`}>
       <div className="flex items-center justify-between flex-wrap gap-y-2">
         <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">Moravec</h1>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center flex-wrap justify-end gap-1">
           {authState.type === "loggedIn" ? (
             <>
-              <span
-                className="text-xs text-accent font-mono max-w-20 truncate"
-                title={authState.email}
-              >
+              <span className="text-xs text-accent font-mono break-all">
                 {authState.email}
               </span>
               <button onClick={logout} className={navLinkClassName}>
