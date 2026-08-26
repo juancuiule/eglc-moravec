@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePractice, practiceStore } from "@/practice/store";
-import { watchStoreTransition } from "@/storeWatch";
+import { authStore } from "@/auth/store";
 import { persistStoppedPractice } from "@/practice/persistStoppedPractice";
+import { practiceStore, usePractice } from "@/practice/store";
+import { watchStoreTransition } from "@/storeWatch";
+import { useEffect } from "react";
 import { PracticePlayingScreen } from "./PracticePlayingScreen";
 import { PracticeSummary } from "./PracticeSummary";
 
@@ -26,7 +27,7 @@ export function PracticePlay({ categoryCodename }: Props) {
       (s) => s.state.type === "stopped",
       (s) => {
         if (s.state.type !== "stopped") return;
-        persistStoppedPractice(s.state);
+        persistStoppedPractice(s.state, authStore.getState().state);
       },
     );
   }, []);
@@ -44,18 +45,23 @@ export function PracticePlay({ categoryCodename }: Props) {
     start({ categoryCodename });
   }, [categoryCodename, start]);
 
-  if (
-    practiceState.type === "playing" &&
-    practiceState.config.categoryCodename === categoryCodename
-  ) {
-    return <PracticePlayingScreen state={practiceState} />;
-  }
+  const { type } = practiceState;
 
-  if (
-    practiceState.type === "stopped" &&
-    practiceState.config.categoryCodename === categoryCodename
-  ) {
-    return <PracticeSummary state={practiceState} />;
+  switch (type) {
+    case "playing": {
+      const { config } = practiceState;
+      if (config.categoryCodename === categoryCodename) {
+        return <PracticePlayingScreen state={practiceState} />;
+      }
+      break;
+    }
+    case "stopped": {
+      const { config } = practiceState;
+      if (config.categoryCodename === categoryCodename) {
+        return <PracticeSummary state={practiceState} />;
+      }
+      break;
+    }
   }
 
   return null; // briefly, while the effect above catches up
