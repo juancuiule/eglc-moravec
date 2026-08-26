@@ -12,6 +12,11 @@ const defaultOptions: Required<OperandOptions> = {
   allow_multiples_of_ten: true,
 };
 
+function randomNonMultipleOfTen(min: number, max: number): number {
+  const value = math.randomInt(min, max);
+  return value % 10 === 0 ? randomNonMultipleOfTen(min, max) : value;
+}
+
 export function createRandomOperand(
   digits: number,
   options?: OperandOptions,
@@ -34,8 +39,10 @@ export function createRandomOperand(
 
     return math.pickRandom(possibleValues);
   } else {
-    const min = Math.pow(10, digits - 1) + (allow_multiples_of_ten ? 0 : 1);
+    const min = Math.pow(10, digits - 1);
     const max = Math.pow(10, digits) - 1;
-    return math.randomInt(min, max + 1);
+    return allow_multiples_of_ten
+      ? math.randomInt(min, max)
+      : randomNonMultipleOfTen(min, max);
   }
 }

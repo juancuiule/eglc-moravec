@@ -9,7 +9,8 @@ afterEach(() => {
 
 // With Math.random=0, createRandomOperand(1, {allow_zero:false, allow_one:true}) → 1
 // With Math.random=0, createRandomOperand(1, {allow_zero:false, allow_one:false}) → 2
-// With Math.random=0, createRandomOperand(2, {allow_multiples_of_ten:false}) → 11
+// With Math.random=0.02, createRandomOperand(2, {allow_multiples_of_ten:false}) → 11
+// (Math.random=0 would make Squaring's operand land on a rejected multiple of ten forever)
 
 describe("Addition", () => {
   const category = categoryFromCodename("1d+1d") as AdditionCategory;
@@ -73,25 +74,22 @@ describe("Multiplication", () => {
   });
 
   it("returns correct solveTime for 1dx1d", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    // solveTime depends only on category digits, not the random operands
     expect(Multiplication.create(category).solveTime()).toBe(10_000);
   });
 
   it("returns correct solveTime for 2dx1d", () => {
     const cat = categoryFromCodename("2dx1d") as MultiplicationCategory;
-    vi.spyOn(Math, "random").mockReturnValue(0);
     expect(Multiplication.create(cat).solveTime()).toBe(14_000);
   });
 
   it("returns correct solveTime for 3dx1d", () => {
     const cat = categoryFromCodename("3dx1d") as MultiplicationCategory;
-    vi.spyOn(Math, "random").mockReturnValue(0);
     expect(Multiplication.create(cat).solveTime()).toBe(16_000);
   });
 
   it("returns correct solveTime for 4dx1d", () => {
     const cat = categoryFromCodename("4dx1d") as MultiplicationCategory;
-    vi.spyOn(Math, "random").mockReturnValue(0);
     expect(Multiplication.create(cat).solveTime()).toBe(20_000);
   });
 });
@@ -100,38 +98,36 @@ describe("Squaring", () => {
   const category = categoryFromCodename("(2d)^2") as SquaringCategory;
 
   it("computes result correctly", () => {
-    // digits=2, allow_multiples_of_ten=false → min=11; Math.random=0 → 11
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    // digits=2, allow_multiples_of_ten=false → min=10, max=99; Math.random=0.02 → 11
+    vi.spyOn(Math, "random").mockReturnValue(0.02);
     const op = Squaring.create(category);
     expect(op.result()).toBe(121); // 11^2
   });
 
   it("formats humanReadable correctly", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.spyOn(Math, "random").mockReturnValue(0.02);
     const op = Squaring.create(category);
     expect(op.humanReadable()).toBe("11²");
   });
 
   it("exposes its operand", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.spyOn(Math, "random").mockReturnValue(0.02);
     const op = Squaring.create(category);
     expect(op.operands()).toEqual([11]);
   });
 
   it("returns correct solveTime for (2d)^2", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    // solveTime depends only on category.digits, not the random operand
     expect(Squaring.create(category).solveTime()).toBe(16_000);
   });
 
   it("returns correct solveTime for (3d)^2", () => {
     const cat = categoryFromCodename("(3d)^2") as SquaringCategory;
-    vi.spyOn(Math, "random").mockReturnValue(0);
     expect(Squaring.create(cat).solveTime()).toBe(34_000);
   });
 
   it("returns correct solveTime for (4d)^2", () => {
     const cat = categoryFromCodename("(4d)^2") as SquaringCategory;
-    vi.spyOn(Math, "random").mockReturnValue(0);
     expect(Squaring.create(cat).solveTime()).toBe(80_000);
   });
 });

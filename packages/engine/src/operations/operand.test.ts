@@ -40,18 +40,20 @@ describe("createRandomOperand", () => {
 
   describe("multi digit", () => {
     it("returns a 2-digit number when digits=2", () => {
-      // randomInt is called with (10, 100); Math.random=0 → 10
-      vi.spyOn(Math, "random").mockReturnValue(0);
-      const result = createRandomOperand(2);
-      expect(result).toBeGreaterThanOrEqual(10);
-      expect(result).toBeLessThanOrEqual(99);
+      for (let i = 0; i < 200; i++) {
+        const result = createRandomOperand(2);
+        expect(result).toBeGreaterThanOrEqual(10);
+        expect(result).toBeLessThanOrEqual(99);
+      }
     });
 
-    it("excludes multiples of ten when allow_multiples_of_ten is false", () => {
-      // min becomes 10+1=11; Math.random=0 → 11
-      vi.spyOn(Math, "random").mockReturnValue(0);
-      const result = createRandomOperand(2, { allow_multiples_of_ten: false });
-      expect(result % 10).not.toBe(0);
+    it("excludes multiples of ten when allow_multiples_of_ten is false, across the full range", () => {
+      for (let i = 0; i < 500; i++) {
+        const result = createRandomOperand(2, { allow_multiples_of_ten: false });
+        expect(result).toBeGreaterThanOrEqual(10);
+        expect(result).toBeLessThanOrEqual(99);
+        expect(result % 10).not.toBe(0);
+      }
     });
 
     it("returns a 3-digit number when digits=3", () => {
