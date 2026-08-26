@@ -64,3 +64,17 @@ test("the active Level/Practice tab exposes its selected state via aria-pressed,
   expect(levelTab.getAttribute("aria-pressed")).toBe("false");
   expect(practiceTab.getAttribute("aria-pressed")).toBe("true");
 });
+
+test("the empty state links to a next action, on both tabs", () => {
+  render(<StatsScreen />);
+
+  expect(screen.getByRole("link", { name: "complete some levels" }).getAttribute("href")).toBe(
+    "/levels",
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Practice" }));
+
+  expect(screen.getByRole("link", { name: "practice a category" }).getAttribute("href")).toBe(
+    "/practice",
+  );
+});

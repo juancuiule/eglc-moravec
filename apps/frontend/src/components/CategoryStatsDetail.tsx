@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { computeHistogram, type StatsTrial } from "../stats/computeStats";
 import { panel, backLink } from "../styles";
 
@@ -30,7 +31,16 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
       </p>
 
       {buckets.length === 0 ? (
-        <p className="text-center text-muted-2 py-8">No correct trials yet.</p>
+        <p className="text-center text-muted-2 py-8">
+          No correct trials yet —{" "}
+          <Link
+            href={`/practice/${encodeURIComponent(codename)}`}
+            className="underline hover:text-foreground"
+          >
+            practice this category
+          </Link>
+          .
+        </p>
       ) : (
         <div className="flex flex-col gap-2">
           <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">

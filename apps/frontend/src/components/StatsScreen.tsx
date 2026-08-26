@@ -92,9 +92,23 @@ export function StatsScreen() {
 
       {!hasAnyData ? (
         <p className="text-center text-muted-2 py-8">
-          {tab === "level"
-            ? "No data yet — complete some levels to see your stats."
-            : "No data yet — practice a category to see your stats."}
+          {tab === "level" ? (
+            <>
+              No data yet —{" "}
+              <Link href="/levels" className="underline hover:text-foreground">
+                complete some levels
+              </Link>{" "}
+              to see your stats.
+            </>
+          ) : (
+            <>
+              No data yet —{" "}
+              <Link href="/practice" className="underline hover:text-foreground">
+                practice a category
+              </Link>{" "}
+              to see your stats.
+            </>
+          )}
         </p>
       ) : (
         <div className="flex flex-col gap-1">
