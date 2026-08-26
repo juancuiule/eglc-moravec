@@ -47,7 +47,8 @@ const trial = {
   hintShown: true,
   streakAtSubmit: 4,
   hintsAvailableAtStart: 3,
-  levelRunId: "run-xyz",
+  runId: "run-xyz",
+  runType: "level" as const,
 };
 
 describe("POST /sync/results", () => {
@@ -79,7 +80,8 @@ describe("POST /sync/results", () => {
       hint_shown: 1,
       streak_at_submit: 4,
       hints_available_at_start: 3,
-      level_run_id: "run-xyz",
+      run_id: "run-xyz",
+      run_type: "level",
     });
 
     const keystrokes = getKeystrokesForTrialResult(db, rows[0].id);
@@ -148,7 +150,7 @@ describe("POST /sync/results", () => {
 
 // A trial for level `levelNumber`, correct iff `correct`. Category is
 // always 1d+1d (solveTime 7000ms), and timeTaken is always well within it.
-function trialFor(levelNumber: number, correct: boolean, levelRunId: string) {
+function trialFor(levelNumber: number, correct: boolean, runId: string) {
   return {
     levelNumber,
     categoryCodename: "1d+1d",
@@ -162,7 +164,8 @@ function trialFor(levelNumber: number, correct: boolean, levelRunId: string) {
     hintShown: false,
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
-    levelRunId,
+    runId,
+    runType: "level" as const,
   };
 }
 
@@ -173,11 +176,11 @@ function batchFor(
   levelNumber: number,
   correctCount: number,
   wrongCount: number,
-  levelRunId: string = randomUUID(),
+  runId: string = randomUUID(),
 ) {
   return [
-    ...Array.from({ length: correctCount }, () => trialFor(levelNumber, true, levelRunId)),
-    ...Array.from({ length: wrongCount }, () => trialFor(levelNumber, false, levelRunId)),
+    ...Array.from({ length: correctCount }, () => trialFor(levelNumber, true, runId)),
+    ...Array.from({ length: wrongCount }, () => trialFor(levelNumber, false, runId)),
   ];
 }
 
@@ -305,5 +308,86 @@ describe("level_runs (every attempt, not just the best)", () => {
 
     const runs = getLevelRunsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(runs).toHaveLength(1);
+  });
+});
+
+const practiceTrial = {
+  levelNumber: null,
+  categoryCodename: "1dx1d",
+  correct: true,
+  timeExceeded: false,
+  timeTaken: 2200,
+  playedAt: 1_700_000_000_000,
+  keystrokes: [],
+  operands: [3, 4],
+  answer: 12,
+  hintShown: false,
+  streakAtSubmit: 1,
+  hintsAvailableAtStart: 0,
+  runId: "practice-run-1",
+  runType: "practice" as const,
+};
+
+describe("POST /sync/results with Practice trials", () => {
+  it("stores a Practice trial with the level_number sentinel and run_type practice", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { trials: [practiceTrial] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      level_number: 0,
+      run_type: "practice",
+      run_id: "practice-run-1",
+      category_codename: "1dx1d",
+    });
+  });
+
+  it("never creates a level_runs row or updates level_stats for a Practice batch", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { trials: [practiceTrial] },
+    });
+
+    expect(getLevelRunsForUser(db, hashEmail(EMAIL, TEST_SECRET))).toHaveLength(0);
+
+    const getRes = await app.inject({
+      method: "GET",
+      url: "/sync/level-stats",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(getRes.json()).toEqual({ levelStats: {} });
+  });
+
+  it("stores a mixed batch's Level and Practice trials independently", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { trials: [trial, practiceTrial] },
+    });
+
+    const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.run_type).sort()).toEqual(["level", "practice"]);
+
+    // Only the Level trial produces a level_runs row.
+    expect(getLevelRunsForUser(db, hashEmail(EMAIL, TEST_SECRET))).toHaveLength(1);
   });
 });

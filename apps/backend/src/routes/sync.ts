@@ -20,13 +20,16 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
     const evaluated = trials.map(evaluateTrialResult);
     insertTrialResults(db, emailHash, evaluated);
 
-    const runs = deriveLevelRuns(evaluated);
-    insertLevelRuns(db, emailHash, runs, Date.now());
+    const levelTrials = evaluated.filter((t) => t.runType === "level");
+    if (levelTrials.length > 0) {
+      const runs = deriveLevelRuns(levelTrials);
+      insertLevelRuns(db, emailHash, runs, Date.now());
 
-    const syncedAt = Date.now();
-    runs.forEach((run) => {
-      upsertLevelStatsIfBetter(db, emailHash, run.levelNumber, run, syncedAt);
-    });
+      const syncedAt = Date.now();
+      runs.forEach((run) => {
+        upsertLevelStatsIfBetter(db, emailHash, run.levelNumber, run, syncedAt);
+      });
+    }
 
     return reply.send({ ok: true, stored: trials.length });
   });
