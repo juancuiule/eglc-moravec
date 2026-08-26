@@ -1,82 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useMutation } from "@tanstack/react-query";
 import { Api } from "@/api/Api";
-import { useAuth } from "@/auth/store";
-import { syncLevelStatsFromRemote } from "@/sync/syncLevelStatsFromRemote";
-import { panel, button, textLink } from "@/styles";
-
-type Step = { type: "email" } | { type: "code"; email: string };
+import { backLink, button, panel } from "@/styles";
+import { useMutation } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 /**
- * The interactive email -> code flow. Whether to show this at all (i.e.
- * whether the player is already logged in) is decided server-side, before
- * this ever mounts — see app/login/page.tsx.
+ * The "request code" part of the interactive email -> code flow.
+ * Whether to show this at all (i.e. whether the player is already
+ * logged in) is decided server-side, before this ever mounts
+ * — see app/login/page.tsx.
  */
 export function LoginForm() {
   const router = useRouter();
-  const authState = useAuth((s) => s.state);
-  const login = useAuth((s) => s.login);
-
-  const [step, setStep] = useState<Step>({ type: "email" });
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
 
   const requestCode = useMutation({
     mutationFn: (email: string) => Api.requestOtp(email),
-    onSuccess: (_data, email) => setStep({ type: "code", email }),
+    onSuccess: (_data, email) =>
+      router.push(`/login/otp?email=${encodeURIComponent(email)}`),
   });
-
-  const verifyCode = useMutation({
-    // Carries the current anonymous session's token (if any) so the
-    // backend can fold its trials/level_stats into this email on success —
-    // a no-op server-side if there isn't one.
-    mutationFn: (vars: { email: string; code: string }) =>
-      Api.verifyOtp(vars.email, vars.code, authState.type === "anonymous" ? authState.token : undefined),
-    onSuccess: (result, vars) => {
-      login({ token: result.token, email: vars.email });
-      void syncLevelStatsFromRemote(result.token);
-      router.push("/");
-    },
-  });
-
-  if (step.type === "code") {
-    return (
-      <div className={`${panel} p-8 gap-4`}>
-        <h1 className="text-xl font-bold tracking-tight">Enter your code</h1>
-        <p className="text-sm text-muted">We sent a 6-digit code to {step.email}.</p>
-        <input
-          className="bg-base border border-subtle rounded-xl px-4 py-3 text-lg font-mono text-center tracking-[0.5em]"
-          value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          inputMode="numeric"
-          maxLength={6}
-          placeholder="000000"
-          autoFocus
-        />
-        {verifyCode.error && <p className="text-sm text-danger">{verifyCode.error.message}</p>}
-        <button
-          className={`${button({ intent: "primary" })} disabled:opacity-30 disabled:cursor-not-allowed`}
-          disabled={verifyCode.isPending || code.length !== 6}
-          onClick={() => verifyCode.mutate({ email: step.email, code })}
-        >
-          {verifyCode.isPending ? "Verifying…" : "Verify"}
-        </button>
-        <Link href="/" className={textLink}>
-          Back to menu
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className={`${panel} p-8 gap-4`}>
-      <h1 className="text-xl font-bold tracking-tight">Log in</h1>
+      <div className="flex items-center gap-3">
+        <Link href="/" className={backLink} aria-label="Back to menu">
+          ←
+        </Link>
+        <h1 className="text-xl font-bold tracking-tight">Login</h1>
+      </div>
+
       <p className="text-sm text-muted">
-        No password — we'll email you a one-time code. Playing without an account still works fine.
+        No password — we'll email you a one-time code. Playing without an
+        account still works fine.
       </p>
       <input
         className="bg-base border border-subtle rounded-xl px-4 py-3"
@@ -86,7 +44,9 @@ export function LoginForm() {
         placeholder="you@example.com"
         autoFocus
       />
-      {requestCode.error && <p className="text-sm text-danger">{requestCode.error.message}</p>}
+      {requestCode.error && (
+        <p className="text-sm text-danger">{requestCode.error.message}</p>
+      )}
       <button
         className={`${button({ intent: "primary" })} disabled:opacity-30 disabled:cursor-not-allowed`}
         disabled={requestCode.isPending || email.length === 0}
@@ -94,9 +54,6 @@ export function LoginForm() {
       >
         {requestCode.isPending ? "Sending…" : "Send code"}
       </button>
-      <Link href="/" className={textLink}>
-        Back to menu
-      </Link>
     </div>
   );
 }

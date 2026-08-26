@@ -52,6 +52,8 @@
 
   /* The one recurring non-default type size (badge-sized labels) */
   --text-2xs: 0.625rem;
+  --font-mono: var(--font-overpass-mono);
+  /*--font-sans: var(--font-inter);*/
 
   /* Entry transition for content that appears mid-interaction (hint
      reveal, etc.) — short and ease-out per the animation guidance in
