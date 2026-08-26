@@ -6,6 +6,7 @@ import {
   scoreAnswer,
   scoreTimeout,
   canShowHint,
+  currentStreak,
   starsForScore,
   LEVEL_COMPLETE_THRESHOLD,
   type Keystroke,
@@ -155,15 +156,6 @@ function startPlaying(config: GameConfig, trialId = 0): Playing {
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
-
-function currentStreak(results: TrialResult[]): number {
-  let streak = 0;
-  for (let i = results.length - 1; i >= 0; i--) {
-    if (results[i].correct) streak++;
-    else break;
-  }
-  return streak;
-}
 
 /**
  * Reconstructs the hint budget as it stood before this trial's own hint

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { scoreAnswer, scoreTimeout, evaluateTrial, canShowHint } from "./engine";
+import { scoreAnswer, scoreTimeout, evaluateTrial, canShowHint, currentStreak } from "./engine";
 import { Addition } from "../operations/operation";
 
 function makeOp() {
@@ -144,5 +144,25 @@ describe("canShowHint", () => {
 
   it("rejects when the budget is exhausted", () => {
     expect(canShowHint(false, true, 0)).toBe(false);
+  });
+});
+
+describe("currentStreak", () => {
+  it("is 0 for an empty array", () => {
+    expect(currentStreak([])).toBe(0);
+  });
+
+  it("counts every trailing correct trial", () => {
+    expect(currentStreak([{ correct: true }, { correct: true }, { correct: true }])).toBe(3);
+  });
+
+  it("stops counting at the most recent incorrect trial", () => {
+    expect(
+      currentStreak([{ correct: true }, { correct: false }, { correct: true }, { correct: true }]),
+    ).toBe(2);
+  });
+
+  it("is 0 when the most recent trial was incorrect", () => {
+    expect(currentStreak([{ correct: true }, { correct: false }])).toBe(0);
   });
 });

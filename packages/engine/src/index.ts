@@ -24,6 +24,7 @@ export {
   scoreTimeout,
   evaluateTrial,
   canShowHint,
+  currentStreak,
   type Keystroke,
   type Answering,
   type BaseTrialResult,

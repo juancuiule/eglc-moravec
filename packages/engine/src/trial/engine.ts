@@ -109,3 +109,21 @@ export function canShowHint(
     (hintsRemaining === undefined || hintsRemaining > 0)
   );
 }
+
+// ─── Streak ────────────────────────────────────────────────────────────────────
+
+/**
+ * How many trials, walking backward from the end of `results`, were
+ * consecutively correct. Used both live during Level play (as each trial is
+ * scored) and retroactively for Practice (computed once, after a session
+ * stops, from its full results array) — see game/store.ts and
+ * sync/pushPracticeResults.ts.
+ */
+export function currentStreak(results: readonly { correct: boolean }[]): number {
+  let streak = 0;
+  for (let i = results.length - 1; i >= 0; i--) {
+    if (results[i].correct) streak++;
+    else break;
+  }
+  return streak;
+}
