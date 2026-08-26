@@ -48,6 +48,12 @@ const ROWS = [
   ["C", "0", "⌫"],
 ];
 
+/** Accessible names for the two symbol/letter action keys — their own glyph isn't a reliable screen-reader name. */
+const KEY_LABELS: Record<string, string> = {
+  C: "Clear",
+  "⌫": "Delete last digit",
+};
+
 export function AnsweringPanel({
   operation,
   playingState,
@@ -229,6 +235,7 @@ export function AnsweringPanel({
                 key={key}
                 onPointerDown={() => press(key)}
                 onClick={() => handleButton(key)}
+                aria-label={KEY_LABELS[key]}
                 className={[
                   "h-14 rounded-xl font-semibold text-xl cursor-pointer select-none",
                   "transition-all duration-100",

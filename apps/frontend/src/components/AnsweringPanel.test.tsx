@@ -46,8 +46,15 @@ test("backspace removes the last digit on click", () => {
 
   fireEvent.click(screen.getByRole("button", { name: "5" }));
   fireEvent.click(screen.getByRole("button", { name: "3" }));
-  fireEvent.click(screen.getByRole("button", { name: "⌫" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete last digit" }));
   fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
   expect(onSubmitAnswer).toHaveBeenCalledWith(5, expect.any(Array), true);
+});
+
+test("the clear and backspace keys have a descriptive accessible name, not just their glyph", () => {
+  renderPanel();
+
+  expect(screen.getByRole("button", { name: "Clear" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Delete last digit" })).toBeDefined();
 });
