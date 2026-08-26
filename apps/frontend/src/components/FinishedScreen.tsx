@@ -3,6 +3,7 @@
 import { formatDuration } from "@/formatTime";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { TOTAL_LEVELS } from "engine";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
 import { button, panel } from "../styles";
@@ -17,7 +18,7 @@ export function FinishedScreen({ state }: Props) {
 
   const { correctCount, levelCompleted, stars, results, config } = state;
   const totalAttempts = results.length;
-  const isLastLevel = config.levelNumber >= 150;
+  const isLastLevel = config.levelNumber >= TOTAL_LEVELS;
 
   function playNext() {
     router.push(`/level/${config.levelNumber + 1}`);

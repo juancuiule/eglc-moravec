@@ -31,6 +31,13 @@ export {
   type TrialInputs,
 } from "./trial/engine";
 
-export { starsForScore, LEVEL_COMPLETE_THRESHOLD } from "./levelScoring";
+export {
+  starsForScore,
+  LEVEL_COMPLETE_THRESHOLD,
+  TOTAL_LEVELS,
+  TRIALS_PER_LEVEL,
+  isBetterLevelRecord,
+  type LevelRecordCandidate,
+} from "./levelScoring";
 
 export { math, getKeys, getValues } from "./utils";

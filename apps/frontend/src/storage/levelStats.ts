@@ -1,3 +1,5 @@
+import { isBetterLevelRecord } from "engine";
+
 const STORAGE_KEY = "moravec:levelStats";
 
 export type LevelStats = {
@@ -38,12 +40,7 @@ export function updateLevelRecord(
   const all = loadLevelStats();
   const existing = all[key];
 
-  const isBetter =
-    !existing ||
-    run.stars > existing.stars ||
-    (run.stars === existing.stars && run.totalTime < existing.totalTime);
-
-  if (!isBetter) return;
+  if (!isBetterLevelRecord(run, existing)) return;
 
   saveLevelStats({
     ...all,

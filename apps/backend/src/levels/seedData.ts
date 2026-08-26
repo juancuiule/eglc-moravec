@@ -4,6 +4,8 @@
 // changing a level's mix here has no effect on an already-seeded database.
 // Moved here from apps/frontend/src/LEVELS.ts so level content can change
 // without a frontend rebuild.
+import { TOTAL_LEVELS } from "engine";
+
 type LevelMix = Record<string, number>;
 
 export const LEVEL_SEED_DATA: Record<string, LevelMix> = {
@@ -1361,3 +1363,9 @@ export const LEVEL_SEED_DATA: Record<string, LevelMix> = {
     "4dx1d": 30,
   },
 };
+
+if (Object.keys(LEVEL_SEED_DATA).length !== TOTAL_LEVELS) {
+  throw new Error(
+    `LEVEL_SEED_DATA has ${Object.keys(LEVEL_SEED_DATA).length} levels, but engine's TOTAL_LEVELS is ${TOTAL_LEVELS}`,
+  );
+}

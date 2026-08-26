@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { EvaluatedTrialResult, LevelRunSummary } from "./logic.js";
-import { isBetterLevelRecord } from "./logic.js";
+import { isBetterLevelRecord } from "engine";
 
 export type LevelStatsRow = {
   email_hash: string;

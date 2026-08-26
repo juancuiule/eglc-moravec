@@ -145,16 +145,3 @@ export function deriveLevelRuns(trials: readonly EvaluatedTrialResult[]): LevelR
     };
   });
 }
-
-/**
- * A record is better if it has more stars, or the same stars in less time —
- * mirrors the frontend's LevelStats comparison (storage/levelStats.ts).
- */
-export function isBetterLevelRecord(
-  candidate: { stars: number; totalTime: number },
-  existing: { stars: number; totalTime: number } | null,
-): boolean {
-  if (existing === null) return true;
-  if (candidate.stars > existing.stars) return true;
-  return candidate.stars === existing.stars && candidate.totalTime < existing.totalTime;
-}

@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  parseTrialResults,
-  isBetterLevelRecord,
-  evaluateTrialResult,
-  deriveLevelRuns,
-} from "./logic.js";
+import { parseTrialResults, evaluateTrialResult, deriveLevelRuns } from "./logic.js";
 
 const validTrial = {
   levelNumber: 3,
@@ -231,27 +226,5 @@ describe("deriveLevelRuns", () => {
 
   it("returns an empty array for no trials", () => {
     expect(deriveLevelRuns([])).toEqual([]);
-  });
-});
-
-describe("isBetterLevelRecord", () => {
-  it("accepts anything when there's no existing record", () => {
-    expect(isBetterLevelRecord({ stars: 0, totalTime: 999_999 }, null)).toBe(true);
-  });
-
-  it("accepts more stars", () => {
-    expect(isBetterLevelRecord({ stars: 2, totalTime: 20000 }, { stars: 1, totalTime: 10000 })).toBe(true);
-  });
-
-  it("rejects fewer stars even with a better time", () => {
-    expect(isBetterLevelRecord({ stars: 1, totalTime: 5000 }, { stars: 2, totalTime: 20000 })).toBe(false);
-  });
-
-  it("accepts the same stars with a better time", () => {
-    expect(isBetterLevelRecord({ stars: 2, totalTime: 9000 }, { stars: 2, totalTime: 10000 })).toBe(true);
-  });
-
-  it("rejects the same stars with a worse time", () => {
-    expect(isBetterLevelRecord({ stars: 2, totalTime: 12000 }, { stars: 2, totalTime: 10000 })).toBe(false);
   });
 });

@@ -9,6 +9,7 @@ import {
   currentStreak,
   starsForScore,
   LEVEL_COMPLETE_THRESHOLD,
+  TRIALS_PER_LEVEL,
   type Keystroke,
   type Answering,
   type BaseTrialResult,
@@ -22,12 +23,12 @@ export { LEVEL_COMPLETE_THRESHOLD };
 export type GameConfig = {
   levelNumber: number;
   level: Level;
-  totalTrials: number; // always 20 for levelled play
+  totalTrials: number; // always TRIALS_PER_LEVEL for levelled play
 };
 
 // ─── Scoring ───────────────────────────────────────────────────────────────────
 
-export const TOTAL_TRIALS = 20;
+export const TOTAL_TRIALS = TRIALS_PER_LEVEL;
 
 // ─── Trial result ──────────────────────────────────────────────────────────────
 
