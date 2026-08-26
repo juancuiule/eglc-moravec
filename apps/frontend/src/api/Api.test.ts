@@ -99,6 +99,7 @@ test("syncResults resolves on success", async () => {
   await expect(
     Api.syncResults("tok", [
       {
+        runType: "level",
         levelNumber: 1,
         categoryCodename: "1d+1d",
         correct: true,
@@ -109,7 +110,7 @@ test("syncResults resolves on success", async () => {
         hintShown: false,
         streakAtSubmit: 0,
         hintsAvailableAtStart: 3,
-        levelRunId: "run-abc",
+        runId: "run-abc",
         operands: [2, 3],
         answer: 5,
       },

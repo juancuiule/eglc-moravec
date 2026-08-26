@@ -44,7 +44,7 @@ describe("buildPersistedTrials", () => {
     expect(persisted.hintShown).toBe(false);
     expect(persisted.streakAtSubmit).toBe(0);
     expect(persisted.hintsAvailableAtStart).toBe(3);
-    expect(persisted.levelRunId).toBe(RUN_ID);
+    expect(persisted.runId).toBe(RUN_ID);
     expect(persisted.playedAt).toBe("2026-01-01T00:00:00.000Z");
 
     vi.useRealTimers();

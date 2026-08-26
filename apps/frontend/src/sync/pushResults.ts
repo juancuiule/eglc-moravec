@@ -16,6 +16,7 @@ import { Api, type SyncTrial } from "../api/Api";
  */
 export function pushResults(token: string, results: TrialResult[], trials: PersistedTrial[]): void {
   const payload: SyncTrial[] = trials.map((t, i) => ({
+    runType: "level",
     levelNumber: t.levelNumber,
     categoryCodename: t.categoryCodename,
     correct: t.correct,
@@ -28,7 +29,7 @@ export function pushResults(token: string, results: TrialResult[], trials: Persi
     hintShown: t.hintShown,
     streakAtSubmit: t.streakAtSubmit,
     hintsAvailableAtStart: t.hintsAvailableAtStart,
-    levelRunId: t.levelRunId,
+    runId: t.runId,
   }));
 
   void Api.syncResults(token, payload).catch(() => {

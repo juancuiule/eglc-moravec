@@ -16,14 +16,14 @@ export type PersistedTrial = {
   streakAtSubmit: number;
   hintsAvailableAtStart: number;
   /** Identifies which single playthrough this trial belongs to — see Playing/Finished's runId. */
-  levelRunId: string;
+  runId: string;
 };
 
 /** Map a finished level's trial results into the shape persisted to trial history. */
 export function buildPersistedTrials(
   config: GameConfig,
   results: TrialResult[],
-  levelRunId: string,
+  runId: string,
 ): PersistedTrial[] {
   const playedAtTimestamps = computePlayedAtTimestamps(
     results.map((r) => r.timeTaken),
@@ -40,7 +40,7 @@ export function buildPersistedTrials(
     hintShown: r.hintShown,
     streakAtSubmit: r.streakAtSubmit,
     hintsAvailableAtStart: r.hintsAvailableAtStart,
-    levelRunId,
+    runId,
   }));
 }
 

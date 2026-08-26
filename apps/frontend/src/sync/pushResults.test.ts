@@ -36,7 +36,7 @@ function makeTrial(overrides: Partial<PersistedTrial> = {}): PersistedTrial {
     hintShown: false,
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
-    levelRunId: "run-abc",
+    runId: "run-abc",
     ...overrides,
   };
 }
@@ -53,6 +53,7 @@ describe("pushResults", () => {
 
     expect(Api.syncResults).toHaveBeenCalledWith("tok", [
       {
+        runType: "level",
         levelNumber: 3,
         categoryCodename: "1d+1d",
         correct: true,
@@ -65,7 +66,7 @@ describe("pushResults", () => {
         hintShown: false,
         streakAtSubmit: 0,
         hintsAvailableAtStart: 3,
-        levelRunId: "run-abc",
+        runId: "run-abc",
       },
     ]);
   });

@@ -8,7 +8,8 @@ export type Keystroke = { key: string; t: number };
 
 /** Wire shape of one finished Trial pushed to /sync/results. */
 export type SyncTrial = {
-  levelNumber: number;
+  runType: "level" | "practice";
+  levelNumber: number | null;
   categoryCodename: string;
   correct: boolean;
   timeExceeded: boolean;
@@ -20,7 +21,7 @@ export type SyncTrial = {
   hintShown: boolean;
   streakAtSubmit: number;
   hintsAvailableAtStart: number;
-  levelRunId: string;
+  runId: string;
 };
 
 export type LevelStats = {

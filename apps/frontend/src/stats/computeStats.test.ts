@@ -19,7 +19,7 @@ function trial(
     hintShown: false,
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
-    levelRunId: "run-abc",
+    runId: "run-abc",
   };
 }
 
