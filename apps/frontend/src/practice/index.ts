@@ -1,4 +1,5 @@
 import { createStore } from "zustand/vanilla";
+import { randomId } from "../randomId";
 import {
   createOperation,
   type Operation,
@@ -32,6 +33,7 @@ export type PracticeIdle = { type: "idle" };
 export type PracticePlaying = {
   type: "playing";
   config: PracticeConfig;
+  runId: string;
   currentOperation: Operation;
   trialId: number;
   results: PracticeTrialResult[];
@@ -42,6 +44,7 @@ export type PracticePlaying = {
 export type PracticeStopped = {
   type: "stopped";
   config: PracticeConfig;
+  runId: string;
   results: PracticeTrialResult[];
 };
 
@@ -85,6 +88,7 @@ function startPlaying(config: PracticeConfig, trialId = 0): PracticePlaying {
   return {
     type: "playing",
     config,
+    runId: randomId(),
     currentOperation: createOperation(config.categoryCodename),
     trialId,
     results: [],
@@ -169,6 +173,7 @@ export function createPracticeStore() {
         state: {
           type: "stopped",
           config: state.config,
+          runId: state.runId,
           results: state.results,
         },
       });

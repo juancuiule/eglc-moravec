@@ -25,6 +25,19 @@ describe("createPracticeStore", () => {
     expect(store.getState().state.type).toBe("playing");
   });
 
+  it("each start() generates a fresh runId", () => {
+    store.getState().start({ categoryCodename: "1dx1d" });
+    const first = store.getState().state;
+    if (first.type !== "playing") throw new Error();
+    store.getState().stop();
+
+    store.getState().start({ categoryCodename: "1dx1d" });
+    const second = store.getState().state;
+    if (second.type !== "playing") throw new Error();
+
+    expect(second.runId).not.toBe(first.runId);
+  });
+
   describe("while playing", () => {
     beforeEach(() => {
       store.getState().start({ categoryCodename: "1d+1d" });
@@ -91,6 +104,15 @@ describe("createPracticeStore", () => {
       expect(stopped.type).toBe("stopped");
       if (stopped.type !== "stopped") return;
       expect(stopped.results).toHaveLength(1);
+    });
+
+    it("stop preserves the runId generated at start", () => {
+      const playing = store.getState().state;
+      if (playing.type !== "playing") throw new Error();
+      store.getState().stop();
+      const stopped = store.getState().state;
+      if (stopped.type !== "stopped") throw new Error();
+      expect(stopped.runId).toBe(playing.runId);
     });
 
     it("timeout answer is not penalised — still advances normally", () => {
