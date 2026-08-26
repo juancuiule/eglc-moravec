@@ -1,15 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { expect, test } from "vitest";
 import { TutorialDetail } from "./TutorialDetail";
-
-const push = vi.fn();
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
-}));
-
-beforeEach(() => {
-  push.mockClear();
-});
 
 test("multiplication has a category selector and a live hint", () => {
   render(<TutorialDetail topic="multiplication" />);
@@ -40,13 +31,13 @@ test("addition has no live hint — there's no decomposition trick", () => {
   expect(screen.queryByTestId("hint-card")).toBeNull();
 });
 
-test("practicing this category navigates to that category's practice page", () => {
+test("the Practice CTA is a real link to that category's practice page", () => {
   render(<TutorialDetail topic="multiplication" />);
 
   fireEvent.click(screen.getByRole("button", { name: "1d × 1d" }));
-  fireEvent.click(screen.getByRole("button", { name: /Practice 1d × 1d/ }));
+  const practiceLink = screen.getByRole("link", { name: /Practice 1d × 1d/ });
 
-  expect(push).toHaveBeenCalledWith("/practice/1dx1d");
+  expect(practiceLink.getAttribute("href")).toBe("/practice/1dx1d");
 });
 
 test("split squaring topics have their own video and no category selector", () => {
@@ -67,5 +58,5 @@ test("Major System has a video, the digit table, and a worked example, but no in
   expect(screen.getByText(/"lupa"/)).toBeDefined();
   expect(screen.queryByTestId("hint-card")).toBeNull();
   expect(screen.queryByTestId("tutorial-expression")).toBeNull();
-  expect(screen.queryByRole("button", { name: /Practice/ })).toBeNull();
+  expect(screen.queryByRole("link", { name: /Practice/ })).toBeNull();
 });

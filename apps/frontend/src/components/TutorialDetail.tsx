@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createOperation, type Operation } from "engine";
 import { CATEGORY_LABELS } from "../categoryLabels";
 import {
@@ -17,12 +16,11 @@ import {
 } from "../tutorials/content";
 import { HintCard } from "./HintCard";
 import { YouTubeEmbed } from "./YouTubeEmbed";
-import { panel, backLink, button } from "../styles";
+import { panel, backLink, linkButton } from "../styles";
 
 type Props = { topic: TutorialTopic };
 
 export function TutorialDetail({ topic }: Props) {
-  const router = useRouter();
   const categories = useMemo(() => categoriesForTopic(topic), [topic]);
   // The most complex category in the topic actually has digits to decompose —
   // "1d × 1d" has nothing to break down and makes for a trivial-looking hint.
@@ -38,11 +36,6 @@ export function TutorialDetail({ topic }: Props) {
     setCodename(nextCodename);
     setOperation(createOperation(nextCodename));
     setRevealed(false);
-  }
-
-  function practiceThis() {
-    if (!codename) return;
-    router.push(`/practice/${encodeURIComponent(codename)}`);
   }
 
   const hint = operation?.hint();
@@ -148,12 +141,12 @@ export function TutorialDetail({ topic }: Props) {
             </div>
           </div>
 
-          <button
-            onClick={practiceThis}
-            className={`${button({ intent: "primary" })} text-center`}
+          <Link
+            href={`/practice/${encodeURIComponent(codename!)}`}
+            className={linkButton({ intent: "primary" })}
           >
             Practice {CATEGORY_LABELS[codename!] ?? codename}
-          </button>
+          </Link>
         </>
       )}
     </div>
