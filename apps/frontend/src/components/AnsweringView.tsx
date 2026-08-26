@@ -37,9 +37,9 @@ export function AnsweringView({ state }: Props) {
         />
       }
       beforeOperation={
-        <div className="text-center text-xs text-muted font-mono tracking-wider">
+        <h1 className="text-center text-xs text-muted font-mono tracking-wider">
           Level {state.config.levelNumber}
-        </div>
+        </h1>
       }
       headerLeft={
         <span>
