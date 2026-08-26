@@ -73,7 +73,7 @@ The authentication flow: the player enters their email, receives a one-time nume
 _Avoid_: Magic link, passwordless login, sign-in.
 
 **Sync**:
-Reconciling a User's local Level progress with the backend — active for any session, anonymous or logged in. Has two directions: a push of each Trial's result immediately after a Level (fire-and-forget, doesn't block play; the payload includes full per-keystroke timing, which is research signal in its own right, not just an anti-cheat measure), and a pull of the User's remote LevelStats on OTP login, merged into local state using the same better-record comparison LevelStats already uses. Practice sessions are never synced — local-only by design.
+Reconciling a User's local progress with the backend — active for any session, anonymous or logged in. Has two directions: a push of each Trial's result immediately after a Level finishes or a Practice session stops (fire-and-forget, doesn't block play; the payload includes full per-keystroke timing, which is research signal in its own right, not just an anti-cheat measure), and a pull of the User's remote LevelStats on OTP login, merged into local state using the same better-record comparison LevelStats already uses. Level and Practice trials share one backend table (`trial_results`, discriminated by a `run_type` column) but stay isolated everywhere it matters: only Level trials feed `level_runs`/LevelStats or the Levels unlock cache — a Practice trial is never more than a raw synced trial row.
 _Avoid_: Backup, save, upload.
 
 ### Research background
