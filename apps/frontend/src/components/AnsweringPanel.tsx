@@ -12,8 +12,16 @@ type Props = {
   playingState: Answering | ReviewingResult;
   trialId: number;
   hintVisible: boolean;
-  onSubmitAnswer: (answer: number, keystrokes: Keystroke[], hasErased: boolean) => void;
-  onTimeUp: (answer: number | null, keystrokes: Keystroke[], hasErased: boolean) => void;
+  onSubmitAnswer: (
+    answer: number,
+    keystrokes: Keystroke[],
+    hasErased: boolean,
+  ) => void;
+  onTimeUp: (
+    answer: number | null,
+    keystrokes: Keystroke[],
+    hasErased: boolean,
+  ) => void;
   onAdvance: () => void;
   /** Left side of the header row (trial count / correct count). */
   headerLeft: ReactNode;
@@ -75,7 +83,8 @@ export function AnsweringPanel({
   }, [trialId, solveTime]);
 
   // Countdown timer — only active while answering
-  const startedAt = playingState.type === "answering" ? playingState.startedAt : null;
+  const startedAt =
+    playingState.type === "answering" ? playingState.startedAt : null;
 
   useEffect(() => {
     if (startedAt === null) return;
@@ -84,7 +93,11 @@ export function AnsweringPanel({
       setRemaining(left);
       if (left === 0) {
         clearInterval(id);
-        onTimeUp(parsedAnswer(answerRef.current), keystrokesRef.current, hasErasedRef.current);
+        onTimeUp(
+          parsedAnswer(answerRef.current),
+          keystrokesRef.current,
+          hasErasedRef.current,
+        );
       }
     }, 100);
     return () => clearInterval(id);
@@ -126,12 +139,18 @@ export function AnsweringPanel({
       setAnswer("");
       answerRef.current = "";
     } else if (key === "⌫") {
-      keystrokesRef.current.push({ key: "⌫", t: Date.now() - (startedAt ?? Date.now()) });
+      keystrokesRef.current.push({
+        key: "⌫",
+        t: Date.now() - (startedAt ?? Date.now()),
+      });
       hasErasedRef.current = true;
       setAnswer((prev) => prev.slice(0, -1));
       answerRef.current = answerRef.current.slice(0, -1);
     } else {
-      keystrokesRef.current.push({ key, t: Date.now() - (startedAt ?? Date.now()) });
+      keystrokesRef.current.push({
+        key,
+        t: Date.now() - (startedAt ?? Date.now()),
+      });
       setAnswer((prev) => (prev.length < 10 ? prev + key : prev));
       answerRef.current =
         answerRef.current.length < 10
@@ -142,7 +161,8 @@ export function AnsweringPanel({
 
   function doSubmit() {
     const parsed = parsedAnswer(answerRef.current);
-    if (parsed !== null) onSubmitAnswer(parsed, keystrokesRef.current, hasErasedRef.current);
+    if (parsed !== null)
+      onSubmitAnswer(parsed, keystrokesRef.current, hasErasedRef.current);
   }
 
   const isReviewing = playingState.type === "reviewing";
@@ -152,24 +172,32 @@ export function AnsweringPanel({
   // Referencing the theme's own CSS variables (Tailwind v4 emits one per
   // @theme color) instead of repeating their hex values here in JS.
   const timerColor =
-    ratio > 0.5 ? "var(--color-success)" : ratio > 0.25 ? "var(--color-warning)" : "var(--color-danger)";
+    ratio > 0.5
+      ? "var(--color-success)"
+      : ratio > 0.25
+        ? "var(--color-warning)"
+        : "var(--color-danger)";
   const seconds = Math.ceil(remaining / 1000);
 
   return (
     <div className={`${panel} p-6 gap-5`}>
       {/* Header */}
       <div className="flex justify-between items-center text-sm text-muted">
-        {headerLeft}
-        <span className={`transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}>
+        <div className="flex flex-1 justify-start">{headerLeft}</div>
+        <span
+          className={`transition-opacity font-mono duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}
+        >
           {seconds}s
         </span>
-        {headerRight}
+        <div className="flex flex-1 justify-end">{headerRight}</div>
       </div>
 
       {/* {aboveTimer} */}
 
       {/* Timer bar */}
-      <div className={`h-1.5 bg-subtle rounded-full overflow-hidden transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}>
+      <div
+        className={`h-1.5 bg-subtle rounded-full overflow-hidden transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}
+      >
         <div
           className="h-full rounded-full transition-[width] duration-100 ease-linear"
           style={{ width: `${ratio * 100}%`, backgroundColor: timerColor }}

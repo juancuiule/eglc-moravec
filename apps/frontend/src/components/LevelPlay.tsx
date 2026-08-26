@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useGame, gameStore } from "@/game/store";
 import { authStore } from "@/auth/store";
-import { watchStoreTransition } from "@/storeWatch";
-import { persistFinishedLevel } from "@/game/persistFinishedLevel";
-import { loadLevelStats, isLevelUnlocked } from "@/storage/levelStats";
-import type { Level } from "@/level";
 import { TOTAL_TRIALS } from "@/game/index";
+import { persistFinishedLevel } from "@/game/persistFinishedLevel";
+import { gameStore, useGame } from "@/game/store";
+import type { Level } from "@/level";
+import { isLevelUnlocked, loadLevelStats } from "@/storage/levelStats";
+import { watchStoreTransition } from "@/storeWatch";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { AnsweringView } from "./AnsweringView";
 import { FinishedScreen } from "./FinishedScreen";
 
@@ -46,7 +46,8 @@ export function LevelPlay({ levelNumber, level }: Props) {
     }
 
     const state = gameStore.getState().state;
-    const alreadyThisLevel = state.type !== "loading" && state.config.levelNumber === levelNumber;
+    const alreadyThisLevel =
+      state.type !== "loading" && state.config.levelNumber === levelNumber;
     if (alreadyThisLevel) return;
 
     // load() only starts from Loading or Finished — abandon a different
@@ -57,12 +58,23 @@ export function LevelPlay({ levelNumber, level }: Props) {
     load({ levelNumber, level, totalTrials: TOTAL_TRIALS });
   }, [levelNumber, level, load, router]);
 
-  if (gameState.type === "playing" && gameState.config.levelNumber === levelNumber) {
-    return <AnsweringView state={gameState} />;
-  }
+  const { type } = gameState;
 
-  if (gameState.type === "finished" && gameState.config.levelNumber === levelNumber) {
-    return <FinishedScreen state={gameState} />;
+  switch (type) {
+    case "playing": {
+      const { config } = gameState;
+      if (config.levelNumber === levelNumber) {
+        return <AnsweringView state={gameState} />;
+      }
+      break;
+    }
+    case "finished": {
+      const { config } = gameState;
+      if (config.levelNumber === levelNumber) {
+        return <FinishedScreen state={gameState} />;
+      }
+      break;
+    }
   }
 
   return null; // briefly, while the effect above catches up
