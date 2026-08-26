@@ -54,11 +54,16 @@ export function OtpForm({
         <h1 className="text-xl font-bold tracking-tight">Enter your code</h1>
       </div>
       <p className="text-sm text-muted">We sent a 6-digit code to {email}.</p>
+      <label htmlFor="otp-code" className="sr-only">
+        6-digit code
+      </label>
       <input
+        id="otp-code"
         className="bg-base border border-subtle rounded-xl px-4 py-3 text-lg font-mono text-center tracking-[0.5em]"
         value={code}
         onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
         inputMode="numeric"
+        autoComplete="one-time-code"
         maxLength={6}
         placeholder="000000"
         autoFocus

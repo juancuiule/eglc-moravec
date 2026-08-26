@@ -36,9 +36,14 @@ export function LoginForm() {
         No password — we'll email you a one-time code. Playing without an
         account still works fine.
       </p>
+      <label htmlFor="login-email" className="sr-only">
+        Email
+      </label>
       <input
+        id="login-email"
         className="bg-base border border-subtle rounded-xl px-4 py-3"
         type="email"
+        autoComplete="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="you@example.com"
