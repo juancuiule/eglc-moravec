@@ -28,7 +28,8 @@ function trial(overrides: Partial<EvaluatedTrialResult> = {}): EvaluatedTrialRes
     hintShown: false,
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
-    levelRunId: "run-1",
+    runId: "run-1",
+    runType: "level",
     ...overrides,
   };
 }
@@ -64,6 +65,30 @@ describe("GET /admin/stats", () => {
 
     const mult = body.byCategory.find((r: { categoryCodename: string }) => r.categoryCodename === "1dx1d");
     expect(mult).toMatchObject({ attemptCount: 1, userCount: 1, effectiveness: 1, avgTimeMs: 5000 });
+  });
+
+  it("excludes Practice trials from both aggregates", async () => {
+    const { db, app } = setup();
+
+    insertTrialResults(db, "userA", [trial({ timeTaken: 1000 })]); // Level
+    insertTrialResults(db, "userA", [
+      trial({ runType: "practice", levelNumber: null, categoryCodename: "1d+1d", timeTaken: 9999 }),
+    ]);
+
+    const res = await app.inject({ method: "GET", url: "/admin/stats" });
+    const body = res.json();
+
+    const level1 = body.byLevel.find((r: { levelNumber: number }) => r.levelNumber === 1);
+    expect(level1.attemptCount).toBe(1); // the Practice trial doesn't inflate this
+
+    const addition = body.byCategory.find(
+      (r: { categoryCodename: string }) => r.categoryCodename === "1d+1d",
+    );
+    expect(addition.attemptCount).toBe(1);
+    expect(addition.avgTimeMs).toBe(1000); // Practice's 9999ms doesn't skew this either
+
+    // No bogus "level 0" bucket from the Practice trial's sentinel level_number.
+    expect(body.byLevel.find((r: { levelNumber: number }) => r.levelNumber === 0)).toBeUndefined();
   });
 
   it("requires no authentication", async () => {

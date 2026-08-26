@@ -39,7 +39,8 @@ const trial = {
   hintShown: false,
   streakAtSubmit: 0,
   hintsAvailableAtStart: 3,
-  levelRunId: "run-1",
+  runId: "run-1",
+  runType: "level" as const,
 };
 
 describe("POST /auth/otp/request", () => {
@@ -250,7 +251,7 @@ describe("POST /auth/device", () => {
       method: "POST",
       url: "/sync/results",
       headers: { authorization: `Bearer ${token2}` },
-      payload: { trials: [{ ...trial, levelRunId: "run-2" }] },
+      payload: { trials: [{ ...trial, runId: "run-2" }] },
     });
 
     const deviceEmailHash = hashDeviceId("device-1", TEST_SECRET);

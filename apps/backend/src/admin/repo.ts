@@ -23,6 +23,7 @@ export function getLevelPerformance(db: DatabaseSync): LevelPerformanceRow[] {
          SUM(correct) AS correct_count,
          AVG(CASE WHEN correct = 1 THEN time_taken ELSE NULL END) AS avg_time_taken
        FROM trial_results
+       WHERE run_type = 'level'
        GROUP BY level_number
        ORDER BY level_number`,
     )
@@ -47,6 +48,7 @@ export function getCategoryPerformance(db: DatabaseSync): CategoryPerformanceRow
          SUM(correct) AS correct_count,
          AVG(CASE WHEN correct = 1 THEN time_taken ELSE NULL END) AS avg_time_taken
        FROM trial_results
+       WHERE run_type = 'level'
        GROUP BY category_codename
        ORDER BY category_codename`,
     )

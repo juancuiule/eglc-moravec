@@ -65,7 +65,7 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   // Every attempt at a Level, not just the best one — level_stats above
   // stays the best-ever cache the Levels page reads, this is the full
   // history. id is the client-generated levelRunId (see game/index.ts),
-  // which is also what trial_results.level_run_id groups back to this row.
+  // which is also what trial_results.run_id groups back to this row.
   `CREATE TABLE IF NOT EXISTS level_runs (
      id TEXT PRIMARY KEY,
      email_hash TEXT NOT NULL,
