@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Api, type AdminStats, type LevelPerformance, type CategoryPerformance } from "@/api/Api";
-import { panel, backLink } from "@/styles";
+import { panel, backLink, textLink } from "@/styles";
 
 // Without this, Next statically renders this page once at build time
 // (fetch() has no dynamic-API usage to opt it out automatically) and bakes
@@ -73,7 +73,12 @@ export default async function AdminPage() {
       </div>
 
       {data === null && (
-        <p className="text-center text-danger py-8">Failed to load admin stats.</p>
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-center text-sm text-danger">Failed to load admin stats.</p>
+          <Link href="/admin" className={`${textLink} underline`}>
+            Try again
+          </Link>
+        </div>
       )}
 
       {data !== null && (
