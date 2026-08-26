@@ -10,7 +10,7 @@ import {
   type PersistedLevelStats,
 } from "@/storage/levelStats";
 import { formatDuration } from "@/formatTime";
-import { panel, backLink } from "@/styles";
+import { panel, backLink, textLink } from "@/styles";
 
 function RowStars({
   stars,
@@ -52,6 +52,7 @@ export function LevelsList() {
     data: levelKeys,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ["levels"],
     queryFn: Api.fetchLevelNumbers,
@@ -80,9 +81,14 @@ export function LevelsList() {
         <p className="text-center text-sm text-muted py-8">Loading levels…</p>
       )}
       {isError && (
-        <p className="text-center text-sm text-danger py-8">
-          Couldn't load levels.
-        </p>
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-center text-sm text-danger">
+            Couldn't load levels.
+          </p>
+          <button onClick={() => refetch()} className={`${textLink} underline`}>
+            Try again
+          </button>
+        </div>
       )}
 
       {levelKeys && (

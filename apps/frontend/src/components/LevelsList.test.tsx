@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LevelsList } from "./LevelsList";
@@ -56,4 +56,16 @@ test("shows an error message when the level catalog fails to load", async () => 
   renderWithQueryClient();
 
   expect(await screen.findByText(/Couldn't load levels/)).toBeDefined();
+});
+
+test("'Try again' retries the failed fetch", async () => {
+  vi.mocked(Api.fetchLevelNumbers).mockRejectedValue(new Error("network down"));
+  renderWithQueryClient();
+  await screen.findByText(/Couldn't load levels/);
+
+  vi.mocked(Api.fetchLevelNumbers).mockResolvedValue([1]);
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+  expect(await screen.findByRole("link", { name: /Level 1/ })).toBeDefined();
+  expect(screen.queryByText(/Couldn't load levels/)).toBeNull();
 });
