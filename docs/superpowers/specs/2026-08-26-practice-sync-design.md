@@ -129,6 +129,39 @@ Both queries add `WHERE run_type = 'level'`. This is a required part of this
 change, not follow-up polish — without it, shipping Practice sync silently
 corrupts existing admin analytics the moment Practice trials start arriving.
 
+## Shared streak helper (`packages/engine`)
+
+`streakAtSubmit` *is* meaningful for Practice — it's a pure function of the
+ordered `results` array (how many consecutive corrects preceded this trial),
+and Practice trials already carry `correct: boolean`. There's no live budget
+to track during play (unlike hints), so it can be computed once, after the
+session stops, from the final `results` array.
+
+Today this logic exists only as a private, unexported `currentStreak` helper
+inside `apps/frontend/src/game/store.ts`. Move it to
+`packages/engine/src/trial/engine.ts` — the file whose own header comment
+already says "Used by both the level game and practice mode," i.e. the
+established shared home for exactly this kind of pure trial-computation logic
+(alongside `scoreAnswer`, `canShowHint`, `starsForScore`) — and export it:
+
+```
+export function currentStreak(results: { correct: boolean }[]): number {
+  let streak = 0;
+  for (let i = results.length - 1; i >= 0; i--) {
+    if (results[i].correct) streak++;
+    else break;
+  }
+  return streak;
+}
+```
+
+`game/store.ts`'s `toReviewing` imports this instead of defining its own copy
+(no behavior change for Level — same function, same call site,
+`currentStreak(state.results)`). `pushPracticeResults.ts` (below) computes
+each trial's `streakAtSubmit` retroactively as `currentStreak(results.slice(0,
+i))` — the streak of corrects strictly before trial `i`, matching the exact
+semantics `game/store.ts` already uses.
+
 ## Frontend changes
 
 **`apps/frontend/src/api/Api.ts`**
@@ -163,7 +196,7 @@ export function pushPracticeResults(
     operands: results[i].operation.operands(),
     answer: results[i].answer,
     hintShown: t.hintShown,
-    streakAtSubmit: 0,           // not a Practice concept — see note below
+    streakAtSubmit: currentStreak(results.slice(0, i)), // see engine helper above
     hintsAvailableAtStart: 0,    // Practice hints are unlimited — see note below
     runId: t.runId,              // see PersistedPracticeTrial change below
   }));
@@ -174,12 +207,12 @@ export function pushPracticeResults(
 }
 ```
 
-Note: `streakAtSubmit`/`hintsAvailableAtStart` aren't tracked concepts in
-Practice (no streak, no finite hint budget). Sending `0` for both is an
-accepted rough edge under decision #1 (Practice data isn't feeding any
-analytics yet) — `0` could misread later as "no hints left" rather than
-"unlimited" to someone reading raw rows, but there's no product need to solve
-that now.
+Note: `hintsAvailableAtStart` isn't a tracked concept in Practice — hints are
+unlimited (`requestHint()` in `practice/store.ts` has no budget field to
+subtract from, unlike Level's `hintsRemaining`). Sending `0` is an accepted
+rough edge under decision #1 (Practice data isn't feeding any analytics yet)
+— `0` could misread later as "no hints left" rather than "unlimited" to
+someone reading raw rows, but there's no product need to solve that now.
 
 Also note: Practice's `PracticeStopped`/`PersistedPracticeTrial` currently
 carry no run id at all (`practice/store.ts`'s states have no `runId` field,
@@ -249,7 +282,16 @@ feed `level_runs`/`level_stats` or the Levels unlock cache.
   'practice'` rows from their aggregates.
 
 **Frontend**
-- `sync/pushPracticeResults.test.ts` (new), mirroring `sync/pushResults.test.ts`.
+- `packages/engine`: `currentStreak` has no dedicated unit test today — only
+  indirect coverage via `game/index.test.ts`'s assertion on
+  `streakAtSubmit`, which stays valid unchanged since the function's
+  behavior/signature don't change, just its location. Add a direct test in
+  `trial/engine.test.ts` now that it's a public export, including the "no
+  prior trials" (empty array) boundary, which `game/store.ts`'s own usage
+  never exercises since it's never called with an empty array there.
+- `sync/pushPracticeResults.test.ts` (new), mirroring `sync/pushResults.test.ts`
+  — including a case asserting `streakAtSubmit` is computed correctly across
+  a short sequence of mixed correct/incorrect results, not just left at `0`.
 - `practice/persistStoppedPractice.test.ts`: update for the new `authState`
   parameter — asserts the sync push fires when not logged out and is skipped
   when logged out, mirroring `game/persistFinishedLevel.test.ts`'s existing
@@ -260,4 +302,5 @@ feed `level_runs`/`level_stats` or the Levels unlock cache.
 - Any Practice-side "best record"/summary cache analogous to `level_stats`.
 - Any admin view of Practice performance (the admin queries are only being
   *protected* from Practice contamination, not extended to report on it).
-- Deriving a real streak or hint budget for Practice trials.
+- Deriving a real hint budget for Practice trials (streak is now in scope —
+  see the shared streak helper section above).
