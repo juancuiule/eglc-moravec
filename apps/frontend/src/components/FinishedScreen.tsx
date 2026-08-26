@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { formatDuration } from "@/formatTime";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
+import { button, panel } from "../styles";
 import { StarsDisplay } from "./StarsDisplay";
-import { button, panelMaxWidth } from "../styles";
 
 type Props = { state: Finished };
 
@@ -42,27 +43,30 @@ export function FinishedScreen({ state }: Props) {
   }, [levelCompleted, isLastLevel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div
-      className={[
-        "border rounded-2xl p-8 w-full flex flex-col gap-6",
-        panelMaxWidth,
-        levelCompleted ? "bg-teal-bg border-teal" : "bg-danger-bg border-danger-border",
-      ].join(" ")}
-    >
+    <div className={["p-6 gap-6", panel].join(" ")}>
       <h1 className="text-2xl font-bold tracking-tight text-center">
         {levelCompleted ? "Level Complete!" : "Not quite…"}
       </h1>
 
       {levelCompleted && <StarsDisplay stars={stars} />}
 
+      <p className="font-mono text-accent text-xs text-center">
+        {formatDuration(
+          state.results.reduce((acc, curr) => acc + curr.timeTaken, 0),
+        )}
+      </p>
+
       <p className="text-center text-lg">
-        <span className={levelCompleted ? "text-teal font-bold text-2xl" : "text-danger font-bold text-2xl"}>
+        <span
+          className={
+            levelCompleted
+              ? "text-teal font-bold text-2xl"
+              : "text-danger font-bold text-2xl"
+          }
+        >
           {correctCount}
         </span>
-        <span className="text-muted">
-          {" "}
-          / {totalAttempts} correct
-        </span>
+        <span className="text-muted"> / {totalAttempts} correct</span>
       </p>
 
       <div className="flex flex-col gap-2">
