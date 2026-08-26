@@ -7,7 +7,7 @@ export function PracticeModeSelection() {
   return (
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
-        <Link href="/" className={backLink}>
+        <Link href="/" className={backLink} aria-label="Back to menu">
           ←
         </Link>
         <h1 className="text-xl font-bold tracking-tight">Practice</h1>

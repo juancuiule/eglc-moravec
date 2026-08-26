@@ -19,7 +19,7 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
   return (
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className={backLink}>
+        <button onClick={onBack} className={backLink} aria-label="Back to statistics">
           ←
         </button>
         <h1 className="text-xl font-bold tracking-tight font-mono">{codename}</h1>
