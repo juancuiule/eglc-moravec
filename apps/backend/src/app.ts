@@ -9,7 +9,16 @@ import { registerAdminRoutes } from "./routes/admin.js";
 import { registerLevelsRoutes } from "./routes/levels.js";
 
 export function buildApp(db: DatabaseSync, config: Config): FastifyInstance {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: config.prettyPrintLogs
+      ? {
+          transport: {
+            target: "pino-pretty",
+            options: { colorize: true, translateTime: "HH:MM:ss", ignore: "pid,hostname" },
+          },
+        }
+      : true,
+  });
   // Auth is per-request Bearer tokens, not cookies, so a permissive origin
   // carries no CSRF risk — callers still need a real token to do anything.
   void app.register(cors, { origin: config.corsOrigin });

@@ -8,6 +8,15 @@ export type Config = {
   otpMaxAttempts: number;
   sessionTtlMs: number;
   corsOrigin: string | true;
+  /**
+   * Pretty-print logs for a human reading a terminal — on only when NODE_ENV
+   * is exactly "development" (set by the `dev` script). Explicit opt-in
+   * rather than "everything except production", because every test file
+   * builds its Config from a literal env object that never sets NODE_ENV —
+   * an opt-out default would silently spin up pino-pretty's worker thread
+   * in every test run.
+   */
+  prettyPrintLogs: boolean;
 };
 
 /** `.env` files (and docker-compose's env_file) turn a blank value into "", not unset — treat both as unset. */
@@ -30,5 +39,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     otpMaxAttempts: 5,
     sessionTtlMs: 30 * 24 * 60 * 60 * 1000,
     corsOrigin: nonEmpty(env.CORS_ORIGIN) ?? true,
+    prettyPrintLogs: env.NODE_ENV === "development",
   };
 }

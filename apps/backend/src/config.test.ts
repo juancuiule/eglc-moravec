@@ -42,4 +42,29 @@ describe("loadConfig", () => {
       loadConfig({ NODE_ENV: "production", EMAIL_HASH_SECRET: "real-secret" } as NodeJS.ProcessEnv),
     ).not.toThrow();
   });
+
+  describe("prettyPrintLogs", () => {
+    it("is on only when NODE_ENV is exactly 'development'", () => {
+      const config = loadConfig({ NODE_ENV: "development" } as NodeJS.ProcessEnv);
+      expect(config.prettyPrintLogs).toBe(true);
+    });
+
+    it("is off when NODE_ENV is unset — every test file's Config comes from a literal env object that never sets it, so an opt-out default would spin up pino-pretty's worker thread in every test run", () => {
+      const config = loadConfig({} as NodeJS.ProcessEnv);
+      expect(config.prettyPrintLogs).toBe(false);
+    });
+
+    it("is off in production", () => {
+      const config = loadConfig({
+        NODE_ENV: "production",
+        EMAIL_HASH_SECRET: "real-secret",
+      } as NodeJS.ProcessEnv);
+      expect(config.prettyPrintLogs).toBe(false);
+    });
+
+    it("is off in test", () => {
+      const config = loadConfig({ NODE_ENV: "test" } as NodeJS.ProcessEnv);
+      expect(config.prettyPrintLogs).toBe(false);
+    });
+  });
 });
