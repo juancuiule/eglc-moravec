@@ -1,7 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { TutorialDetail } from "./TutorialDetail";
-import { practiceStore } from "../practice/store";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -10,7 +9,6 @@ vi.mock("next/navigation", () => ({
 
 beforeEach(() => {
   push.mockClear();
-  practiceStore.setState({ state: { type: "idle" } });
 });
 
 test("multiplication has a category selector and a live hint", () => {
@@ -42,16 +40,13 @@ test("addition has no live hint — there's no decomposition trick", () => {
   expect(screen.queryByTestId("hint-card")).toBeNull();
 });
 
-test("practicing this category starts Practice and navigates there", () => {
+test("practicing this category navigates to that category's practice page", () => {
   render(<TutorialDetail topic="multiplication" />);
 
   fireEvent.click(screen.getByRole("button", { name: "1d × 1d" }));
   fireEvent.click(screen.getByRole("button", { name: /Practice 1d × 1d/ }));
 
-  expect(push).toHaveBeenCalledWith("/practice");
-  const state = practiceStore.getState().state;
-  expect(state.type).toBe("playing");
-  expect(state.type === "playing" && state.config.categoryCodename).toBe("1dx1d");
+  expect(push).toHaveBeenCalledWith("/practice/1dx1d");
 });
 
 test("split squaring topics have their own video and no category selector", () => {

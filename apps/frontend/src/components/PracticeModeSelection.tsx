@@ -1,14 +1,9 @@
-"use client";
-
 import Link from "next/link";
-import { usePractice } from "../practice/store";
 import { ALL_CATEGORIES } from "../stats/computeStats";
 import { CATEGORY_LABELS } from "../categoryLabels";
 import { panel, backLink } from "../styles";
 
 export function PracticeModeSelection() {
-  const start = usePractice((s) => s.start);
-
   return (
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
@@ -24,13 +19,13 @@ export function PracticeModeSelection() {
 
       <div className="grid grid-cols-3 gap-2">
         {ALL_CATEGORIES.map((codename) => (
-          <button
+          <Link
             key={codename}
-            onClick={() => start({ categoryCodename: codename })}
+            href={`/practice/${encodeURIComponent(codename)}`}
             className="flex flex-col items-center justify-center rounded-xl py-3 px-2 bg-base border border-subtle hover:border-accent hover:text-accent transition-all cursor-pointer font-mono text-sm font-semibold"
           >
             {CATEGORY_LABELS[codename] ?? codename}
-          </button>
+          </Link>
         ))}
       </div>
     </div>

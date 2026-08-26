@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createOperation, type Operation } from "engine";
-import { usePractice } from "../practice/store";
 import { CATEGORY_LABELS } from "../categoryLabels";
 import {
   TUTORIAL_TITLES,
@@ -24,7 +23,6 @@ type Props = { topic: TutorialTopic };
 
 export function TutorialDetail({ topic }: Props) {
   const router = useRouter();
-  const start = usePractice((s) => s.start);
   const categories = useMemo(() => categoriesForTopic(topic), [topic]);
   // The most complex category in the topic actually has digits to decompose —
   // "1d × 1d" has nothing to break down and makes for a trivial-looking hint.
@@ -44,8 +42,7 @@ export function TutorialDetail({ topic }: Props) {
 
   function practiceThis() {
     if (!codename) return;
-    start({ categoryCodename: codename });
-    router.push("/practice");
+    router.push(`/practice/${encodeURIComponent(codename)}`);
   }
 
   const hint = operation?.hint();
