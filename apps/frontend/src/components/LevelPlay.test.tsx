@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { LevelPlay } from "./LevelPlay";
 import { gameStore } from "@/game/store";
 import { TOTAL_TRIALS } from "@/game/index";
+import { saveLevelStats } from "@/storage/levelStats";
 import type { Level } from "@/level";
 
 const router = { replace: vi.fn(), push: vi.fn() };
@@ -10,9 +11,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 
-// Fixture, not the real catalog's level 1 — tests shouldn't depend on
+// Fixtures, not the real catalog's levels — tests shouldn't depend on
 // production Level content (which now lives in the backend).
 const level1: Level = { "1d+1d": 100 };
+const level2: Level = { "1dx1d": 100 };
 
 const localStorageStore: Record<string, string> = {};
 const localStorageMock = {
@@ -46,6 +48,45 @@ function finishCurrentRun() {
     });
   }
 }
+
+test("fresh mount starts a Playing run for the given level", () => {
+  render(<LevelPlay levelNumber={1} level={level1} />);
+
+  const state = gameStore.getState().state;
+  expect(state.type).toBe("playing");
+  if (state.type === "playing") {
+    expect(state.config.levelNumber).toBe(1);
+    expect(state.results).toEqual([]);
+    expect(state.trialId).toBe(0);
+  }
+});
+
+test("switching to a different level mid-play abandons the in-progress run and starts fresh for the new level", () => {
+  // Level 2 needs level 1 already recorded to be unlocked.
+  saveLevelStats({ "1": { stars: 3, totalTime: 1000, completedAt: new Date().toISOString() } });
+
+  const { rerender } = render(<LevelPlay levelNumber={1} level={level1} />);
+  expect(gameStore.getState().state.type).toBe("playing");
+  const level1RunId =
+    gameStore.getState().state.type === "playing"
+      ? (gameStore.getState().state as { runId: string }).runId
+      : null;
+
+  // Still mid-play on level 1 — navigating straight to level 2's URL
+  // rerenders this same component with a new levelNumber, no unmount.
+  act(() => {
+    rerender(<LevelPlay levelNumber={2} level={level2} />);
+  });
+
+  const state = gameStore.getState().state;
+  expect(state.type).toBe("playing");
+  if (state.type === "playing") {
+    expect(state.config.levelNumber).toBe(2);
+    expect(state.runId).not.toBe(level1RunId);
+    expect(state.results).toEqual([]);
+    expect(state.trialId).toBe(0);
+  }
+});
 
 test("revisiting the same level after finishing it starts a fresh run, not the stale Finished state", () => {
   const { unmount } = render(<LevelPlay levelNumber={1} level={level1} />);
