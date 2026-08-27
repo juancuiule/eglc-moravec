@@ -242,7 +242,7 @@ export function AnsweringPanel({
                   isAction
                     ? "bg-subtle text-muted hover:bg-subtle-accent"
                     : "bg-base border border-subtle text-foreground hover:border-accent hover:text-accent",
-                  isPressed ? "scale-90 brightness-150" : "",
+                  isPressed ? "scale-96 brightness-150" : "",
                 ].join(" ")}
               >
                 {key}
