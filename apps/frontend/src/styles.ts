@@ -21,12 +21,12 @@ export const panelMaxWidth = "max-w-[480px]";
 export const button = cva("cursor-pointer rounded-lg", {
   variants: {
     intent: {
-      primary: "text-white font-semibold px-5 py-2.5 bg-accent hover:opacity-90 active:scale-[0.97] transition-opacity",
+      primary: "text-white font-semibold px-5 py-2.5 bg-accent hover:opacity-90 active:scale-96 transition-[opacity,scale] duration-150",
       /** The "move forward" action (play next, submit) — the brand's teal, not a semantic green. */
-      success: "text-white font-semibold px-5 py-2.5 bg-teal hover:opacity-90 active:scale-[0.97] transition-opacity",
+      success: "text-white font-semibold px-5 py-2.5 bg-teal hover:opacity-90 active:scale-96 transition-[opacity,scale] duration-150",
       /** Same weight as primary, lower visual priority — pink outline instead of a solid fill. */
       outline:
-        "text-accent-text font-semibold px-5 py-2.5 bg-panel border-2 border-accent hover:bg-panel-accent active:scale-[0.97] transition-colors",
+        "text-accent-text font-semibold px-5 py-2.5 bg-panel border-2 border-accent hover:bg-panel-accent active:scale-96 transition-[background-color,scale] duration-150",
       ghost: "text-muted font-medium w-full px-5 py-2 hover:text-foreground transition-colors",
     },
   },

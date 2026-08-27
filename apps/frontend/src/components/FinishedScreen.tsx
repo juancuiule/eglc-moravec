@@ -51,28 +51,31 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelCompleted, isLastLevel]);
 
+  const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
+
   return (
     <div className={["p-6 gap-6", panel].join(" ")}>
-      <h1 className="text-2xl font-bold tracking-tight text-center">
+      <h1 className="text-2xl font-bold tracking-tight text-center animate-fade-in">
         {levelCompleted ? "Level Complete!" : "Not quite…"}
       </h1>
 
-      {levelCompleted && <StarsDisplay stars={stars} />}
+      {levelCompleted && (
+        <div className="animate-fade-in" style={{ animationDelay: "100ms", animationFillMode: "backwards" }}>
+          <StarsDisplay stars={stars} />
+        </div>
+      )}
 
       {levelCompleted && isNewRecord && (
-        <div className="flex items-center justify-center gap-1.5 bg-teal-bg text-foreground rounded-xl py-2 px-3 text-sm font-semibold animate-fade-in">
+        <div
+          className="flex items-center justify-center gap-1.5 bg-teal-bg text-foreground rounded-xl py-2 px-3 text-sm font-semibold animate-fade-in"
+          style={{ animationDelay: "200ms", animationFillMode: "backwards" }}
+        >
           <span aria-hidden="true">🎉</span>
           New record!
         </div>
       )}
 
-      <p className="font-mono text-accent-text text-xs text-center">
-        {formatDuration(
-          state.results.reduce((acc, curr) => acc + curr.timeTaken, 0),
-        )}
-      </p>
-
-      <p className="text-center text-lg">
+      <div className="text-center animate-fade-in" style={{ animationDelay: "300ms", animationFillMode: "backwards" }}>
         <span
           className={
             levelCompleted
@@ -82,10 +85,16 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
         >
           {correctCount}
         </span>
-        <span className="text-muted"> / {totalAttempts} correct</span>
-      </p>
+        <span className="text-muted text-lg"> / {totalAttempts} correct</span>
+        <p className="font-mono text-accent-text text-xs mt-1">
+          {formatDuration(totalTime)}
+        </p>
+      </div>
 
-      <div className="flex flex-col gap-2">
+      <div
+        className="flex flex-col gap-2 animate-fade-in"
+        style={{ animationDelay: "400ms", animationFillMode: "backwards" }}
+      >
         {levelCompleted && !isLastLevel && (
           <Link href={`/level/${config.levelNumber + 1}`} className={linkButton({ intent: "success" })}>
             Play next level (N)

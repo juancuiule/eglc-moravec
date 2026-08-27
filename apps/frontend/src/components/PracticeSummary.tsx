@@ -23,17 +23,25 @@ export function PracticeSummary({ state }: Props) {
   }
 
   return (
-    <div className={`${panel} p-8 gap-6`}>
-      <h1 className="text-2xl font-bold tracking-tight text-center">Session done</h1>
+    <div className={`${panel} p-6 gap-6`}>
+      <h1 className="text-2xl font-bold tracking-tight text-center animate-fade-in">
+        Session done
+      </h1>
 
-      <div className="text-center">
+      <div
+        className="text-center animate-fade-in"
+        style={{ animationDelay: "150ms", animationFillMode: "backwards" }}
+      >
         <span className="text-5xl font-bold text-accent">{pct}%</span>
         <p className="text-muted text-sm mt-1">
           {correctCount} of {total} correct
         </p>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div
+        className="flex flex-col gap-2 animate-fade-in"
+        style={{ animationDelay: "300ms", animationFillMode: "backwards" }}
+      >
         <button className={button({ intent: "primary" })} onClick={() => start(config)}>
           Practice again
         </button>
