@@ -80,6 +80,12 @@ describe("updateLevelRecord", () => {
     updateLevelRecord(1, { stars: 2, totalTime: 12000 });
     expect(loadLevelStats()["1"]?.totalTime).toBe(8000);
   });
+
+  it("returns whether it was a new record", () => {
+    expect(updateLevelRecord(1, { stars: 2, totalTime: 10000 })).toBe(true);
+    expect(updateLevelRecord(1, { stars: 1, totalTime: 5000 })).toBe(false);
+    expect(updateLevelRecord(1, { stars: 2, totalTime: 5000 })).toBe(true);
+  });
 });
 
 describe("mergeRemoteLevelStats", () => {

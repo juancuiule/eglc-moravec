@@ -21,8 +21,31 @@ const finishedState: Finished = {
 // (Cmd/Ctrl/middle-click, "open in new tab") rather than a button that only
 // works via a JS onClick.
 test("\"Play next level\" is a real link to the next level, not a button", () => {
-  render(<FinishedScreen state={finishedState} />);
+  render(<FinishedScreen state={finishedState} isNewRecord={false} />);
 
   const link = screen.getByRole("link", { name: "Play next level (N)" });
   expect(link.getAttribute("href")).toBe("/level/4");
+});
+
+test("a new record shows the celebration message", () => {
+  render(<FinishedScreen state={finishedState} isNewRecord={true} />);
+
+  expect(screen.getByText("New record!")).toBeDefined();
+});
+
+test("no celebration message when the run didn't set a new record", () => {
+  render(<FinishedScreen state={finishedState} isNewRecord={false} />);
+
+  expect(screen.queryByText("New record!")).toBeNull();
+});
+
+test("no celebration message on a failed run, even if isNewRecord is somehow true", () => {
+  render(
+    <FinishedScreen
+      state={{ ...finishedState, levelCompleted: false, stars: 0, correctCount: 10 }}
+      isNewRecord={true}
+    />,
+  );
+
+  expect(screen.queryByText("New record!")).toBeNull();
 });

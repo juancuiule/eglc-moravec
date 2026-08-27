@@ -8,7 +8,7 @@ import type { Level } from "@/level";
 import { isLevelUnlocked, loadLevelStats } from "@/storage/levelStats";
 import { watchStoreTransition } from "@/storeWatch";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AnsweringView } from "./AnsweringView";
 import { FinishedScreen } from "./FinishedScreen";
 
@@ -25,6 +25,7 @@ export function LevelPlay({ levelNumber, level }: Props) {
   const router = useRouter();
   const gameState = useGame((s) => s.state);
   const load = useGame((s) => s.load);
+  const [isNewRecord, setIsNewRecord] = useState(false);
 
   // Persist + sync a Level the moment the game store reaches Finished —
   // tied to the state transition, not to whether FinishedScreen renders.
@@ -34,7 +35,7 @@ export function LevelPlay({ levelNumber, level }: Props) {
       (s) => s.state.type === "finished",
       (s) => {
         if (s.state.type !== "finished") return;
-        persistFinishedLevel(s.state, authStore.getState().state);
+        setIsNewRecord(persistFinishedLevel(s.state, authStore.getState().state));
       },
     );
   }, []);
@@ -70,7 +71,7 @@ export function LevelPlay({ levelNumber, level }: Props) {
     case "finished": {
       const { config } = gameState;
       if (config.levelNumber === levelNumber) {
-        return <FinishedScreen state={gameState} />;
+        return <FinishedScreen state={gameState} isNewRecord={isNewRecord} />;
       }
       break;
     }

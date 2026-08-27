@@ -73,6 +73,14 @@ describe("persistFinishedLevel", () => {
     expect(appendTrials).toHaveBeenCalledWith([{ fake: "persisted-trial" }]);
   });
 
+  it("returns whether the run was a new record, straight from updateLevelRecord", () => {
+    vi.mocked(updateLevelRecord).mockReturnValue(true);
+    expect(persistFinishedLevel(makeFinished(), loggedOut)).toBe(true);
+
+    vi.mocked(updateLevelRecord).mockReturnValue(false);
+    expect(persistFinishedLevel(makeFinished(), loggedOut)).toBe(false);
+  });
+
   it("does not sync to the backend when logged out", () => {
     persistFinishedLevel(makeFinished(), loggedOut);
 

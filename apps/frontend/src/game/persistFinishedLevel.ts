@@ -11,16 +11,22 @@ import { pushResults } from "../sync/pushResults";
  * only means that first request hasn't resolved yet or failed; trials
  * pushed while anonymous are folded into a real account later if the
  * player logs in.
+ *
+ * Returns whether this run set a new record for the level (see
+ * `updateLevelRecord`) — FinishedScreen uses this to decide whether to
+ * celebrate.
  */
-export function persistFinishedLevel(state: Finished, authState: AuthState): void {
+export function persistFinishedLevel(state: Finished, authState: AuthState): boolean {
   const { config, results, stars } = state;
   const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
 
-  updateLevelRecord(config.levelNumber, { stars, totalTime });
+  const isNewRecord = updateLevelRecord(config.levelNumber, { stars, totalTime });
   const persistedTrials = buildPersistedTrials(config, results, state.runId);
   appendTrials(persistedTrials);
 
   if (authState.type !== "loggedOut") {
     pushResults(authState.token, results, persistedTrials);
   }
+
+  return isNewRecord;
 }

@@ -10,9 +10,9 @@ import { useGame } from "../game/store";
 import { button, linkButton, panel } from "../styles";
 import { StarsDisplay } from "./StarsDisplay";
 
-type Props = { state: Finished };
+type Props = { state: Finished; isNewRecord: boolean };
 
-export function FinishedScreen({ state }: Props) {
+export function FinishedScreen({ state, isNewRecord }: Props) {
   const router = useRouter();
   const reset = useGame((s) => s.reset);
   const replay = useGame((s) => s.replay);
@@ -58,6 +58,13 @@ export function FinishedScreen({ state }: Props) {
       </h1>
 
       {levelCompleted && <StarsDisplay stars={stars} />}
+
+      {levelCompleted && isNewRecord && (
+        <div className="flex items-center justify-center gap-1.5 bg-teal-bg text-foreground rounded-xl py-2 px-3 text-sm font-semibold animate-fade-in">
+          <span aria-hidden="true">🎉</span>
+          New record!
+        </div>
+      )}
 
       <p className="font-mono text-accent-text text-xs text-center">
         {formatDuration(

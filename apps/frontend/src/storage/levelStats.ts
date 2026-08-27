@@ -31,16 +31,19 @@ export function saveLevelStats(stats: PersistedLevelStats): void {
 /**
  * Update the stored record for a level if the new run is better.
  * Better means: more stars, or same stars with less total time.
+ * Returns whether it was — the record must be read *before* this call
+ * overwrites it, so this is the only point that can answer that.
  */
 export function updateLevelRecord(
   levelNumber: number,
   run: { stars: 0 | 1 | 2 | 3; totalTime: number },
-): void {
+): boolean {
   const key = String(levelNumber);
   const all = loadLevelStats();
   const existing = all[key];
 
-  if (!isBetterLevelRecord(run, existing)) return;
+  const isNewRecord = isBetterLevelRecord(run, existing);
+  if (!isNewRecord) return false;
 
   saveLevelStats({
     ...all,
@@ -50,6 +53,7 @@ export function updateLevelRecord(
       completedAt: new Date().toISOString(),
     },
   });
+  return true;
 }
 
 /** A Level unlocks once the previous one has been completed with at least one star. Level 1 is always open. */
