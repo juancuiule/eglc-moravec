@@ -5,7 +5,14 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2022"],
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    // tsup's bundled dts-generation step (rollup-plugin-dts) always passes a
+    // baseUrl of its own ("." when ours doesn't set one) to the internal
+    // program it builds — nothing in this package's own source uses baseUrl.
+    // TS 6.0 makes that an error by default; this is the escape hatch TS
+    // itself documents for exactly this transitional case. Revisit once
+    // tsup/rollup-plugin-dts stop doing this (tracked upstream for TS 7).
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"]
 }
