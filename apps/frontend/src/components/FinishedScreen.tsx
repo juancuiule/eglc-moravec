@@ -42,7 +42,14 @@ export function FinishedScreen({ state }: Props) {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [levelCompleted, isLastLevel]); // eslint-disable-line react-hooks/exhaustive-deps
+    // playNext/backToMenu close over config/router/reset, and replay comes
+    // straight from the store, but `state` (and everything derived from it)
+    // never changes for the lifetime of this component's mount — a replay or
+    // next-level action navigates away or swaps `gameState` in LevelPlay,
+    // unmounting this screen rather than updating it in place. Safe to omit
+    // them from the deps below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levelCompleted, isLastLevel]);
 
   return (
     <div className={["p-6 gap-6", panel].join(" ")}>

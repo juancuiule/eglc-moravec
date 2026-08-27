@@ -132,7 +132,13 @@ export function AnsweringPanel({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [playingState.type, onSubmitAnswer]); // eslint-disable-line react-hooks/exhaustive-deps
+    // handleButton/doSubmit close over startedAt, answer, etc., but those are
+    // only ever fresh per trial, and playingState.type always toggles through
+    // "reviewing" between trials (see game/index.ts, practice/index.ts) — so
+    // this effect re-subscribes with a fresh closure every time a new trial's
+    // "answering" state begins. Safe to omit them from the deps below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playingState.type, onSubmitAnswer]);
 
   function press(key: string) {
     setPressedKey(key);
