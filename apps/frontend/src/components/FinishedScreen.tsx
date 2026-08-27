@@ -79,8 +79,8 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
         <span
           className={
             levelCompleted
-              ? "text-teal font-bold text-2xl"
-              : "text-danger font-bold text-2xl"
+              ? "text-teal font-bold text-lg"
+              : "text-danger font-bold text-lg"
           }
         >
           {correctCount}
