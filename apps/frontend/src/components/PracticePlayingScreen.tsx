@@ -29,7 +29,7 @@ export function PracticePlayingScreen({ state }: Props) {
       onTimeUp={timeUp}
       onAdvance={advance}
       beforeOperation={
-        <div className="text-center text-xs text-accent font-mono tracking-wider">
+        <div className="text-center text-xs text-accent-text font-mono tracking-wider">
           {state.config.categoryCodename}
         </div>
       }

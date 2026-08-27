@@ -18,7 +18,7 @@ export default function HomePage() {
         <div className="flex items-center flex-wrap justify-end gap-1">
           {authState.type === "loggedIn" ? (
             <>
-              <span className="text-xs text-accent font-mono break-all">
+              <span className="text-xs text-accent-text font-mono break-all">
                 {authState.email}
               </span>
               <button onClick={logout} className={navLinkClassName}>

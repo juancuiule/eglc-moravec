@@ -26,7 +26,7 @@ export const button = cva("cursor-pointer rounded-lg", {
       success: "text-white font-semibold px-5 py-2.5 bg-teal hover:opacity-90 active:scale-[0.97] transition-opacity",
       /** Same weight as primary, lower visual priority — pink outline instead of a solid fill. */
       outline:
-        "text-accent font-semibold px-5 py-2.5 bg-panel border-2 border-accent hover:bg-panel-accent active:scale-[0.97] transition-colors",
+        "text-accent-text font-semibold px-5 py-2.5 bg-panel border-2 border-accent hover:bg-panel-accent active:scale-[0.97] transition-colors",
       ghost: "text-muted font-medium w-full px-5 py-2 hover:text-foreground transition-colors",
     },
   },
@@ -55,7 +55,7 @@ export const hintButton = cva("text-xs font-medium px-2 py-1 rounded-lg transiti
   variants: {
     disabled: {
       true: "text-disabled cursor-not-allowed",
-      false: "text-accent hover:bg-subtle cursor-pointer",
+      false: "text-accent-text hover:bg-subtle cursor-pointer",
     },
   },
 });

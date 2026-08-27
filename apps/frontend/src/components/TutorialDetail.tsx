@@ -66,7 +66,7 @@ export function TutorialDetail({ topic }: Props) {
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 bg-base rounded-xl px-4 py-3 font-mono text-sm">
           {MAJOR_SYSTEM_TABLE.map(({ digit, letters }) => (
             <div key={digit} className="flex gap-2">
-              <span className="text-accent font-bold w-3">{digit}</span>
+              <span className="text-accent-text font-bold w-3">{digit}</span>
               <span className="text-muted">{letters}</span>
             </div>
           ))}
@@ -128,7 +128,7 @@ export function TutorialDetail({ topic }: Props) {
             <div className="flex gap-4 mt-1">
               <button
                 onClick={() => setRevealed((r) => !r)}
-                className="text-xs text-accent hover:underline cursor-pointer"
+                className="text-xs text-accent-text hover:underline cursor-pointer"
               >
                 {revealed ? "Hide answer" : "Show answer"}
               </button>

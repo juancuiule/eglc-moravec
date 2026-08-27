@@ -26,19 +26,25 @@
   --color-subtle-accent: #f8d9e6; /* pairs with panel-accent */
   --color-subtle-muted: #ebebee; /* pairs with a locked/disabled surface */
 
-  /* Text, most to least prominent */
+  /* Text, most to least prominent. Values verified at >=4.5:1 against
+     --color-base (the darkest background any of these render on) — these
+     are reused directly as body/label text throughout the app, not just as
+     decoration, so the ramp is contrast-first rather than picked for even
+     visual spacing (see docs/adr, contrast audit). */
   --color-foreground: #262b3d;
-  --color-muted: #6b7280;
-  --color-muted-2: #9ca3af;
-  --color-disabled: #c6c6cc;
+  --color-muted: #585e69;
+  --color-muted-2: #626b7a;
+  --color-disabled: #6a6a76;
 
   /* Brand — pink is the primary accent (highlights, secondary CTAs); teal
      is the "go forward" color for the single biggest action on a screen
      (start/submit/next). */
   --color-accent: #ef2172;
   --color-accent-soft: #fa7fae; /* accent-tinted body text, e.g. inside panel-accent */
+  --color-accent-text: #d00f5b; /* darker accent for small/body text — #ef2172 itself only clears contrast at large sizes */
   --color-teal: #22a891;
   --color-teal-bg: #e3f7f1; /* soft teal tint — the level-complete celebration surface */
+  --color-teal-text: #187767; /* darker teal for small/body text, same reasoning as --color-accent-text */
 
   /* Semantic states — correctness feedback and the timer's traffic light,
      independent of the brand pink/teal above */
@@ -48,7 +54,7 @@
   --color-danger: #e11d48;
   --color-danger-bg: #fdecef;
   --color-danger-border: #f3aebe;
-  --color-warning: #eab308; /* the timer's mid-range tick, stats' mid-range effectiveness */
+  --color-warning: #856605; /* the timer's mid-range tick, stats' mid-range effectiveness — darkened from the original #eab308, which failed contrast even as a large glyph */
 
   /* The one recurring non-default type size (badge-sized labels) */
   --text-2xs: 0.625rem;

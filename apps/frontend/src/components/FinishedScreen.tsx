@@ -59,7 +59,7 @@ export function FinishedScreen({ state }: Props) {
 
       {levelCompleted && <StarsDisplay stars={stars} />}
 
-      <p className="font-mono text-accent text-xs text-center">
+      <p className="font-mono text-accent-text text-xs text-center">
         {formatDuration(
           state.results.reduce((acc, curr) => acc + curr.timeTaken, 0),
         )}
@@ -69,7 +69,7 @@ export function FinishedScreen({ state }: Props) {
         <span
           className={
             levelCompleted
-              ? "text-teal font-bold text-2xl"
+              ? "text-teal-text font-bold text-2xl"
               : "text-danger font-bold text-2xl"
           }
         >

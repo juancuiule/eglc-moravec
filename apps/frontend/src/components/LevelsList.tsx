@@ -26,7 +26,7 @@ function RowStars({
       {" "}
       {[1, 2, 3].map((n) =>
         n <= stars ? (
-          <span key={n} className={light ? "text-white" : "text-accent"}>
+          <span key={n} className={light ? "text-white" : "text-accent-text"}>
             ★
           </span>
         ) : (
@@ -137,7 +137,7 @@ export function LevelsList() {
                 <span className="font-semibold text-muted justify-start">
                   Level {n}
                 </span>
-                <span className="text-teal font-mono text-xs justify-center">
+                <span className="text-teal-text font-mono text-xs justify-center">
                   {formatDuration(levelStats.totalTime)}
                 </span>
                 <RowStars className="justify-end" stars={levelStats.stars} />
