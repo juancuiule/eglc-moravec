@@ -42,9 +42,8 @@
   --color-accent: #ef2172;
   --color-accent-soft: #fa7fae; /* accent-tinted body text, e.g. inside panel-accent */
   --color-accent-text: #d00f5b; /* darker accent for small/body text — #ef2172 itself only clears contrast at large sizes */
-  --color-teal: #22a891;
+  --color-teal: #22a891; /* fails AA contrast as text at both large (FinishedScreen's correct-count digit, 2.97:1) and small (LevelsList's time label, 2.59:1) sizes — kept as-is anyway, a deliberate brand-color-over-AA-compliance call (see #20) */
   --color-teal-bg: #e3f7f1; /* soft teal tint — the level-complete celebration surface */
-  --color-teal-text: #187767; /* darker teal for small/body text, same reasoning as --color-accent-text */
 
   /* Semantic states — correctness feedback and the timer's traffic light,
      independent of the brand pink/teal above */
@@ -54,7 +53,7 @@
   --color-danger: #e11d48;
   --color-danger-bg: #fdecef;
   --color-danger-border: #f3aebe;
-  --color-warning: #856605; /* the timer's mid-range tick, stats' mid-range effectiveness — darkened from the original #eab308, which failed contrast even as a large glyph */
+  --color-warning: #eab308; /* fails AA contrast as text at both large (StarsDisplay's stars, 1.92:1) and small (Stats' effectiveness %, 1.68:1) sizes — kept as-is anyway, same deliberate call as --color-teal above */
 
   /* The one recurring non-default type size (badge-sized labels) */
   --text-2xs: 0.625rem;
