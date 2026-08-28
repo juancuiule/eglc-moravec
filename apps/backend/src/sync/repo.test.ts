@@ -12,6 +12,8 @@ import {
   insertLevelRuns,
   getLevelRunsForUser,
   mergeAnonymousIdentity,
+  getTrialResultsSince,
+  getLevelRunsSince,
 } from "./repo.js";
 
 const baseTrialInput: TrialResultInput = {
@@ -149,6 +151,30 @@ describe("insertTrialResults / getTrialResultsForUser / getKeystrokesForTrialRes
   });
 });
 
+describe("insertTrialResults idempotency", () => {
+  it("does not double-insert a trial (or its keystrokes) when retried with the same trialId", () => {
+    const db = openDb(":memory:");
+    const trial = evaluateTrialResult({ ...baseTrialInput, trialId: "trial-abc" } as TrialResultInput);
+
+    insertTrialResults(db, "hash-1", [trial]);
+    insertTrialResults(db, "hash-1", [trial]); // simulated retry
+
+    const rows = getTrialResultsForUser(db, "hash-1");
+    expect(rows).toHaveLength(1);
+    expect(getKeystrokesForTrialResult(db, rows[0].id)).toHaveLength(baseTrialInput.keystrokes.length);
+  });
+
+  it("inserts every trial normally when trialId is omitted (un-migrated client)", () => {
+    const db = openDb(":memory:");
+    const trial = evaluateTrialResult(baseTrialInput); // no trialId
+
+    insertTrialResults(db, "hash-1", [trial]);
+    insertTrialResults(db, "hash-1", [trial]); // no dedup key — both inserts land
+
+    expect(getTrialResultsForUser(db, "hash-1")).toHaveLength(2);
+  });
+});
+
 describe("insertLevelRuns / getLevelRunsForUser", () => {
   it("stores a level run", () => {
     const db = openDb(":memory:");
@@ -179,6 +205,66 @@ describe("insertLevelRuns / getLevelRunsForUser", () => {
     insertLevelRuns(db, "hash-1", [run], 2000); // e.g. a retried sync batch
 
     expect(getLevelRunsForUser(db, "hash-1")).toHaveLength(1);
+  });
+});
+
+describe("insertLevelRuns server_seq assignment", () => {
+  it("assigns increasing server_seq values across separate inserts", () => {
+    const db = openDb(":memory:");
+    insertLevelRuns(db, "hash-1", [{ levelRunId: "run-1", levelNumber: 1, stars: 3, totalTime: 5000, levelCompleted: true }], 1_700_000_000_000);
+    insertLevelRuns(db, "hash-1", [{ levelRunId: "run-2", levelNumber: 2, stars: 2, totalTime: 6000, levelCompleted: true }], 1_700_000_001_000);
+
+    const runs = getLevelRunsForUser(db, "hash-1");
+    const run1 = runs.find((r) => r.id === "run-1")!;
+    const run2 = runs.find((r) => r.id === "run-2")!;
+    expect(run2.server_seq).toBeGreaterThan(run1.server_seq);
+    expect(run1.server_seq).toBeGreaterThan(0);
+  });
+
+  it("does not consume a server_seq value for a duplicate (INSERT OR IGNORE'd) run id", () => {
+    const db = openDb(":memory:");
+    const run: LevelRunSummary = { levelRunId: "run-1", levelNumber: 1, stars: 3, totalTime: 5000, levelCompleted: true };
+
+    insertLevelRuns(db, "hash-1", [run], 1_700_000_000_000);
+    insertLevelRuns(db, "hash-1", [run], 1_700_000_000_000); // retry of the same batch
+    insertLevelRuns(db, "hash-1", [{ ...run, levelRunId: "run-2" }], 1_700_000_001_000);
+
+    const runs = getLevelRunsForUser(db, "hash-1");
+    expect(runs).toHaveLength(2);
+    const run2 = runs.find((r) => r.id === "run-2")!;
+    expect(run2.server_seq).toBe(2); // not 3 — the retried duplicate never got a seq
+  });
+});
+
+describe("getTrialResultsSince / getLevelRunsSince", () => {
+  it("returns only trial_results with id greater than the cursor, ordered by id", () => {
+    const db = openDb(":memory:");
+    insertTrialResults(db, "hash-1", [
+      evaluateTrialResult({ ...baseTrialInput, trialId: "t1" } as TrialResultInput),
+      evaluateTrialResult({ ...baseTrialInput, trialId: "t2" } as TrialResultInput),
+    ]);
+    const [first] = getTrialResultsForUser(db, "hash-1");
+
+    const since = getTrialResultsSince(db, "hash-1", first.id);
+    expect(since).toHaveLength(1);
+    expect(since[0].id).toBeGreaterThan(first.id);
+  });
+
+  it("scopes getTrialResultsSince to the requesting user", () => {
+    const db = openDb(":memory:");
+    insertTrialResults(db, "hash-1", [evaluateTrialResult({ ...baseTrialInput, trialId: "t1" } as TrialResultInput)]);
+    insertTrialResults(db, "hash-2", [evaluateTrialResult({ ...baseTrialInput, trialId: "t2" } as TrialResultInput)]);
+
+    expect(getTrialResultsSince(db, "hash-1", 0)).toHaveLength(1);
+  });
+
+  it("returns only level_runs with server_seq greater than the cursor, ordered by server_seq", () => {
+    const db = openDb(":memory:");
+    insertLevelRuns(db, "hash-1", [{ levelRunId: "run-1", levelNumber: 1, stars: 3, totalTime: 5000, levelCompleted: true }], 1_700_000_000_000);
+    insertLevelRuns(db, "hash-1", [{ levelRunId: "run-2", levelNumber: 2, stars: 2, totalTime: 6000, levelCompleted: true }], 1_700_000_001_000);
+
+    const since = getLevelRunsSince(db, "hash-1", 1);
+    expect(since.map((r) => r.id)).toEqual(["run-2"]);
   });
 });
 

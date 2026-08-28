@@ -26,6 +26,7 @@ export type TrialResultInput = {
   hintsAvailableAtStart: number;
   runId: string;
   runType: "level" | "practice";
+  trialId?: string; // client-generated dedup key (ADR-0001) — absent for un-migrated clients
 };
 
 function isTrialResultInput(value: unknown): value is TrialResultInput {
@@ -47,7 +48,8 @@ function isTrialResultInput(value: unknown): value is TrialResultInput {
     typeof r.streakAtSubmit === "number" &&
     typeof r.hintsAvailableAtStart === "number" &&
     typeof r.runId === "string" &&
-    (r.runType === "level" || r.runType === "practice")
+    (r.runType === "level" || r.runType === "practice") &&
+    (r.trialId === undefined || typeof r.trialId === "string")
   );
 }
 
@@ -74,6 +76,7 @@ export type EvaluatedTrialResult = {
   hintsAvailableAtStart: number;
   runId: string;
   runType: "level" | "practice";
+  trialId?: string;
 };
 
 /**
@@ -102,6 +105,7 @@ export function evaluateTrialResult(input: TrialResultInput): EvaluatedTrialResu
     hintsAvailableAtStart: input.hintsAvailableAtStart,
     runId: input.runId,
     runType: input.runType,
+    trialId: input.trialId,
   };
 }
 

@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { randomUUID } from "node:crypto";
 import type { EvaluatedTrialResult, LevelRunSummary } from "./logic.js";
 import { isBetterLevelRecord } from "engine";
 
@@ -63,21 +64,26 @@ export function upsertLevelStatsIfBetter(
   }
 }
 
+// INSERT OR IGNORE on run_trial_id: a real client trialId lets a retried
+// push skip a trial it already stored. When trialId is absent (an
+// un-migrated client), a fresh random key is used so the row is never
+// deduped — same behavior as before this change.
 export function insertTrialResults(
   db: DatabaseSync,
   emailHash: string,
   trials: readonly EvaluatedTrialResult[],
 ): void {
   const insertTrial = db.prepare(
-    `INSERT INTO trial_results
-       (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start, run_id, run_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR IGNORE INTO trial_results
+       (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start, run_id, run_type, run_trial_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insertKeystroke = db.prepare(
     `INSERT INTO trial_keystrokes (trial_result_id, key, t) VALUES (?, ?, ?)`,
   );
   trials.forEach((t) => {
-    const { lastInsertRowid } = insertTrial.run(
+    const dedupKey = t.trialId ?? randomUUID();
+    const result = insertTrial.run(
       emailHash,
       t.levelNumber ?? 0, // the one place the Practice sentinel is materialized
       t.categoryCodename,
@@ -92,9 +98,13 @@ export function insertTrialResults(
       t.hintsAvailableAtStart,
       t.runId,
       t.runType,
+      dedupKey,
     );
+    // changes === 0 means INSERT OR IGNORE skipped a duplicate — its
+    // keystrokes were already stored on the first, non-retried insert.
+    if (result.changes === 0) return;
     t.keystrokes.forEach((k) => {
-      insertKeystroke.run(lastInsertRowid, k.key, k.t);
+      insertKeystroke.run(result.lastInsertRowid, k.key, k.t);
     });
   });
 }
@@ -123,6 +133,18 @@ export function getTrialResultsForUser(db: DatabaseSync, emailHash: string): Tri
     .all(emailHash) as TrialResultRow[];
 }
 
+// Pull cursor (ADR-0001): trial_results.id is used directly, since it stays
+// a real AUTOINCREMENT column and is already monotonic per row.
+export function getTrialResultsSince(
+  db: DatabaseSync,
+  emailHash: string,
+  sinceId: number,
+): TrialResultRow[] {
+  return db
+    .prepare("SELECT * FROM trial_results WHERE email_hash = ? AND id > ? ORDER BY id")
+    .all(emailHash, sinceId) as TrialResultRow[];
+}
+
 export type KeystrokeRow = {
   id: number;
   trial_result_id: number;
@@ -147,6 +169,7 @@ export type LevelRunRow = {
   total_time: number;
   level_completed: number;
   played_at: number;
+  server_seq: number;
 };
 
 /**
@@ -154,6 +177,13 @@ export type LevelRunRow = {
  * the best-ever cache the Levels page reads. `INSERT OR IGNORE` because id
  * (the client-generated levelRunId) is a natural dedup key: a retried sync
  * of the same batch should not double-record the same run.
+ *
+ * server_seq is a table-wide monotonic counter (ADR-0001's pull cursor),
+ * assigned via a subquery inside the same synchronous INSERT statement —
+ * node:sqlite executes each `run()` call synchronously with no interleaving
+ * JS in between, so this is race-free without a separate counter table.
+ * A duplicate (INSERT OR IGNORE'd) row never consumes a value, since the
+ * subquery's result is only ever written when a row is actually inserted.
  */
 export function insertLevelRuns(
   db: DatabaseSync,
@@ -162,8 +192,8 @@ export function insertLevelRuns(
   playedAt: number,
 ): void {
   const insertRun = db.prepare(
-    `INSERT OR IGNORE INTO level_runs (id, email_hash, level_number, stars, total_time, level_completed, played_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR IGNORE INTO level_runs (id, email_hash, level_number, stars, total_time, level_completed, played_at, server_seq)
+     VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT IFNULL(MAX(server_seq), 0) + 1 FROM level_runs))`,
   );
   runs.forEach((run) => {
     insertRun.run(
@@ -182,6 +212,16 @@ export function getLevelRunsForUser(db: DatabaseSync, emailHash: string): LevelR
   return db
     .prepare("SELECT * FROM level_runs WHERE email_hash = ? ORDER BY played_at")
     .all(emailHash) as LevelRunRow[];
+}
+
+export function getLevelRunsSince(
+  db: DatabaseSync,
+  emailHash: string,
+  sinceServerSeq: number,
+): LevelRunRow[] {
+  return db
+    .prepare("SELECT * FROM level_runs WHERE email_hash = ? AND server_seq > ? ORDER BY server_seq")
+    .all(emailHash, sinceServerSeq) as LevelRunRow[];
 }
 
 /**
