@@ -1,8 +1,14 @@
-import { describe, it, expect, vi } from "vitest";
-import { buildPersistedTrials } from "./trialHistory";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { buildPersistedTrials, loadTrialHistory, appendTrials } from "./trialHistory";
+import { appendPracticeTrials, buildPersistedPracticeTrials } from "./practiceHistory";
+import { resetLocalStore } from "./store";
 import { Addition, Multiplication } from "engine";
 import type { TrialResult } from "../game/index";
 import type { Level } from "../level";
+
+beforeEach(() => {
+  resetLocalStore();
+});
 
 // A fixed fixture, not the real catalog's level 1 — tests shouldn't depend
 // on production Level content (which now lives in the backend).
@@ -68,6 +74,12 @@ describe("buildPersistedTrials", () => {
     expect(buildPersistedTrials(config, [], RUN_ID)).toEqual([]);
   });
 
+  it("assigns each trial its own unique id", () => {
+    const persisted = buildPersistedTrials(config, [makeResult(), makeResult()], RUN_ID);
+    expect(persisted[0].id).toBeTruthy();
+    expect(persisted[0].id).not.toBe(persisted[1].id);
+  });
+
   it("assigns each trial its own timestamp, working backward by timeTaken from now", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:10.000Z"));
@@ -87,5 +99,37 @@ describe("buildPersistedTrials", () => {
     ]);
 
     vi.useRealTimers();
+  });
+});
+
+describe("loadTrialHistory / appendTrials", () => {
+  it("returns an empty array when nothing is stored", () => {
+    expect(loadTrialHistory()).toEqual([]);
+  });
+
+  it("round-trips appended trials through the store", () => {
+    const persisted = buildPersistedTrials(config, [makeResult()], RUN_ID);
+    appendTrials(persisted);
+
+    expect(loadTrialHistory()).toEqual(persisted);
+  });
+
+  it("accumulates across multiple appends", () => {
+    appendTrials(buildPersistedTrials(config, [makeResult()], RUN_ID));
+    appendTrials(buildPersistedTrials(config, [makeResult(), makeResult()], RUN_ID));
+
+    expect(loadTrialHistory()).toHaveLength(3);
+  });
+
+  it("does not touch the store when appending an empty list", () => {
+    appendTrials([]);
+    expect(loadTrialHistory()).toEqual([]);
+  });
+
+  it("excludes Practice trials stored in the same underlying table", () => {
+    appendTrials(buildPersistedTrials(config, [makeResult()], RUN_ID));
+    appendPracticeTrials(buildPersistedPracticeTrials([makeResult()], "practice-run-1"));
+
+    expect(loadTrialHistory()).toHaveLength(1);
   });
 });

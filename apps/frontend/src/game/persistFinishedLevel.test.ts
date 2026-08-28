@@ -68,7 +68,11 @@ describe("persistFinishedLevel", () => {
     const state = makeFinished();
     persistFinishedLevel(state, loggedOut);
 
-    expect(updateLevelRecord).toHaveBeenCalledWith(4, { stars: 2, totalTime: 2500 });
+    expect(updateLevelRecord).toHaveBeenCalledWith(4, "run-abc", {
+      stars: 2,
+      totalTime: 2500,
+      levelCompleted: true,
+    });
     expect(buildPersistedTrials).toHaveBeenCalledWith(state.config, state.results, state.runId);
     expect(appendTrials).toHaveBeenCalledWith([{ fake: "persisted-trial" }]);
   });

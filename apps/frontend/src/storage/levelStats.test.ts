@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   loadLevelStats,
   saveLevelStats,
@@ -6,85 +6,76 @@ import {
   mergeRemoteLevelStats,
   isLevelUnlocked,
 } from "./levelStats";
-
-const STORAGE_KEY = "moravec:levelStats";
-
-// Minimal localStorage mock
-const store: Record<string, string> = {};
-const localStorageMock = {
-  getItem: (key: string) => store[key] ?? null,
-  setItem: (key: string, val: string) => { store[key] = val; },
-  removeItem: (key: string) => { delete store[key]; },
-  clear: () => { for (const k in store) delete store[k]; },
-};
+import { resetLocalStore, localStore } from "./store";
 
 beforeEach(() => {
-  localStorageMock.clear();
-  vi.stubGlobal("localStorage", localStorageMock);
+  resetLocalStore();
 });
 
 describe("loadLevelStats", () => {
-  it("returns empty object when nothing stored", () => {
+  it("returns empty object when nothing recorded", () => {
     expect(loadLevelStats()).toEqual({});
   });
 
-  it("returns parsed stats when present", () => {
-    const data = { "1": { stars: 3, totalTime: 5000, completedAt: "2025-01-01T00:00:00.000Z" } };
-    store[STORAGE_KEY] = JSON.stringify(data);
-    expect(loadLevelStats()).toEqual(data);
-  });
-
-  it("returns empty object on malformed JSON", () => {
-    store[STORAGE_KEY] = "not-json";
-    expect(loadLevelStats()).toEqual({});
+  it("derives stats from whatever levelRuns rows exist", () => {
+    updateLevelRecord(1, "run-1", { stars: 3, totalTime: 5000, levelCompleted: true });
+    expect(loadLevelStats()["1"]).toMatchObject({ stars: 3, totalTime: 5000 });
   });
 });
 
 describe("saveLevelStats", () => {
-  it("persists stats to localStorage", () => {
-    const data = { "5": { stars: 2 as const, totalTime: 12000, completedAt: "2025-01-01T00:00:00.000Z" } };
-    saveLevelStats(data);
-    expect(JSON.parse(store[STORAGE_KEY])).toEqual(data);
+  it("seeds a levelRuns row visible through loadLevelStats", () => {
+    saveLevelStats({ "5": { stars: 2, totalTime: 12000, completedAt: "2025-01-01T00:00:00.000Z" } });
+    expect(loadLevelStats()["5"]).toEqual({
+      stars: 2,
+      totalTime: 12000,
+      completedAt: "2025-01-01T00:00:00.000Z",
+    });
   });
 });
 
 describe("updateLevelRecord", () => {
   it("saves a record when none exists", () => {
-    updateLevelRecord(1, { stars: 2, totalTime: 10000 });
+    updateLevelRecord(1, "run-1", { stars: 2, totalTime: 10000, levelCompleted: false });
     const stats = loadLevelStats();
     expect(stats["1"]?.stars).toBe(2);
     expect(stats["1"]?.totalTime).toBe(10000);
     expect(stats["1"]?.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}/);
   });
 
-  it("overwrites when new run has more stars", () => {
-    updateLevelRecord(1, { stars: 1, totalTime: 10000 });
-    updateLevelRecord(1, { stars: 3, totalTime: 20000 });
+  it("derives the record as the best across runs when a new run has more stars", () => {
+    updateLevelRecord(1, "run-1", { stars: 1, totalTime: 10000, levelCompleted: false });
+    updateLevelRecord(1, "run-2", { stars: 3, totalTime: 20000, levelCompleted: true });
     expect(loadLevelStats()["1"]?.stars).toBe(3);
   });
 
-  it("overwrites when same stars but less time", () => {
-    updateLevelRecord(1, { stars: 2, totalTime: 10000 });
-    updateLevelRecord(1, { stars: 2, totalTime: 8000 });
+  it("derives the record as the best when same stars but less time", () => {
+    updateLevelRecord(1, "run-1", { stars: 2, totalTime: 10000, levelCompleted: false });
+    updateLevelRecord(1, "run-2", { stars: 2, totalTime: 8000, levelCompleted: false });
     expect(loadLevelStats()["1"]?.totalTime).toBe(8000);
   });
 
-  it("does not overwrite when fewer stars", () => {
-    updateLevelRecord(1, { stars: 3, totalTime: 10000 });
-    updateLevelRecord(1, { stars: 1, totalTime: 5000 });
+  it("keeps a worse run's stats out of the derived record", () => {
+    updateLevelRecord(1, "run-1", { stars: 3, totalTime: 10000, levelCompleted: true });
+    updateLevelRecord(1, "run-2", { stars: 1, totalTime: 5000, levelCompleted: false });
     expect(loadLevelStats()["1"]?.stars).toBe(3);
   });
 
-  it("does not overwrite when same stars but more time", () => {
-    updateLevelRecord(1, { stars: 2, totalTime: 8000 });
-    updateLevelRecord(1, { stars: 2, totalTime: 12000 });
-    expect(loadLevelStats()["1"]?.totalTime).toBe(8000);
+  it("keeps every run in the table, not just the best — mirrors the backend's level_runs", () => {
+    updateLevelRecord(1, "run-1", { stars: 3, totalTime: 10000, levelCompleted: true });
+    updateLevelRecord(1, "run-2", { stars: 1, totalTime: 5000, levelCompleted: false });
+    expect(localStore.getRowCount("levelRuns")).toBe(2);
+  });
+
+  it("stores the row keyed by the given runId — the same id the backend will derive for the same run", () => {
+    updateLevelRecord(1, "run-abc", { stars: 2, totalTime: 8000, levelCompleted: false });
+    expect(localStore.getRow("levelRuns", "run-abc")).toMatchObject({ levelNumber: 1, stars: 2 });
   });
 
   it("returns whether it was a new record", () => {
-    expect(updateLevelRecord(1, { stars: 2, totalTime: 10000 })).toBe(true);
-    expect(updateLevelRecord(1, { stars: 1, totalTime: 5000 })).toBe(false);
-    expect(updateLevelRecord(1, { stars: 2, totalTime: 5000 })).toBe(true);
+    expect(updateLevelRecord(1, "run-1", { stars: 2, totalTime: 10000, levelCompleted: false })).toBe(true);
+    expect(updateLevelRecord(1, "run-2", { stars: 1, totalTime: 5000, levelCompleted: false })).toBe(false);
+    expect(updateLevelRecord(1, "run-3", { stars: 2, totalTime: 5000, levelCompleted: false })).toBe(true);
   });
 });
 
@@ -100,13 +91,13 @@ describe("mergeRemoteLevelStats", () => {
   });
 
   it("never downgrades a better local record", () => {
-    updateLevelRecord(1, { stars: 3, totalTime: 5000 });
+    updateLevelRecord(1, "run-1", { stars: 3, totalTime: 5000, levelCompleted: true });
     mergeRemoteLevelStats({ "1": { stars: 1, totalTime: 20000, completedAt: "2025-01-01T00:00:00.000Z" } });
     expect(loadLevelStats()["1"]?.stars).toBe(3);
   });
 
   it("upgrades a worse local record", () => {
-    updateLevelRecord(1, { stars: 1, totalTime: 20000 });
+    updateLevelRecord(1, "run-1", { stars: 1, totalTime: 20000, levelCompleted: false });
     mergeRemoteLevelStats({ "1": { stars: 3, totalTime: 5000, completedAt: "2025-01-01T00:00:00.000Z" } });
     expect(loadLevelStats()["1"]?.stars).toBe(3);
   });

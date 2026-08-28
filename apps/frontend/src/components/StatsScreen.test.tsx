@@ -1,33 +1,33 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test } from "vitest";
 import { StatsScreen } from "./StatsScreen";
-
-const store: Record<string, string> = {};
-const localStorageMock = {
-  getItem: (key: string) => store[key] ?? null,
-  setItem: (key: string, val: string) => {
-    store[key] = val;
-  },
-  removeItem: (key: string) => {
-    delete store[key];
-  },
-  clear: () => {
-    for (const k in store) delete store[k];
-  },
-};
+import { appendTrials, type PersistedTrial } from "../storage/trialHistory";
+import { resetLocalStore } from "../storage/store";
 
 beforeEach(() => {
-  localStorageMock.clear();
-  vi.stubGlobal("localStorage", localStorageMock);
+  resetLocalStore();
 });
 
+function additionTrial(overrides: Partial<PersistedTrial> = {}): PersistedTrial {
+  return {
+    id: "trial-1",
+    levelNumber: 1,
+    categoryCodename: "1d+1d",
+    correct: true,
+    timeExceeded: false,
+    timeTaken: 1000,
+    playedAt: "2026-01-01T00:00:00.000Z",
+    keystrokes: [],
+    hintShown: false,
+    streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
+    runId: "run-1",
+    ...overrides,
+  };
+}
+
 test("a category row with data is a real button, keyboard-reachable and screen-reader visible", async () => {
-  localStorageMock.setItem(
-    "moravec:trialHistory",
-    JSON.stringify([
-      { categoryCodename: "1d+1d", correct: true, timeExceeded: false, timeTaken: 1000 },
-    ]),
-  );
+  appendTrials([additionTrial()]);
 
   render(<StatsScreen />);
 
@@ -38,12 +38,7 @@ test("a category row with data is a real button, keyboard-reachable and screen-r
 test("a category row with no data is not rendered as an interactive control", async () => {
   // Seed one category with data so the list renders at all, and check a
   // *different*, data-less category's row isn't an interactive control.
-  localStorageMock.setItem(
-    "moravec:trialHistory",
-    JSON.stringify([
-      { categoryCodename: "1d+1d", correct: true, timeExceeded: false, timeTaken: 1000 },
-    ]),
-  );
+  appendTrials([additionTrial()]);
 
   render(<StatsScreen />);
 

@@ -26,6 +26,7 @@ function makeResult(): TrialResult {
 
 function makeTrial(overrides: Partial<PersistedTrial> = {}): PersistedTrial {
   return {
+    id: "trial-id",
     levelNumber: 3,
     categoryCodename: "1d+1d",
     correct: true,

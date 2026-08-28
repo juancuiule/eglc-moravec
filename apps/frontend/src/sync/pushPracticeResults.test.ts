@@ -25,6 +25,7 @@ function makeResult(overrides: Partial<PracticeTrialResult> = {}): PracticeTrial
 
 function makeTrial(overrides: Partial<PersistedPracticeTrial> = {}): PersistedPracticeTrial {
   return {
+    id: "trial-id",
     categoryCodename: "1d+1d",
     correct: true,
     timeExceeded: false,

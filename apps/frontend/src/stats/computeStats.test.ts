@@ -9,6 +9,7 @@ function trial(
   timeTaken = 3000,
 ): PersistedTrial {
   return {
+    id: "trial-id",
     levelNumber: 1,
     categoryCodename,
     correct,

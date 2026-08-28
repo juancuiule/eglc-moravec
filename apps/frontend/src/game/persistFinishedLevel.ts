@@ -20,7 +20,11 @@ export function persistFinishedLevel(state: Finished, authState: AuthState): boo
   const { config, results, stars } = state;
   const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
 
-  const isNewRecord = updateLevelRecord(config.levelNumber, { stars, totalTime });
+  const isNewRecord = updateLevelRecord(config.levelNumber, state.runId, {
+    stars,
+    totalTime,
+    levelCompleted: state.levelCompleted,
+  });
   const persistedTrials = buildPersistedTrials(config, results, state.runId);
   appendTrials(persistedTrials);
 

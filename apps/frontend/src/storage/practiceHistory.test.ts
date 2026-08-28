@@ -4,29 +4,18 @@ import {
   loadPracticeHistory,
   appendPracticeTrials,
 } from "./practiceHistory";
+import { resetLocalStore } from "./store";
+import { buildPersistedTrials, appendTrials } from "./trialHistory";
 import { Addition, Multiplication, type BaseTrialResult } from "engine";
+import type { Level } from "../level";
 
-const STORAGE_KEY = "moravec:practiceHistory";
+const LEVEL_FIXTURE: Level = { "1d+1d": 50 };
+const levelConfig = { levelNumber: 1, level: LEVEL_FIXTURE, totalTrials: 20 };
+
 const RUN_ID = "practice-run-abc-123";
 
-// Minimal localStorage mock, matching storage/levelStats.test.ts's convention
-const store: Record<string, string> = {};
-const localStorageMock = {
-  getItem: (key: string) => store[key] ?? null,
-  setItem: (key: string, val: string) => {
-    store[key] = val;
-  },
-  removeItem: (key: string) => {
-    delete store[key];
-  },
-  clear: () => {
-    for (const k in store) delete store[k];
-  },
-};
-
 beforeEach(() => {
-  localStorageMock.clear();
-  vi.stubGlobal("localStorage", localStorageMock);
+  resetLocalStore();
 });
 
 function makeResult(overrides: Partial<BaseTrialResult> = {}): BaseTrialResult {
@@ -52,6 +41,7 @@ describe("buildPersistedPracticeTrials", () => {
     const result = makeResult();
     const [persisted] = buildPersistedPracticeTrials([result], RUN_ID);
 
+    expect(persisted.id).toBeTruthy();
     expect(persisted).not.toHaveProperty("levelNumber");
     expect(persisted.categoryCodename).toBe(result.operation.categoryCodename());
     expect(persisted.correct).toBe(true);
@@ -122,13 +112,17 @@ describe("loadPracticeHistory / appendPracticeTrials", () => {
     expect(loadPracticeHistory()).toHaveLength(3);
   });
 
-  it("does not touch storage when appending an empty list", () => {
+  it("does not touch the store when appending an empty list", () => {
     appendPracticeTrials([]);
-    expect(store[STORAGE_KEY]).toBeUndefined();
+    expect(loadPracticeHistory()).toEqual([]);
   });
 
-  it("returns an empty array on malformed JSON", () => {
-    store[STORAGE_KEY] = "not-json";
-    expect(loadPracticeHistory()).toEqual([]);
+  it("excludes Level trials stored in the same underlying table", () => {
+    appendPracticeTrials(buildPersistedPracticeTrials([makeResult()], RUN_ID));
+    appendTrials(
+      buildPersistedTrials(levelConfig, [{ ...makeResult(), streakAtSubmit: 0, hintsAvailableAtStart: 3 }], "level-run-1"),
+    );
+
+    expect(loadPracticeHistory()).toHaveLength(1);
   });
 });
