@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
-import { getLevelNumbers, getLevelMix } from "../levels/repo.js";
+import { getLevelNumbers, getLevelMix, getAllLevels } from "../levels/repo.js";
 
 /**
  * Public, unauthenticated — level content isn't sensitive, and Home's
@@ -9,6 +9,15 @@ import { getLevelNumbers, getLevelMix } from "../levels/repo.js";
 export function registerLevelsRoutes(app: FastifyInstance, db: DatabaseSync): void {
   app.get("/levels", async (request, reply) => {
     return reply.send({ levels: getLevelNumbers(db) });
+  });
+
+  // Registered before the :levelNumber param route in source, though Fastify
+  // (find-my-way) would prefer this static path over the parametric one
+  // regardless of registration order — the whole catalog in one response,
+  // for a client warming its offline cache rather than reading one Level at
+  // a time via the route below.
+  app.get("/levels/all", async (request, reply) => {
+    return reply.send({ levels: getAllLevels(db) });
   });
 
   app.get("/levels/:levelNumber", async (request, reply) => {

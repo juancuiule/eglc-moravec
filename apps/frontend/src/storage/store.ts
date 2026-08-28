@@ -12,6 +12,11 @@ const DB_NAME = "moravec-local";
  * cells are flat. No row caps: the old 2000-row limit on the localStorage
  * predecessors existed only because of localStorage's size ceiling, which
  * doesn't apply once this is IndexedDB-backed.
+ *
+ * A third table, `levels`, caches each fetched Level's mix keyed by level
+ * number (as a string row id) — an offline-read fallback for the backend's
+ * `levels` catalog, not player-generated data like the other two tables. See
+ * `storage/levelCache.ts`.
  */
 export function createLocalStore(): Store {
   return createStore();

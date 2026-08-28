@@ -30,3 +30,12 @@ export function getLevelMix(db: DatabaseSync, levelNumber: number): Record<strin
     | undefined;
   return row ? JSON.parse(row.mix) : null;
 }
+
+/** Every Level's mix in one query — the whole catalog, for a client warming its offline cache rather than reading one Level at a time. */
+export function getAllLevels(db: DatabaseSync): { levelNumber: number; mix: Record<string, number> }[] {
+  const rows = db.prepare("SELECT level_number, mix FROM levels ORDER BY level_number").all() as {
+    level_number: number;
+    mix: string;
+  }[];
+  return rows.map((r) => ({ levelNumber: r.level_number, mix: JSON.parse(r.mix) }));
+}

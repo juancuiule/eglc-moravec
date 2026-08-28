@@ -10,14 +10,17 @@ vi.mock("./store", () => ({
 }));
 
 vi.mock("../sync/syncEngine", () => ({ sync: vi.fn() }));
+vi.mock("../storage/levelCache", () => ({ warmLevelCache: vi.fn() }));
 
 import { AuthBoot } from "./AuthBoot";
 import { sync } from "../sync/syncEngine";
+import { warmLevelCache } from "../storage/levelCache";
 
 beforeEach(() => {
   vi.clearAllMocks();
   currentState = { type: "anonymous", token: "anon-tok" };
   ensureSession.mockResolvedValue(undefined);
+  vi.mocked(warmLevelCache).mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -33,6 +36,12 @@ test("hydrates from the session cookie, then ensures a session exists, once on m
 test("syncs once with the current authState after ensureSession resolves on mount", async () => {
   render(<AuthBoot />);
   await vi.waitFor(() => expect(sync).toHaveBeenCalledWith(currentState));
+});
+
+test("warms the level cache once on mount, independent of auth state", () => {
+  currentState = { type: "loggedOut" };
+  render(<AuthBoot />);
+  expect(warmLevelCache).toHaveBeenCalledTimes(1);
 });
 
 test("registers a window 'online' listener on mount and removes it on unmount", () => {

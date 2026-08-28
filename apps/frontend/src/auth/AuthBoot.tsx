@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { authStore } from "./store";
 import { sync } from "../sync/syncEngine";
+import { warmLevelCache } from "../storage/levelCache";
 
 /**
  * Hydrates the auth store from the session cookie, once on first mount
@@ -22,10 +23,19 @@ import { sync } from "../sync/syncEngine";
  * and a `window` `online` listener for reconnecting without a reload —
  * this only syncs while the tab stays open; a closed-tab background sync
  * would need a Service Worker + Background Sync API, out of scope here.
+ *
+ * Also warms the Level catalog cache (storage/levelCache.ts) once here,
+ * unconditionally on mount — unlike sync, this doesn't wait on
+ * ensureSession, since `/levels/all` is public and unauthenticated. Only
+ * on mount, not on 'online' too: the catalog is rarely-written reference
+ * data (see backend db.ts), so re-fetching all ~150 levels on every
+ * reconnect blip isn't worth it — this only needs to catch a device up
+ * once per session, not track the catalog live.
  */
 export function AuthBoot() {
   useEffect(() => {
     authStore.getState().hydrate();
+    void warmLevelCache();
 
     void authStore.getState().ensureSession().then(() => {
       void sync(authStore.getState().state);

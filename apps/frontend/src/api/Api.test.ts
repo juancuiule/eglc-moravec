@@ -174,3 +174,17 @@ test("fetchLevel throws on a non-404 failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "request_failed" }, false, 500));
   await expect(Api.fetchLevel(1)).rejects.toThrow("request_failed");
 });
+
+test("fetchAllLevels resolves with every level's mix", async () => {
+  const levels = [
+    { levelNumber: 1, mix: { "1d+1d": 50, "1dx1d": 50 } },
+    { levelNumber: 2, mix: { "1dx1d": 100 } },
+  ];
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ levels }));
+  await expect(Api.fetchAllLevels()).resolves.toEqual(levels);
+});
+
+test("fetchAllLevels throws on failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "request_failed" }, false));
+  await expect(Api.fetchAllLevels()).rejects.toThrow();
+});

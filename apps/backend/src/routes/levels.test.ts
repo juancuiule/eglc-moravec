@@ -45,3 +45,21 @@ describe("GET /levels/:levelNumber", () => {
     expect(res.statusCode).toBe(400);
   });
 });
+
+describe("GET /levels/all", () => {
+  it("returns every level's mix in one response, unauthenticated", async () => {
+    const { app } = setup();
+    const res = await app.inject({ method: "GET", url: "/levels/all" });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.levels).toHaveLength(150);
+    expect(body.levels[0]).toEqual({ levelNumber: 1, mix: { "1d+1d": 50, "1dx1d": 50 } });
+  });
+
+  it("takes priority over the :levelNumber param route", async () => {
+    const { app } = setup();
+    const res = await app.inject({ method: "GET", url: "/levels/all" });
+    expect(res.statusCode).not.toBe(400);
+  });
+});

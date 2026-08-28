@@ -182,4 +182,13 @@ export const Api = {
     const data = (await res.json()) as { mix: Record<string, number> };
     return data.mix;
   },
+
+  /** The whole Level catalog in one request, for warming the offline cache — not for per-Level gameplay reads (use fetchLevel for that). */
+  async fetchAllLevels(): Promise<{ levelNumber: number; mix: Record<string, number> }[]> {
+    const data = await requestJson<{ levels: { levelNumber: number; mix: Record<string, number> }[] }>(
+      "/levels/all",
+      { method: "GET" },
+    );
+    return data.levels;
+  },
 };
