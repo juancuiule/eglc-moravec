@@ -144,7 +144,7 @@ export function insertLevelRuns(
       run.stars,
       run.totalTime,
       run.levelCompleted ? 1 : 0,
-      now,
+      run.playedAt, // when the run actually happened, not `now` (when it was synced)
     );
     if (changes === 0) return;
 

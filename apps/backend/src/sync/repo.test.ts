@@ -108,13 +108,13 @@ describe("insertTrialResults / getTrialResultsForUser / getKeystrokesForTrialRes
 });
 
 describe("insertLevelRuns / getLevelRunsForUser", () => {
-  it("stores a level run", () => {
+  it("stores a level run, using the run's own playedAt — not the sync-time `now` argument", () => {
     const db = openDb(":memory:");
     insertLevelRuns(
       db,
       "hash-1",
-      [{ levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true }],
-      1000,
+      [{ levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true, playedAt: 500 }],
+      1000, // sync time — deliberately different from playedAt, to prove which one wins
     );
 
     const rows = getLevelRunsForUser(db, "hash-1");
@@ -126,13 +126,13 @@ describe("insertLevelRuns / getLevelRunsForUser", () => {
       stars: 2,
       total_time: 5000,
       level_completed: 1,
-      played_at: 1000,
+      played_at: 500,
     });
   });
 
   it("ignores a retried insert of the same run id, rather than double-recording it", () => {
     const db = openDb(":memory:");
-    const run: LevelRunSummary = { levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true };
+    const run: LevelRunSummary = { levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true, playedAt: 500 };
     insertLevelRuns(db, "hash-1", [run], 1000);
     insertLevelRuns(db, "hash-1", [run], 2000); // e.g. a retried sync batch
 
@@ -144,7 +144,7 @@ describe("insertLevelRuns / getLevelRunsForUser", () => {
     insertLevelRuns(
       db,
       "hash-1",
-      [{ levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true }],
+      [{ levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true, playedAt: 500 }],
       1000,
     );
 
@@ -168,7 +168,7 @@ describe("sync_log", () => {
 
   it("logs a new level run insert, but not a retried duplicate", () => {
     const db = openDb(":memory:");
-    const run: LevelRunSummary = { levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true };
+    const run: LevelRunSummary = { levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true, playedAt: 500 };
 
     insertLevelRuns(db, "hash-1", [run], 1000);
     insertLevelRuns(db, "hash-1", [run], 2000); // retried
@@ -209,7 +209,7 @@ describe("mergeAnonymousIdentity", () => {
     insertLevelRuns(
       db,
       "anon-hash",
-      [{ levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true }],
+      [{ levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true, playedAt: 500 }],
       1000,
     );
 

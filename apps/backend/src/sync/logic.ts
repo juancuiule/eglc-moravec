@@ -77,7 +77,10 @@ export type SyncRequest = {
 export function parseSyncRequest(body: unknown): SyncRequest | null {
   if (typeof body !== "object" || body === null) return null;
   const cursor = (body as { cursor?: unknown }).cursor;
-  if (typeof cursor !== "number" || cursor < 0) return null;
+  // Number.isInteger rejects Infinity/NaN too — typeof alone doesn't
+  // (typeof Infinity === "number"), and a fractional cursor can't be a
+  // real sync_log.seq value anyway.
+  if (typeof cursor !== "number" || !Number.isInteger(cursor) || cursor < 0) return null;
 
   const trials = parseTrialResults(body);
   if (trials === null) return null;
@@ -139,6 +142,7 @@ export type LevelRunSummary = {
   stars: 0 | 1 | 2 | 3;
   totalTime: number;
   levelCompleted: boolean;
+  playedAt: number;
 };
 
 /**
@@ -170,6 +174,10 @@ export function deriveLevelRuns(trials: readonly EvaluatedTrialResult[]): LevelR
       stars: starsForScore(correctCount),
       totalTime,
       levelCompleted: correctCount >= LEVEL_COMPLETE_THRESHOLD,
+      // The run's own timing, not sync time — a run pushed hours after it
+      // was played (offline, then reconnected) should still record when it
+      // was actually played.
+      playedAt: Math.max(...runTrials.map((t) => t.playedAt)),
     };
   });
 }

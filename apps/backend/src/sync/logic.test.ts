@@ -163,6 +163,14 @@ describe("parseSyncRequest", () => {
     expect(parseSyncRequest({ cursor: -1, trials: [] })).toBeNull();
   });
 
+  it("rejects a non-finite cursor (typeof Infinity is 'number', so this needs its own check)", () => {
+    expect(parseSyncRequest({ cursor: Infinity, trials: [] })).toBeNull();
+  });
+
+  it("rejects a non-integer cursor", () => {
+    expect(parseSyncRequest({ cursor: 1.5, trials: [] })).toBeNull();
+  });
+
   it("rejects an invalid trial the same way parseTrialResults does", () => {
     const { id: _id, ...incompleteTrial } = validTrial;
     expect(parseSyncRequest({ cursor: 0, trials: [incompleteTrial] })).toBeNull();
@@ -364,6 +372,17 @@ describe("deriveLevelRuns", () => {
 
   it("returns an empty array for no trials", () => {
     expect(deriveLevelRuns([])).toEqual([]);
+  });
+
+  it("derives playedAt as the latest of the run's trials — when the run actually happened, not when it's synced", () => {
+    const trials = [
+      evaluatedTrial({ playedAt: 1_700_000_001_000 }),
+      evaluatedTrial({ playedAt: 1_700_000_003_000 }),
+      evaluatedTrial({ playedAt: 1_700_000_002_000 }),
+    ];
+
+    const [summary] = deriveLevelRuns(trials);
+    expect(summary.playedAt).toBe(1_700_000_003_000);
   });
 });
 
