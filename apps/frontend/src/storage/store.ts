@@ -20,9 +20,16 @@ export function createLocalStore(): Store {
 /** The store every storage/*.ts module reads and writes — one per tab. */
 export const localStore: Store = createLocalStore();
 
-/** Test-only: clears every row, mirroring the localStorageMock.clear() convention used elsewhere in this codebase's storage tests. */
+/**
+ * Clears every row and Value (e.g. the sync cursor). Used in tests
+ * (mirroring the localStorageMock.clear() convention used elsewhere in
+ * this codebase's storage tests) and for real, on logout — see
+ * auth/store.ts's logout(), which clears local data so a shared browser's
+ * next login can't inherit the outgoing user's still-pending trials.
+ */
 export function resetLocalStore(): void {
   localStore.delTables();
+  localStore.delValues();
 }
 
 let persistenceInit: Promise<void> | null = null;

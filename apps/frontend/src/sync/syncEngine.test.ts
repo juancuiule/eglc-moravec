@@ -2,9 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("../api/Api", () => ({ Api: { sync: vi.fn() } }));
 
-import { sync } from "./syncEngine";
+// Keeps localStore/resetLocalStore real (this suite's whole point is testing
+// against a real in-memory TinyBase store) but lets individual tests control
+// when IndexedDB hydration "finishes".
+vi.mock("../storage/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../storage/store")>();
+  return { ...actual, initLocalStorePersistence: vi.fn().mockResolvedValue(undefined) };
+});
+
+import { sync, resetCursor } from "./syncEngine";
 import { Api } from "../api/Api";
-import { resetLocalStore, localStore } from "../storage/store";
+import { resetLocalStore, localStore, initLocalStorePersistence } from "../storage/store";
 import { appendTrials, type PersistedTrial } from "../storage/trialHistory";
 import { appendPracticeTrials, type PersistedPracticeTrial } from "../storage/practiceHistory";
 import type { AuthState } from "../auth/store";
@@ -68,6 +76,29 @@ describe("sync", () => {
     appendTrials([trial()]);
     await sync(loggedOut);
     expect(Api.sync).not.toHaveBeenCalled();
+  });
+
+  it("waits for local-store persistence to finish loading before reading anything pending — a boot-time call must not race IndexedDB hydration", async () => {
+    let resolveLoad!: () => void;
+    vi.mocked(initLocalStorePersistence).mockReturnValueOnce(
+      new Promise<void>((resolve) => { resolveLoad = resolve; }),
+    );
+    vi.mocked(Api.sync).mockResolvedValue(emptyResponse());
+
+    // Simulates a trial that was already on disk from a previous session,
+    // "arriving" only once hydration completes — appended here before the
+    // load resolves, standing in for data IndexedDB hasn't handed back yet.
+    appendTrials([trial({ id: "pre-existing" })]);
+
+    const syncPromise = sync(loggedIn);
+    await Promise.resolve(); // let any pre-hydration microtasks run
+    expect(Api.sync).not.toHaveBeenCalled();
+
+    resolveLoad();
+    await syncPromise;
+
+    const [, request] = vi.mocked(Api.sync).mock.calls[0];
+    expect(request.trials.map((t) => t.id)).toEqual(["pre-existing"]);
   });
 
   it("sends only synced:false trials in the push", async () => {
@@ -207,6 +238,21 @@ describe("sync", () => {
 
     expect(localStore.getCell("trials", "pending-1", "synced")).toBe(false);
     expect(localStore.getValue("cursor")).toBe(5);
+  });
+});
+
+describe("resetCursor", () => {
+  it("sets the stored cursor back to 0", () => {
+    localStore.setValues({ cursor: 201 });
+
+    resetCursor();
+
+    expect(localStore.getValue("cursor")).toBe(0);
+  });
+
+  it("is a no-op-safe call when there was no cursor stored yet", () => {
+    resetCursor();
+    expect(localStore.getValue("cursor")).toBe(0);
   });
 });
 

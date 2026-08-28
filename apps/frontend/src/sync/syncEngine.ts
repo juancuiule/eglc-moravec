@@ -2,7 +2,7 @@ import { currentStreak } from "engine";
 import type { Row } from "tinybase";
 import { Api, type SyncTrialInput, type SyncTrialOutput, type SyncLevelRunOutput } from "../api/Api";
 import type { AuthState } from "../auth/store";
-import { localStore } from "../storage/store";
+import { localStore, initLocalStorePersistence } from "../storage/store";
 
 const CURSOR_KEY = "cursor";
 const MIN_BACKOFF_MS = 1000;
@@ -14,6 +14,21 @@ let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
 function getCursor(): number {
   return (localStore.getValue(CURSOR_KEY) as number | undefined) ?? 0;
+}
+
+/**
+ * Resets this device's cursor back to 0 — call right before logging in.
+ * `sync_log.seq` is a single sequence shared by every user on the backend,
+ * not scoped per account (see db.ts), so an anonymous device's cursor can
+ * land numerically higher than a destination account's own pre-existing
+ * history from another device. Keeping the anonymous cursor after the
+ * merge (the original design) would then permanently skip that older
+ * history — `WHERE seq > cursor` never looks back far enough. Resetting to
+ * 0 forces one full re-pull of the now-merged account on first login,
+ * which is cheap at Moravec's data volumes and simple to reason about.
+ */
+export function resetCursor(): void {
+  localStore.setValue(CURSOR_KEY, 0);
 }
 
 type RunOrderEntry = { id: string; playedAt: string; correct: boolean };
@@ -140,6 +155,13 @@ function scheduleRetry(authState: AuthState): void {
 
 async function attemptSync(authState: AuthState): Promise<void> {
   if (authState.type === "loggedOut") return;
+
+  // A boot-time or `online` call can fire before IndexedDB hydration
+  // finishes (AuthBoot isn't gated by StoreBoot) — reading the store before
+  // then would see it empty, silently skipping whatever was actually on
+  // disk from a previous session. Memoized, so this is a no-op after the
+  // first real load.
+  await initLocalStorePersistence();
 
   const trials = buildPendingTrials();
   const cursor = getCursor();

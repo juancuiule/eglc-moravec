@@ -27,4 +27,12 @@ describe("resetLocalStore", () => {
     expect(localStore.getRowIds("trials")).toEqual([]);
     expect(localStore.getRowIds("levelRuns")).toEqual([]);
   });
+
+  it("also clears Values (e.g. the sync cursor) — delTables alone leaves them behind", () => {
+    localStore.setValue("cursor", 7);
+
+    resetLocalStore();
+
+    expect(localStore.getValue("cursor")).toBeUndefined();
+  });
 });
