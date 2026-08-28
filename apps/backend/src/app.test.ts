@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { FastifyInstance } from "fastify";
 import { openDb } from "./db.js";
@@ -55,6 +56,7 @@ describe("global error handler", () => {
     // manual validator lets this through, and reconstructOperation() then
     // throws a plain Error with the codename in its message.
     const trial = {
+      id: randomUUID(),
       levelNumber: 1,
       categoryCodename: "garbage",
       correct: true,
@@ -73,9 +75,9 @@ describe("global error handler", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     expect(response.statusCode).toBe(500);

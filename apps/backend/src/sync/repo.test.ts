@@ -1,20 +1,21 @@
 import { describe, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
 import { openDb } from "../db.js";
 import { evaluateTrialResult, type TrialResultInput, type LevelRunSummary } from "./logic.js";
 import {
-  getLevelStatsRow,
-  upsertLevelStatsRow,
-  getAllLevelStatsForUser,
-  upsertLevelStatsIfBetter,
   insertTrialResults,
   getTrialResultsForUser,
+  getTrialResultsByIds,
   getKeystrokesForTrialResult,
   insertLevelRuns,
   getLevelRunsForUser,
+  getLevelRunsByIds,
+  getSyncLogSince,
   mergeAnonymousIdentity,
 } from "./repo.js";
 
 const baseTrialInput: TrialResultInput = {
+  id: "trial-abc",
   levelNumber: 3,
   categoryCodename: "1d+1d",
   correct: true,
@@ -31,93 +32,17 @@ const baseTrialInput: TrialResultInput = {
   runType: "level",
 };
 
-describe("getLevelStatsRow / upsertLevelStatsRow / getAllLevelStatsForUser", () => {
-  it("returns undefined when there's no record yet", () => {
-    const db = openDb(":memory:");
-    expect(getLevelStatsRow(db, "hash-1", 3)).toBeUndefined();
-  });
-
-  it("inserts a fresh record", () => {
-    const db = openDb(":memory:");
-    upsertLevelStatsRow(db, "hash-1", 3, 2, 5000, 1000);
-
-    expect(getLevelStatsRow(db, "hash-1", 3)).toEqual({
-      email_hash: "hash-1",
-      level_number: 3,
-      stars: 2,
-      total_time: 5000,
-      completed_at: 1000,
-    });
-  });
-
-  it("overwrites on conflict (same user + level)", () => {
-    const db = openDb(":memory:");
-    upsertLevelStatsRow(db, "hash-1", 3, 2, 5000, 1000);
-    upsertLevelStatsRow(db, "hash-1", 3, 3, 4000, 2000);
-
-    expect(getLevelStatsRow(db, "hash-1", 3)).toEqual({
-      email_hash: "hash-1",
-      level_number: 3,
-      stars: 3,
-      total_time: 4000,
-      completed_at: 2000,
-    });
-  });
-
-  it("returns every level for a user, and none for another", () => {
-    const db = openDb(":memory:");
-    upsertLevelStatsRow(db, "hash-1", 1, 3, 1000, 100);
-    upsertLevelStatsRow(db, "hash-1", 2, 1, 2000, 200);
-    upsertLevelStatsRow(db, "hash-2", 1, 2, 1500, 150);
-
-    const rows = getAllLevelStatsForUser(db, "hash-1");
-    expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.level_number).sort()).toEqual([1, 2]);
-  });
-});
-
-describe("upsertLevelStatsIfBetter", () => {
-  it("inserts when there's no existing record", () => {
-    const db = openDb(":memory:");
-    upsertLevelStatsIfBetter(db, "hash-1", 1, { stars: 1, totalTime: 9000 }, 100);
-    expect(getLevelStatsRow(db, "hash-1", 1)?.stars).toBe(1);
-  });
-
-  it("overwrites when the candidate has more stars", () => {
-    const db = openDb(":memory:");
-    upsertLevelStatsRow(db, "hash-1", 1, 1, 9000, 100);
-    upsertLevelStatsIfBetter(db, "hash-1", 1, { stars: 2, totalTime: 9000 }, 200);
-    expect(getLevelStatsRow(db, "hash-1", 1)?.stars).toBe(2);
-  });
-
-  it("overwrites when same stars but less time", () => {
-    const db = openDb(":memory:");
-    upsertLevelStatsRow(db, "hash-1", 1, 2, 9000, 100);
-    upsertLevelStatsIfBetter(db, "hash-1", 1, { stars: 2, totalTime: 5000 }, 200);
-    expect(getLevelStatsRow(db, "hash-1", 1)?.total_time).toBe(5000);
-  });
-
-  it("does not overwrite when the candidate is worse", () => {
-    const db = openDb(":memory:");
-    upsertLevelStatsRow(db, "hash-1", 1, 3, 5000, 100);
-    upsertLevelStatsIfBetter(db, "hash-1", 1, { stars: 1, totalTime: 1000 }, 200);
-
-    const row = getLevelStatsRow(db, "hash-1", 1);
-    expect(row?.stars).toBe(3);
-    expect(row?.total_time).toBe(5000);
-  });
-});
-
 describe("insertTrialResults / getTrialResultsForUser / getKeystrokesForTrialResult", () => {
-  it("stores a trial and its keystrokes, mapping booleans to 0/1", () => {
+  it("stores a trial (keyed by its client-generated id) and its keystrokes, mapping booleans to 0/1", () => {
     const db = openDb(":memory:");
     const trial = evaluateTrialResult(baseTrialInput);
 
-    insertTrialResults(db, "hash-1", [trial]);
+    insertTrialResults(db, "hash-1", [trial], 1000);
 
     const rows = getTrialResultsForUser(db, "hash-1");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
+      id: "trial-abc",
       email_hash: "hash-1",
       level_number: 3,
       category_codename: "1d+1d",
@@ -135,17 +60,50 @@ describe("insertTrialResults / getTrialResultsForUser / getKeystrokesForTrialRes
     const db = openDb(":memory:");
     const trial = evaluateTrialResult({ ...baseTrialInput, levelNumber: null, runType: "practice" });
 
-    insertTrialResults(db, "hash-1", [trial]);
+    insertTrialResults(db, "hash-1", [trial], 1000);
 
     expect(getTrialResultsForUser(db, "hash-1")[0].level_number).toBe(0);
   });
 
   it("only returns trials for the requested user", () => {
     const db = openDb(":memory:");
-    insertTrialResults(db, "hash-1", [evaluateTrialResult(baseTrialInput)]);
-    insertTrialResults(db, "hash-2", [evaluateTrialResult(baseTrialInput)]);
+    insertTrialResults(db, "hash-1", [evaluateTrialResult(baseTrialInput)], 1000);
+    insertTrialResults(
+      db,
+      "hash-2",
+      [evaluateTrialResult({ ...baseTrialInput, id: randomUUID() })],
+      1000,
+    );
 
     expect(getTrialResultsForUser(db, "hash-1")).toHaveLength(1);
+  });
+
+  it("ignores a retried insert of the same trial id, rather than double-recording it or its keystrokes", () => {
+    const db = openDb(":memory:");
+    const trial = evaluateTrialResult(baseTrialInput);
+
+    insertTrialResults(db, "hash-1", [trial], 1000);
+    insertTrialResults(db, "hash-1", [trial], 2000); // e.g. a retried sync batch
+
+    const rows = getTrialResultsForUser(db, "hash-1");
+    expect(rows).toHaveLength(1);
+    expect(getKeystrokesForTrialResult(db, rows[0].id)).toHaveLength(2); // not 4
+  });
+
+  it("fetches specific trials by id", () => {
+    const db = openDb(":memory:");
+    insertTrialResults(db, "hash-1", [evaluateTrialResult(baseTrialInput)], 1000);
+    const otherId = randomUUID();
+    insertTrialResults(
+      db,
+      "hash-1",
+      [evaluateTrialResult({ ...baseTrialInput, id: otherId })],
+      1000,
+    );
+
+    expect(getTrialResultsByIds(db, ["trial-abc"])).toHaveLength(1);
+    expect(getTrialResultsByIds(db, [otherId, "trial-abc"])).toHaveLength(2);
+    expect(getTrialResultsByIds(db, [])).toHaveLength(0);
   });
 });
 
@@ -180,12 +138,74 @@ describe("insertLevelRuns / getLevelRunsForUser", () => {
 
     expect(getLevelRunsForUser(db, "hash-1")).toHaveLength(1);
   });
+
+  it("fetches specific level runs by id", () => {
+    const db = openDb(":memory:");
+    insertLevelRuns(
+      db,
+      "hash-1",
+      [{ levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true }],
+      1000,
+    );
+
+    expect(getLevelRunsByIds(db, ["run-1"])).toHaveLength(1);
+    expect(getLevelRunsByIds(db, ["nonexistent"])).toHaveLength(0);
+  });
+});
+
+describe("sync_log", () => {
+  it("logs a new trial insert, but not a retried duplicate", () => {
+    const db = openDb(":memory:");
+    const trial = evaluateTrialResult(baseTrialInput);
+
+    insertTrialResults(db, "hash-1", [trial], 1000);
+    insertTrialResults(db, "hash-1", [trial], 2000); // retried — must not log again
+
+    const log = getSyncLogSince(db, "hash-1", 0);
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({ entityType: "trial_result", entityId: "trial-abc" });
+  });
+
+  it("logs a new level run insert, but not a retried duplicate", () => {
+    const db = openDb(":memory:");
+    const run: LevelRunSummary = { levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true };
+
+    insertLevelRuns(db, "hash-1", [run], 1000);
+    insertLevelRuns(db, "hash-1", [run], 2000); // retried
+
+    const log = getSyncLogSince(db, "hash-1", 0);
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({ entityType: "level_run", entityId: "run-1" });
+  });
+
+  it("only returns entries after the given cursor, in seq order, for the requested user", () => {
+    const db = openDb(":memory:");
+    insertTrialResults(db, "hash-1", [evaluateTrialResult(baseTrialInput)], 1000);
+    insertTrialResults(
+      db,
+      "hash-1",
+      [evaluateTrialResult({ ...baseTrialInput, id: "trial-2" })],
+      1000,
+    );
+    insertTrialResults(
+      db,
+      "hash-2",
+      [evaluateTrialResult({ ...baseTrialInput, id: "trial-3" })],
+      1000,
+    );
+
+    const [first] = getSyncLogSince(db, "hash-1", 0);
+    const sinceFirst = getSyncLogSince(db, "hash-1", first.seq);
+
+    expect(sinceFirst).toHaveLength(1);
+    expect(sinceFirst[0].entityId).toBe("trial-2");
+  });
 });
 
 describe("mergeAnonymousIdentity", () => {
-  it("re-keys trial_results and level_runs from the anonymous identity to the real one", () => {
+  it("re-keys trial_results, level_runs, and sync_log from the anonymous identity to the real one", () => {
     const db = openDb(":memory:");
-    insertTrialResults(db, "anon-hash", [evaluateTrialResult(baseTrialInput)]);
+    insertTrialResults(db, "anon-hash", [evaluateTrialResult(baseTrialInput)], 1000);
     insertLevelRuns(
       db,
       "anon-hash",
@@ -193,40 +213,25 @@ describe("mergeAnonymousIdentity", () => {
       1000,
     );
 
-    mergeAnonymousIdentity(db, "anon-hash", "real-hash", 2000);
+    mergeAnonymousIdentity(db, "anon-hash", "real-hash");
 
     expect(getTrialResultsForUser(db, "anon-hash")).toHaveLength(0);
     expect(getTrialResultsForUser(db, "real-hash")).toHaveLength(1);
     expect(getLevelRunsForUser(db, "anon-hash")).toHaveLength(0);
     expect(getLevelRunsForUser(db, "real-hash")).toHaveLength(1);
+    expect(getSyncLogSince(db, "anon-hash", 0)).toHaveLength(0);
+    expect(getSyncLogSince(db, "real-hash", 0)).toHaveLength(2); // the trial + the level run
   });
 
-  it("adopts the anonymous identity's level_stats when the real user has no record", () => {
+  it("keeps a device's cursor numerically valid after the merge — no entries are lost or renumbered", () => {
     const db = openDb(":memory:");
-    upsertLevelStatsRow(db, "anon-hash", 1, 3, 5000, 100);
+    insertTrialResults(db, "anon-hash", [evaluateTrialResult(baseTrialInput)], 1000);
+    const [before] = getSyncLogSince(db, "anon-hash", 0);
 
-    mergeAnonymousIdentity(db, "anon-hash", "real-hash", 2000);
+    mergeAnonymousIdentity(db, "anon-hash", "real-hash");
 
-    expect(getLevelStatsRow(db, "real-hash", 1)?.stars).toBe(3);
-  });
-
-  it("keeps the real user's better level_stats record rather than downgrading it", () => {
-    const db = openDb(":memory:");
-    upsertLevelStatsRow(db, "anon-hash", 1, 1, 9000, 100);
-    upsertLevelStatsRow(db, "real-hash", 1, 3, 4000, 100);
-
-    mergeAnonymousIdentity(db, "anon-hash", "real-hash", 2000);
-
-    expect(getLevelStatsRow(db, "real-hash", 1)?.stars).toBe(3);
-  });
-
-  it("upgrades the real user's worse level_stats record with the anonymous one's better record", () => {
-    const db = openDb(":memory:");
-    upsertLevelStatsRow(db, "anon-hash", 1, 3, 4000, 100);
-    upsertLevelStatsRow(db, "real-hash", 1, 1, 9000, 100);
-
-    mergeAnonymousIdentity(db, "anon-hash", "real-hash", 2000);
-
-    expect(getLevelStatsRow(db, "real-hash", 1)?.stars).toBe(3);
+    const [after] = getSyncLogSince(db, "real-hash", 0);
+    expect(after.seq).toBe(before.seq);
+    expect(after.entityId).toBe(before.entityId);
   });
 });

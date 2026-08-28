@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { FastifyInstance } from "fastify";
 import { openDb } from "../db.js";
@@ -6,7 +7,7 @@ import { buildApp } from "../app.js";
 import { loadConfig } from "../config.js";
 import { getOtpRow } from "../auth/repo.js";
 import { hashEmail, hashDeviceId } from "../auth/logic.js";
-import { getTrialResultsForUser, getAllLevelStatsForUser } from "../sync/repo.js";
+import { getTrialResultsForUser, getLevelRunsForUser } from "../sync/repo.js";
 
 const TEST_SECRET = "test-secret";
 const EMAIL = "player@example.com";
@@ -24,24 +25,30 @@ function codeFor(db: DatabaseSync, email: string): string {
   return row.code;
 }
 
-// A minimal, valid /sync/results trial — level/category/operands don't
-// matter for these tests, only that the payload is accepted.
-const trial = {
-  levelNumber: 5,
-  categoryCodename: "1d+1d",
-  correct: true,
-  timeExceeded: false,
-  timeTaken: 1000,
-  playedAt: 1_700_000_000_000,
-  keystrokes: [],
-  operands: [4, 5],
-  answer: 9,
-  hintShown: false,
-  streakAtSubmit: 0,
-  hintsAvailableAtStart: 3,
-  runId: "run-1",
-  runType: "level" as const,
-};
+// A minimal, valid POST /sync trial — level/category/operands don't matter
+// for these tests, only that the payload is accepted. A factory (not a
+// shared object) because /sync dedupes by id: reusing one literal id across
+// several trials in the same batch would silently collapse them together.
+function trial(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: randomUUID(),
+    levelNumber: 5,
+    categoryCodename: "1d+1d",
+    correct: true,
+    timeExceeded: false,
+    timeTaken: 1000,
+    playedAt: 1_700_000_000_000,
+    keystrokes: [],
+    operands: [4, 5],
+    answer: 9,
+    hintShown: false,
+    streakAtSubmit: 0,
+    hintsAvailableAtStart: 3,
+    runId: "run-1",
+    runType: "level" as const,
+    ...overrides,
+  };
+}
 
 describe("POST /auth/otp/request", () => {
   it("stores a code and returns ok", async () => {
@@ -243,15 +250,15 @@ describe("POST /auth/device", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token1}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial()] },
     });
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token2}` },
-      payload: { trials: [{ ...trial, runId: "run-2" }] },
+      payload: { cursor: 0, trials: [trial({ runId: "run-2" })] },
     });
 
     const deviceEmailHash = hashDeviceId("device-1", TEST_SECRET);
@@ -260,7 +267,7 @@ describe("POST /auth/device", () => {
 });
 
 describe("anonymous → email upgrade merge", () => {
-  it("merges an anonymous identity's trials and level_stats into the new email account on login", async () => {
+  it("merges an anonymous identity's trials and level_runs into the new email account on login", async () => {
     const { db, app } = setup();
 
     const deviceRes = await app.inject({
@@ -272,9 +279,10 @@ describe("anonymous → email upgrade merge", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${anonToken}` },
-      payload: { trials: Array.from({ length: 20 }, () => trial) }, // 20 correct → completes the level
+      // 20 correct, all in the same run → completes the level
+      payload: { cursor: 0, trials: Array.from({ length: 20 }, () => trial({ runId: "run-1" })) },
     });
 
     await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
@@ -289,7 +297,7 @@ describe("anonymous → email upgrade merge", () => {
 
     const realEmailHash = hashEmail(EMAIL, TEST_SECRET);
     expect(getTrialResultsForUser(db, realEmailHash)).toHaveLength(20);
-    expect(getAllLevelStatsForUser(db, realEmailHash)).toMatchObject([{ level_number: 5, stars: 3 }]);
+    expect(getLevelRunsForUser(db, realEmailHash)).toMatchObject([{ level_number: 5, stars: 3 }]);
 
     // The old anonymous session is gone…
     const anonMeRes = await app.inject({
@@ -322,9 +330,9 @@ describe("anonymous → email upgrade merge", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${tokenA}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial()] },
     });
 
     // A second login (a different email) arrives carrying A's still-valid

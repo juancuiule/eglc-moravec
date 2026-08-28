@@ -45,7 +45,7 @@ interrupting gameplay.
 |---|---|---|---|
 | `users`, `otp_codes`, `sessions` | never | source of truth | never |
 | `trial_results` (Level + Practice, discriminated by `runType`) | yes | source of truth | push + pull |
-| `level_runs` | yes | source of truth | push + pull |
+| `level_runs` | yes | source of truth | pull only (server-derived from pushed trials) |
 | `LevelStats` | derived on read from local `level_runs` | removed as a stored entity | not synced directly |
 | sync cursor | yes (TinyBase Values) | derived from `sync_log` | — |
 
@@ -90,9 +90,8 @@ Single endpoint, replacing `POST /sync/results` and `GET
 ```ts
 // POST /sync — request
 {
-  cursor: number;                  // last seq this device has, 0 initially
-  trials: SyncTrialInput[];        // local rows with synced=false (any runType)
-  levelRuns: SyncLevelRunInput[];  // local rows with synced=false
+  cursor: number;             // last seq this device has, 0 initially
+  trials: SyncTrialInput[];   // local rows with synced=false (any runType)
 }
 
 // POST /sync — response
@@ -102,6 +101,15 @@ Single endpoint, replacing `POST /sync/results` and `GET
   levelRuns: SyncLevelRunOutput[];  // same, for level_runs
 }
 ```
+
+**`level_runs` is never part of the request — only the response.** This
+preserves an existing, deliberate invariant (already true of today's
+`deriveLevelRuns`): the server never trusts a client's claimed
+stars/totalTime/completion for a Level run, it always re-derives them from
+the re-validated trials in the same batch. A client's local `levelRuns` row
+is written optimistically at Level-finish time from its own live
+computation (same as today), but it's confirmed synced by watching for a
+same-id row to come back in a *pull*, never by pushing it for insertion.
 
 `SyncTrialInput` now carries `id` explicitly (today's `SyncTrial` type in
 `Api.ts` doesn't — the id used to be server-generated). This is the field
@@ -200,6 +208,16 @@ already the server's own record — never re-pushed). `setRow` by `id` is
 inherently idempotent, so re-receiving anything is harmless, just wasted
 bandwidth (mitigated by the exclusion in protocol step 5).
 
+`levelRuns` rows are never pushed for insertion (see the protocol section
+above) — only their underlying trials are. A local `levelRuns` row is
+confirmed synced purely by watching the *pull* side: when a level run with
+a matching `id` comes back, if the id already exists locally, only its
+`synced` flag flips to `true` — its stars/totalTime/levelCompleted are left
+alone, even if the server's re-derived values differ, mirroring the
+existing "a disagreement never overrides local LevelStats" rule. If the id
+doesn't exist locally yet (another device's run), it's inserted fresh with
+the server's values and `synced: true`.
+
 Consumers keep their existing public shape:
 
 - `loadTrialHistory()` / `loadPracticeHistory()` (used by `StatsScreen`,
@@ -223,12 +241,12 @@ Consumers keep their existing public shape:
 One `sync()` function (new `apps/frontend/src/sync/syncEngine.ts`):
 
 1. Skip entirely if `authState.type === "loggedOut"`.
-2. Read all `trials`/`levelRuns` rows with `synced: false`, and the current
-   `cursor` value.
+2. Read all `trials` rows with `synced: false` (not `levelRuns` — those are
+   never pushed directly, see above), and the current `cursor` value.
 3. `POST /sync` with that payload.
-4. On success: mark the pushed rows `synced: true`; `setRow` every row in
-   the response (push and pull both land through the same idempotent
-   write path); store the new `cursor`.
+4. On success: mark the pushed trial rows `synced: true`; apply every row in
+   the response — trials via `setRow` (idempotent), level runs via the
+   flip-if-known / insert-if-unknown rule above; store the new `cursor`.
 5. On failure: no state change, schedule a retry.
 
 Backoff is in-memory only (module-level counter + timer handle), not

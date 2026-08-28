@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { FastifyInstance } from "fastify";
 import { openDb } from "../db.js";
@@ -14,8 +15,11 @@ function setup(): { db: DatabaseSync; app: FastifyInstance } {
   return { db, app };
 }
 
+// Every call gets its own id by default — insertTrialResults dedupes by id
+// now, so a shared default would silently collapse these rows together.
 function trial(overrides: Partial<EvaluatedTrialResult> = {}): EvaluatedTrialResult {
   return {
+    id: randomUUID(),
     levelNumber: 1,
     categoryCodename: "1d+1d",
     correct: true,
@@ -42,13 +46,13 @@ describe("GET /admin/stats", () => {
     insertTrialResults(db, "userA", [
       trial({ timeTaken: 1000 }),
       trial({ correct: false }),
-    ]);
+    ], 1000);
     // User B: level 1, correct (2000ms)
-    insertTrialResults(db, "userB", [trial({ timeTaken: 2000 })]);
+    insertTrialResults(db, "userB", [trial({ timeTaken: 2000 })], 1000);
     // User B: level 2, category 1dx1d, correct but timed out — still counts as correct
     insertTrialResults(db, "userB", [
       trial({ levelNumber: 2, categoryCodename: "1dx1d", timeExceeded: true, timeTaken: 5000 }),
-    ]);
+    ], 1000);
 
     const res = await app.inject({ method: "GET", url: "/admin/stats" });
     expect(res.statusCode).toBe(200);
@@ -70,10 +74,10 @@ describe("GET /admin/stats", () => {
   it("excludes Practice trials from both aggregates", async () => {
     const { db, app } = setup();
 
-    insertTrialResults(db, "userA", [trial({ timeTaken: 1000 })]); // Level
+    insertTrialResults(db, "userA", [trial({ timeTaken: 1000 })], 1000); // Level
     insertTrialResults(db, "userA", [
       trial({ runType: "practice", levelNumber: null, categoryCodename: "1d+1d", timeTaken: 9999 }),
-    ]);
+    ], 1000);
 
     const res = await app.inject({ method: "GET", url: "/admin/stats" });
     const body = res.json();

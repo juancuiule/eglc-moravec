@@ -113,7 +113,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
     createSession(db, token, emailHash, expiresAt);
 
     if (anonToken !== null && anonEmailHash !== null && anonEmailHash !== emailHash && isAnonymousUser(db, anonEmailHash)) {
-      mergeAnonymousIdentity(db, anonEmailHash, emailHash, now);
+      mergeAnonymousIdentity(db, anonEmailHash, emailHash);
       deleteSession(db, anonToken);
     }
 

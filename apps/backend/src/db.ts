@@ -4,7 +4,11 @@ import { dirname } from "node:path";
 import { seedLevelsIfEmpty } from "./levels/repo.js";
 
 // Schema grows here as tables are needed — applied in order, each
-// statement idempotent via IF NOT EXISTS.
+// statement idempotent via IF NOT EXISTS. No migration path is maintained
+// for anything predating this shape: trial_results.id in particular used to
+// be a server-generated INTEGER AUTOINCREMENT, which has no meaningful
+// mapping to the client-generated TEXT id used now, so a database from
+// before this schema is expected to be reset, not migrated.
 const SCHEMA_STATEMENTS: readonly string[] = [
   // is_anonymous distinguishes a device-id identity (minted via
   // POST /auth/device, no email ever collected) from a real email-verified
@@ -28,8 +32,11 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      email_hash TEXT NOT NULL,
      expires_at INTEGER NOT NULL
    )`,
+  // id is client-generated (a UUID) rather than server-assigned — this is
+  // what makes a retried push idempotent via INSERT OR IGNORE on id alone,
+  // with no server round-trip needed to learn what id got assigned.
   `CREATE TABLE IF NOT EXISTS trial_results (
-     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     id TEXT PRIMARY KEY,
      email_hash TEXT NOT NULL,
      level_number INTEGER NOT NULL,
      category_codename TEXT NOT NULL,
@@ -47,25 +54,19 @@ const SCHEMA_STATEMENTS: readonly string[] = [
    )`,
   `CREATE INDEX IF NOT EXISTS trial_results_email_hash_idx ON trial_results (email_hash)`,
   `CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)`,
+  `CREATE INDEX IF NOT EXISTS trial_results_run_id_idx ON trial_results (run_id)`,
   `CREATE TABLE IF NOT EXISTS trial_keystrokes (
      id INTEGER PRIMARY KEY AUTOINCREMENT,
-     trial_result_id INTEGER NOT NULL,
+     trial_result_id TEXT NOT NULL,
      key TEXT NOT NULL,
      t INTEGER NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS trial_keystrokes_trial_result_id_idx ON trial_keystrokes (trial_result_id)`,
-  `CREATE TABLE IF NOT EXISTS level_stats (
-     email_hash TEXT NOT NULL,
-     level_number INTEGER NOT NULL,
-     stars INTEGER NOT NULL,
-     total_time INTEGER NOT NULL,
-     completed_at INTEGER NOT NULL,
-     PRIMARY KEY (email_hash, level_number)
-   )`,
-  // Every attempt at a Level, not just the best one — level_stats above
-  // stays the best-ever cache the Levels page reads, this is the full
-  // history. id is the client-generated levelRunId (see game/index.ts),
-  // which is also what trial_results.run_id groups back to this row.
+  // Every attempt at a Level, not just the best one — LevelStats (the
+  // best-ever record) is derived client-side from this table, not stored
+  // server-side as its own entity. id is the client-generated levelRunId
+  // (see game/index.ts), which is also what trial_results.run_id groups
+  // back to this row.
   `CREATE TABLE IF NOT EXISTS level_runs (
      id TEXT PRIMARY KEY,
      email_hash TEXT NOT NULL,
@@ -77,6 +78,19 @@ const SCHEMA_STATEMENTS: readonly string[] = [
    )`,
   `CREATE INDEX IF NOT EXISTS level_runs_email_hash_idx ON level_runs (email_hash)`,
   `CREATE INDEX IF NOT EXISTS level_runs_level_number_idx ON level_runs (level_number)`,
+  // One global, append-only log of every trial_results/level_runs row ever
+  // actually inserted (never on a duplicate INSERT OR IGNORE no-op) — the
+  // seq column is what a client's sync cursor advances against, so it can
+  // ask "what's new since I last synced" without relying on played_at
+  // (client clocks aren't trustworthy, and can collide).
+  `CREATE TABLE IF NOT EXISTS sync_log (
+     seq INTEGER PRIMARY KEY AUTOINCREMENT,
+     entity_type TEXT NOT NULL,
+     entity_id TEXT NOT NULL,
+     email_hash TEXT NOT NULL,
+     created_at INTEGER NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS sync_log_email_hash_seq_idx ON sync_log (email_hash, seq)`,
   // The Level catalog — content, read wholesale, rarely written.
   // mix is a JSON-encoded Record<categoryCodename, weight>, not a normalized
   // shape: nothing here needs relational queries, only whole-row reads.
@@ -86,112 +100,10 @@ const SCHEMA_STATEMENTS: readonly string[] = [
    )`,
 ];
 
-// `CREATE TABLE IF NOT EXISTS` is a no-op against a table that already
-// exists with an older column set, so a new NOT NULL column needs an
-// explicit, idempotent migration on top — added here as each becomes
-// necessary. `backfill`, when present, derives the new column's value from
-// whatever equivalent was recorded before; omitted entries have no
-// equivalent to backfill from, so the DEFAULT in `ddl` is the real answer.
-type ColumnMigration = {
-  table: string;
-  column: string;
-  ddl: string;
-  backfill?: string;
-};
-
-const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [
-  // Existing rows predate the client/server correctness split (ticket 05).
-  {
-    table: "trial_results",
-    column: "client_correct",
-    ddl: "ALTER TABLE trial_results ADD COLUMN client_correct INTEGER NOT NULL DEFAULT 0",
-    backfill: "UPDATE trial_results SET client_correct = correct",
-  },
-  {
-    table: "trial_results",
-    column: "client_time_exceeded",
-    ddl: "ALTER TABLE trial_results ADD COLUMN client_time_exceeded INTEGER NOT NULL DEFAULT 0",
-    backfill: "UPDATE trial_results SET client_time_exceeded = time_exceeded",
-  },
-  // Existing rows predate hint/streak tracking (ticket 03 follow-up) — 0
-  // (unknown) is the same value as a trial where no hint was ever available.
-  {
-    table: "trial_results",
-    column: "hint_shown",
-    ddl: "ALTER TABLE trial_results ADD COLUMN hint_shown INTEGER NOT NULL DEFAULT 0",
-  },
-  {
-    table: "trial_results",
-    column: "streak_at_submit",
-    ddl: "ALTER TABLE trial_results ADD COLUMN streak_at_submit INTEGER NOT NULL DEFAULT 0",
-  },
-  {
-    table: "trial_results",
-    column: "hints_available_at_start",
-    ddl: "ALTER TABLE trial_results ADD COLUMN hints_available_at_start INTEGER NOT NULL DEFAULT 0",
-  },
-  // Existing rows predate Practice sync — every one of them is a Level
-  // trial by definition, so 'level' is exactly correct, not just a
-  // placeholder default.
-  {
-    table: "trial_results",
-    column: "run_type",
-    ddl: "ALTER TABLE trial_results ADD COLUMN run_type TEXT NOT NULL DEFAULT 'level'",
-  },
-  // Existing users all predate anonymous accounts and are, by definition,
-  // real email-verified ones — 0 (not anonymous) is exactly correct, no
-  // ambiguity like the columns above had.
-  {
-    table: "users",
-    column: "is_anonymous",
-    ddl: "ALTER TABLE users ADD COLUMN is_anonymous INTEGER NOT NULL DEFAULT 0",
-  },
-];
-
-function tableColumns(db: DatabaseSync, table: string): Set<string> {
-  return new Set(
-    (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name),
-  );
-}
-
-// Ensures run_id exists, covering both migration paths: a database that
-// already has level_run_id (added by an older ticket) gets it renamed —
-// dropping the old index name too, so a migrated database doesn't carry two
-// indexes over the same (renamed) column — while a database old enough to
-// predate level_run_id entirely just gets run_id added fresh, '' meaning
-// exactly as ungroupable as it always was. Doesn't fit ColumnMigration's
-// single-DDL ADD-COLUMN shape, so it's its own step, run after
-// COLUMN_MIGRATIONS.
-function ensureRunIdColumn(db: DatabaseSync): void {
-  const columns = tableColumns(db, "trial_results");
-  if (columns.has("run_id")) return;
-  if (columns.has("level_run_id")) {
-    db.exec("ALTER TABLE trial_results RENAME COLUMN level_run_id TO run_id");
-    db.exec("DROP INDEX IF EXISTS trial_results_level_run_id_idx");
-  } else {
-    db.exec("ALTER TABLE trial_results ADD COLUMN run_id TEXT NOT NULL DEFAULT ''");
-  }
-}
-
-function applyColumnMigrations(db: DatabaseSync): void {
-  COLUMN_MIGRATIONS.forEach(({ table, column, ddl, backfill }) => {
-    if (tableColumns(db, table).has(column)) return;
-    db.exec(ddl);
-    if (backfill) db.exec(backfill);
-  });
-  ensureRunIdColumn(db);
-  // Unconditional: needs to run for a fresh database too, where run_id
-  // already exists from CREATE TABLE and the rename above never fires.
-  db.exec(
-    "CREATE INDEX IF NOT EXISTS trial_results_run_id_idx ON trial_results (run_id)",
-  );
-}
-
 export function openDb(path: string): DatabaseSync {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   SCHEMA_STATEMENTS.forEach((statement) => db.exec(statement));
-  applyColumnMigrations(db);
   seedLevelsIfEmpty(db);
   return db;
 }
