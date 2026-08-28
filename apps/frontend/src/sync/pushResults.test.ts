@@ -26,6 +26,7 @@ function makeResult(): TrialResult {
 
 function makeTrial(overrides: Partial<PersistedTrial> = {}): PersistedTrial {
   return {
+    trialId: "trial-abc",
     levelNumber: 3,
     categoryCodename: "1d+1d",
     correct: true,
@@ -67,6 +68,7 @@ describe("pushResults", () => {
         streakAtSubmit: 0,
         hintsAvailableAtStart: 3,
         runId: "run-abc",
+        trialId: "trial-abc",
       },
     ]);
   });

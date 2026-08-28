@@ -30,6 +30,7 @@ export function pushPracticeResults(
     streakAtSubmit: currentStreak(results.slice(0, i)),
     hintsAvailableAtStart: 0, // Practice hints are unlimited — no budget to report
     runId: t.runId,
+    trialId: t.trialId,
   }));
 
   void Api.syncResults(token, payload).catch(() => {

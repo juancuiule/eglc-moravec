@@ -25,6 +25,7 @@ function makeResult(overrides: Partial<PracticeTrialResult> = {}): PracticeTrial
 
 function makeTrial(overrides: Partial<PersistedPracticeTrial> = {}): PersistedPracticeTrial {
   return {
+    trialId: "practice-trial-abc",
     categoryCodename: "1d+1d",
     correct: true,
     timeExceeded: false,
@@ -63,6 +64,7 @@ describe("pushPracticeResults", () => {
         streakAtSubmit: 0,
         hintsAvailableAtStart: 0,
         runId: "practice-run-abc",
+        trialId: "practice-trial-abc",
       },
     ]);
   });

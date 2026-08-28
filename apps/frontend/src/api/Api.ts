@@ -22,6 +22,7 @@ export type SyncTrial = {
   streakAtSubmit: number;
   hintsAvailableAtStart: number;
   runId: string;
+  trialId?: string;
 };
 
 export type LevelStats = {

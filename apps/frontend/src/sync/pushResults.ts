@@ -30,6 +30,7 @@ export function pushResults(token: string, results: TrialResult[], trials: Persi
     streakAtSubmit: t.streakAtSubmit,
     hintsAvailableAtStart: t.hintsAvailableAtStart,
     runId: t.runId,
+    trialId: t.trialId,
   }));
 
   void Api.syncResults(token, payload).catch(() => {
