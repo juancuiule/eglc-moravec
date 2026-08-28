@@ -1,17 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/Api", () => ({ Api: { syncResults: vi.fn() } }));
 
-import { pushResults } from "./pushResults";
+import { Addition, TrialResult } from "engine";
 import { Api } from "../api/Api";
-import { Addition } from "engine";
-import type { GameConfig, TrialResult } from "../game/index";
+import type { GameConfig } from "../game/index";
 import { computePlayedAtTimestamps } from "../storage/playedAt";
+import { pushResults } from "./pushResults";
 
 const NOW = new Date("2026-01-01T00:00:00.000Z").getTime();
 
 function makeResult(): TrialResult {
-  const op = Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
+  const op = Addition.create({
+    type: "addition",
+    codename: "1d+1d",
+    lDigits: 1,
+    rDigits: 1,
+  });
   return {
     operation: op,
     answer: op.result(),
@@ -32,7 +37,9 @@ describe("pushResults", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(Date, "now").mockReturnValue(NOW);
-    vi.spyOn(crypto, "randomUUID").mockReturnValue("11111111-1111-4111-8111-111111111111");
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-4111-8111-111111111111",
+    );
   });
 
   it("builds the wire payload and calls Api.syncResults", () => {
@@ -61,6 +68,8 @@ describe("pushResults", () => {
   it("is fire-and-forget — a rejected call never throws", () => {
     vi.mocked(Api.syncResults).mockRejectedValue(new Error("network down"));
 
-    expect(() => pushResults("tok", config, [makeResult()], "run-abc")).not.toThrow();
+    expect(() =>
+      pushResults("tok", config, [makeResult()], "run-abc"),
+    ).not.toThrow();
   });
 });

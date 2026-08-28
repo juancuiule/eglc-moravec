@@ -4,8 +4,7 @@ vi.mock("../api/Api", () => ({ Api: { syncResults: vi.fn() } }));
 
 import { pushPracticeResults } from "./pushPracticeResults";
 import { Api } from "../api/Api";
-import { Addition } from "engine";
-import type { TrialResult } from "../practice/index";
+import { Addition, type TrialResult } from "engine";
 import { computePlayedAtTimestamps } from "../storage/playedAt";
 
 const NOW = new Date("2026-01-01T00:00:00.000Z").getTime();

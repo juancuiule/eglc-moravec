@@ -9,8 +9,6 @@ import {
 import { createStore } from "zustand/vanilla";
 import { randomId } from "../randomId";
 
-export type { TrialResult };
-
 export type PracticeConfig = {
   categoryCodename: string;
 };

@@ -6,8 +6,8 @@ vi.mock("../sync/pushPracticeResults", () => ({
 
 import { persistStoppedPractice } from "./persistStoppedPractice";
 import { pushPracticeResults } from "../sync/pushPracticeResults";
-import { Addition } from "engine";
-import type { PracticeStopped, TrialResult } from "./index";
+import { Addition, type TrialResult } from "engine";
+import type { PracticeStopped } from "./index";
 import type { AuthState } from "../auth/store";
 
 function makeResult(): TrialResult {

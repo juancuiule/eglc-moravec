@@ -12,9 +12,6 @@ import { createStore } from "zustand/vanilla";
 import { createRandomOperation, Level } from "../level";
 import { randomId } from "../randomId";
 
-export { LEVEL_COMPLETE_THRESHOLD, TRIALS_PER_LEVEL };
-export type { Answering, TrialResult };
-
 export type GameConfig = {
   levelNumber: number;
   level: Level;
@@ -58,8 +55,6 @@ export type Finished = CommonState & {
 };
 
 export type GameState = Loading | Playing | Finished;
-
-// ─── Store ─────────────────────────────────────────────────────────────────────
 
 export type GameStore = {
   state: GameState;

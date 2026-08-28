@@ -6,9 +6,9 @@ vi.mock("../sync/pushResults", () => ({
 
 import { persistFinishedLevel } from "./persistFinishedLevel";
 import { pushResults } from "../sync/pushResults";
-import { Addition } from "engine";
+import { Addition, type TrialResult } from "engine";
 import type { Level } from "../level";
-import type { Finished, TrialResult } from "./index";
+import type { Finished } from "./index";
 import type { AuthState } from "../auth/store";
 import type { LevelStats } from "../api/Api";
 

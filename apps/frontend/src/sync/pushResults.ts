@@ -1,5 +1,6 @@
-import type { GameConfig, TrialResult } from "../game/index";
+import { TrialResult } from "engine";
 import { Api, type SyncTrial } from "../api/Api";
+import type { GameConfig } from "../game/index";
 import { computePlayedAtTimestamps } from "../storage/playedAt";
 
 /**

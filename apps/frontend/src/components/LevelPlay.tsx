@@ -1,33 +1,27 @@
 "use client";
 
-import { Api, type LevelStats } from "@/api/Api";
-import { authToken, authStore, useAuth } from "@/auth/store";
-import { TRIALS_PER_LEVEL } from "@/game/index";
+import { type LevelStats } from "@/api/Api";
+import { authStore } from "@/auth/store";
+
 import { persistFinishedLevel } from "@/game/persistFinishedLevel";
 import { gameStore, useGame } from "@/game/store";
 import type { Level } from "@/level";
 import { watchStoreTransition } from "@/storeWatch";
-import { useQuery } from "@tanstack/react-query";
+import { TRIALS_PER_LEVEL } from "engine";
 import { useEffect, useState } from "react";
 import { AnsweringView } from "./AnsweringView";
 import { FinishedScreen } from "./FinishedScreen";
 
-type Props = { levelNumber: number; level: Level };
+type Props = {
+  levelNumber: number;
+  level: Level;
+  stats: Record<string, LevelStats>;
+};
 
-export function LevelPlay({ levelNumber, level }: Props) {
+export function LevelPlay({ levelNumber, level, stats }: Props) {
   const gameState = useGame((s) => s.state);
   const load = useGame((s) => s.load);
   const [isNewRecord, setIsNewRecord] = useState(false);
-
-  const token = useAuth((s) => authToken(s.state));
-
-  const { data: stats } = useQuery({
-    queryKey: ["levelStats", token],
-    queryFn: () =>
-      token
-        ? Api.fetchLevelStats(token)
-        : Promise.resolve<Record<string, LevelStats>>({}),
-  });
 
   useEffect(() => {
     return watchStoreTransition(
@@ -35,7 +29,7 @@ export function LevelPlay({ levelNumber, level }: Props) {
       (s) => s.state.type === "finished",
       (s) => {
         if (s.state.type !== "finished") return;
-        const previousRecord = stats?.[String(s.state.config.levelNumber)];
+        const previousRecord = stats[String(s.state.config.levelNumber)];
         const isRecord = persistFinishedLevel(
           s.state,
           authStore.getState().state,

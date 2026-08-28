@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createGameStore, TRIALS_PER_LEVEL } from "./index";
+import { TRIALS_PER_LEVEL } from "engine";
+import { createGameStore } from "./index";
 import type { Level } from "../level";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────

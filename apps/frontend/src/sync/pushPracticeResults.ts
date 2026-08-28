@@ -1,4 +1,4 @@
-import type { TrialResult } from "../practice/index";
+import type { TrialResult } from "engine";
 import { Api, type SyncTrial } from "../api/Api";
 import { computePlayedAtTimestamps } from "../storage/playedAt";
 
