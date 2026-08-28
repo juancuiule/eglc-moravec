@@ -209,4 +209,105 @@ describe("openDb", () => {
     };
     expect(count).toBe(150); // not 300 — seeding ran once, not on every open
   });
+
+  it("creates trial_results with run_trial_id on a fresh database", () => {
+    const db = openDb(":memory:");
+    const columns = (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    expect(columns).toContain("run_trial_id");
+  });
+
+  it("enforces uniqueness on a non-empty run_trial_id", () => {
+    const db = openDb(":memory:");
+    db.prepare(
+      `INSERT INTO trial_results
+         (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, run_trial_id)
+       VALUES ('hash-1', 1, '1d+1d', 1, 0, 1, 0, 1000, 1700000000000, 'dedup-key-1')`,
+    ).run();
+
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO trial_results
+             (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, run_trial_id)
+           VALUES ('hash-1', 1, '1d+1d', 1, 0, 1, 0, 1000, 1700000000000, 'dedup-key-1')`,
+        )
+        .run(),
+    ).toThrow();
+  });
+
+  it("allows multiple rows with an empty run_trial_id (legacy/un-migrated clients)", () => {
+    const db = openDb(":memory:");
+    const insert = db.prepare(
+      `INSERT INTO trial_results
+         (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, run_trial_id)
+       VALUES ('hash-1', 1, '1d+1d', 1, 0, 1, 0, 1000, 1700000000000, '')`,
+    );
+    expect(() => {
+      insert.run();
+      insert.run();
+    }).not.toThrow();
+  });
+
+  it("migrates a database that predates run_trial_id, defaulting it to ''", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "old.sqlite");
+
+    const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE trial_results (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       email_hash TEXT NOT NULL,
+       level_number INTEGER NOT NULL,
+       category_codename TEXT NOT NULL,
+       correct INTEGER NOT NULL,
+       time_exceeded INTEGER NOT NULL,
+       client_correct INTEGER NOT NULL,
+       client_time_exceeded INTEGER NOT NULL,
+       time_taken INTEGER NOT NULL,
+       played_at INTEGER NOT NULL
+     )`);
+    legacyDb.exec(
+      `INSERT INTO trial_results (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at)
+       VALUES ('hash-1', 1, '1d+1d', 1, 0, 1, 0, 1000, 1700000000000)`,
+    );
+    legacyDb.close();
+
+    const migrated = openDb(dbPath);
+    const row = migrated.prepare("SELECT run_trial_id FROM trial_results").get() as { run_trial_id: string };
+    expect(row.run_trial_id).toBe("");
+  });
+
+  it("creates level_runs with server_seq on a fresh database", () => {
+    const db = openDb(":memory:");
+    const columns = (db.prepare("PRAGMA table_info(level_runs)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    expect(columns).toContain("server_seq");
+  });
+
+  it("migrates a database that predates level_runs.server_seq, defaulting it to 0", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "old.sqlite");
+
+    const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE level_runs (
+       id TEXT PRIMARY KEY,
+       email_hash TEXT NOT NULL,
+       level_number INTEGER NOT NULL,
+       stars INTEGER NOT NULL,
+       total_time INTEGER NOT NULL,
+       level_completed INTEGER NOT NULL,
+       played_at INTEGER NOT NULL
+     )`);
+    legacyDb.exec(
+      `INSERT INTO level_runs (id, email_hash, level_number, stars, total_time, level_completed, played_at)
+       VALUES ('run-1', 'hash-1', 1, 3, 5000, 1, 1700000000000)`,
+    );
+    legacyDb.close();
+
+    const migrated = openDb(dbPath);
+    const row = migrated.prepare("SELECT server_seq FROM level_runs").get() as { server_seq: number };
+    expect(row.server_seq).toBe(0);
+  });
 });

@@ -43,7 +43,8 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      streak_at_submit INTEGER NOT NULL DEFAULT 0,
      hints_available_at_start INTEGER NOT NULL DEFAULT 0,
      run_id TEXT NOT NULL DEFAULT '',
-     run_type TEXT NOT NULL DEFAULT 'level'
+     run_type TEXT NOT NULL DEFAULT 'level',
+     run_trial_id TEXT NOT NULL DEFAULT ''
    )`,
   `CREATE INDEX IF NOT EXISTS trial_results_email_hash_idx ON trial_results (email_hash)`,
   `CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)`,
@@ -73,7 +74,8 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      stars INTEGER NOT NULL,
      total_time INTEGER NOT NULL,
      level_completed INTEGER NOT NULL,
-     played_at INTEGER NOT NULL
+     played_at INTEGER NOT NULL,
+     server_seq INTEGER NOT NULL DEFAULT 0
    )`,
   `CREATE INDEX IF NOT EXISTS level_runs_email_hash_idx ON level_runs (email_hash)`,
   `CREATE INDEX IF NOT EXISTS level_runs_level_number_idx ON level_runs (level_number)`,
@@ -146,6 +148,21 @@ const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [
     column: "is_anonymous",
     ddl: "ALTER TABLE users ADD COLUMN is_anonymous INTEGER NOT NULL DEFAULT 0",
   },
+  // Offline-sync dedup key (ADR-0001) — '' means "no dedup key", exactly
+  // as ungroupable for retry-dedup purposes as every pre-sync row already was.
+  {
+    table: "trial_results",
+    column: "run_trial_id",
+    ddl: "ALTER TABLE trial_results ADD COLUMN run_trial_id TEXT NOT NULL DEFAULT ''",
+  },
+  // Offline-sync pull cursor (ADR-0001). 0 means "predates cursor sync" —
+  // a fresh pull (cursor 0) correctly picks up every such row once, then
+  // never again, since new rows always get a real positive value.
+  {
+    table: "level_runs",
+    column: "server_seq",
+    ddl: "ALTER TABLE level_runs ADD COLUMN server_seq INTEGER NOT NULL DEFAULT 0",
+  },
 ];
 
 function tableColumns(db: DatabaseSync, table: string): Set<string> {
@@ -184,6 +201,9 @@ function applyColumnMigrations(db: DatabaseSync): void {
   // already exists from CREATE TABLE and the rename above never fires.
   db.exec(
     "CREATE INDEX IF NOT EXISTS trial_results_run_id_idx ON trial_results (run_id)",
+  );
+  db.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS trial_results_run_trial_id_idx ON trial_results (run_trial_id) WHERE run_trial_id != ''",
   );
 }
 
