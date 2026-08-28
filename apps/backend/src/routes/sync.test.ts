@@ -197,6 +197,89 @@ async function postResults(
   });
 }
 
+describe("GET /sync/pull", () => {
+  it("rejects an unauthenticated request", async () => {
+    const { app } = setup();
+    const res = await app.inject({ method: "GET", url: "/sync/pull" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("returns everything on a first pull (cursor omitted, defaults to 0)", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    await postResults(app, token, batchFor(1, 17, 0));
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/sync/pull",
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.trialResults).toHaveLength(17);
+    expect(body.levelRuns).toHaveLength(1);
+    expect(body.cursor.trialId).toBeGreaterThan(0);
+    expect(body.cursor.runSeq).toBeGreaterThan(0);
+  });
+
+  it("returns only rows newer than the given cursor", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    await postResults(app, token, batchFor(1, 17, 0));
+
+    const firstPull = await app.inject({
+      method: "GET",
+      url: "/sync/pull",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const { cursor } = firstPull.json();
+
+    await postResults(app, token, batchFor(2, 17, 0));
+
+    const secondPull = await app.inject({
+      method: "GET",
+      url: `/sync/pull?sinceTrialId=${cursor.trialId}&sinceRunSeq=${cursor.runSeq}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const body = secondPull.json();
+    expect(body.trialResults).toHaveLength(17);
+    expect(body.levelRuns).toHaveLength(1);
+    expect(body.levelRuns[0]).toMatchObject({ levelNumber: 2 });
+  });
+
+  it("nests each trial result's keystrokes", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { trials: [trial] },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/sync/pull",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const [result] = res.json().trialResults;
+    expect(result.keystrokes).toEqual(trial.keystrokes);
+  });
+
+  it("rejects a non-integer cursor", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/sync/pull?sinceTrialId=not-a-number",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe("GET /sync/level-stats (derived from POST /sync/results)", () => {
   it("derives and stores a level record from a synced trial batch", async () => {
     const { db, app } = setup();
