@@ -9,6 +9,7 @@ function trial(
   timeTaken = 3000,
 ): PersistedTrial {
   return {
+    trialId: `trial-${categoryCodename}-${Math.random()}`,
     levelNumber: 1,
     categoryCodename,
     correct,

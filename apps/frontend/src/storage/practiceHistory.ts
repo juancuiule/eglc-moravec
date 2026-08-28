@@ -1,13 +1,17 @@
 import type { BaseTrialResult } from "engine";
 import { computePlayedAtTimestamps } from "./playedAt";
+import { randomId } from "../randomId";
+import { store } from "./store";
 
-const STORAGE_KEY = "moravec:practiceHistory";
+const TABLE = "trials";
 const MAX_TRIALS = 2000;
 
 // No levelNumber — Practice trials aren't tied to a Level. Kept as a
-// separate history from Level's PersistedTrial (storage/trialHistory.ts)
-// per the grilling session: Practice and Level stats stay unmerged.
+// separate type from Level's PersistedTrial (storage/trialHistory.ts) per
+// the grilling session: Practice and Level stats stay unmerged — even
+// though, as of this change, both now live in the same underlying table.
 export type PersistedPracticeTrial = {
+  trialId: string;
   categoryCodename: string;
   correct: boolean;
   timeExceeded: boolean;
@@ -29,6 +33,7 @@ export function buildPersistedPracticeTrials(
     Date.now(),
   );
   return results.map((r, i) => ({
+    trialId: randomId(),
     categoryCodename: r.operation.categoryCodename(),
     correct: r.correct,
     timeExceeded: r.timeExceeded,
@@ -41,24 +46,47 @@ export function buildPersistedPracticeTrials(
 }
 
 export function loadPracticeHistory(): PersistedPracticeTrial[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as PersistedPracticeTrial[];
-  } catch {
-    return [];
-  }
+  return store
+    .getSortedRowIds(TABLE, "playedAt")
+    .map((rowId) => store.getRow(TABLE, rowId))
+    .filter((row) => row.runType === "practice")
+    .map((row) => ({
+      trialId: row.trialId as string,
+      categoryCodename: row.categoryCodename as string,
+      correct: row.correct as boolean,
+      timeExceeded: row.timeExceeded as boolean,
+      timeTaken: row.timeTaken as number,
+      playedAt: row.playedAt as string,
+      keystrokes: JSON.parse(row.keystrokesJson as string),
+      hintShown: row.hintShown as boolean,
+      runId: row.runId as string,
+    }));
 }
 
 export function appendPracticeTrials(trials: PersistedPracticeTrial[]): void {
   if (trials.length === 0) return;
-  try {
-    const existing = loadPracticeHistory();
-    const combined = [...existing, ...trials];
-    const capped =
-      combined.length > MAX_TRIALS ? combined.slice(combined.length - MAX_TRIALS) : combined;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(capped));
-  } catch {
-    // storage quota exceeded — silently ignore
-  }
+  trials.forEach((t) => {
+    store.setRow(TABLE, t.trialId, {
+      trialId: t.trialId,
+      runType: "practice",
+      categoryCodename: t.categoryCodename,
+      correct: t.correct,
+      timeExceeded: t.timeExceeded,
+      timeTaken: t.timeTaken,
+      playedAt: t.playedAt,
+      keystrokesJson: JSON.stringify(t.keystrokes),
+      hintShown: t.hintShown,
+      runId: t.runId,
+    });
+  });
+  evictOldestPractice(MAX_TRIALS);
+}
+
+function evictOldestPractice(max: number): void {
+  const ids = store
+    .getSortedRowIds(TABLE, "playedAt")
+    .filter((rowId) => store.getCell(TABLE, rowId, "runType") === "practice");
+  const excess = ids.length - max;
+  if (excess <= 0) return;
+  ids.slice(0, excess).forEach((rowId) => store.delRow(TABLE, rowId));
 }

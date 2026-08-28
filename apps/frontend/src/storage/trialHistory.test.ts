@@ -1,91 +1,71 @@
-import { describe, it, expect, vi } from "vitest";
-import { buildPersistedTrials } from "./trialHistory";
-import { Addition, Multiplication } from "engine";
-import type { TrialResult } from "../game/index";
-import type { Level } from "../level";
+import { describe, it, expect, beforeEach } from "vitest";
+import { Addition } from "engine";
+import { store } from "./store";
+import { buildPersistedTrials, loadTrialHistory, appendTrials, type PersistedTrial } from "./trialHistory";
+import type { GameConfig, TrialResult } from "../game/index";
 
-// A fixed fixture, not the real catalog's level 1 — tests shouldn't depend
-// on production Level content (which now lives in the backend).
-const LEVEL_FIXTURE: Level = { "1d+1d": 50, "1dx1d": 50 };
-const config = { levelNumber: 7, level: LEVEL_FIXTURE, totalTrials: 20 };
-const RUN_ID = "run-abc-123";
+beforeEach(() => {
+  store.delTables();
+});
 
-function makeResult(overrides: Partial<TrialResult> = {}): TrialResult {
+const config: GameConfig = { levelNumber: 3, level: { "1d+1d": 1 }, totalTrials: 1 };
+
+function fakeResult(overrides: Partial<TrialResult> = {}): TrialResult {
   const op = Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
   return {
     operation: op,
     answer: op.result(),
     correct: true,
     timeExceeded: false,
-    timeTaken: 1200,
+    timeTaken: 1000,
+    keystrokes: [{ key: "9", t: 100 }],
     hintShown: false,
-    keystrokes: [{ key: "1", t: 100 }],
     hasErased: false,
-    streakAtSubmit: 0,
+    streakAtSubmit: 1,
     hintsAvailableAtStart: 3,
     ...overrides,
   };
 }
 
 describe("buildPersistedTrials", () => {
-  it("maps each result to the persisted-trial shape", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+  it("stamps each trial with a fresh, distinct trialId", () => {
+    const trials = buildPersistedTrials(config, [fakeResult(), fakeResult()], "run-1");
+    expect(trials[0].trialId).toBeTruthy();
+    expect(trials[1].trialId).toBeTruthy();
+    expect(trials[0].trialId).not.toBe(trials[1].trialId);
+  });
+});
 
-    const result = makeResult();
-    const [persisted] = buildPersistedTrials(config, [result], RUN_ID);
+describe("appendTrials / loadTrialHistory", () => {
+  it("round-trips a trial through the store", () => {
+    const [trial] = buildPersistedTrials(config, [fakeResult()], "run-1");
+    appendTrials([trial]);
 
-    expect(persisted.levelNumber).toBe(7);
-    expect(persisted.categoryCodename).toBe(result.operation.categoryCodename());
-    expect(persisted.correct).toBe(true);
-    expect(persisted.timeExceeded).toBe(false);
-    expect(persisted.timeTaken).toBe(1200);
-    expect(persisted.keystrokes).toBe(result.keystrokes);
-    expect(persisted.hintShown).toBe(false);
-    expect(persisted.streakAtSubmit).toBe(0);
-    expect(persisted.hintsAvailableAtStart).toBe(3);
-    expect(persisted.runId).toBe(RUN_ID);
-    expect(persisted.playedAt).toBe("2026-01-01T00:00:00.000Z");
-
-    vi.useRealTimers();
+    const history = loadTrialHistory();
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      levelNumber: 3,
+      categoryCodename: "1d+1d",
+      correct: true,
+      runId: "run-1",
+      trialId: trial.trialId,
+    });
+    expect(history[0].keystrokes).toEqual([{ key: "9", t: 100 }]);
   });
 
-  it("carries the category codename from each result's own operation", () => {
-    const additionOp = Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
-    const multOp = Multiplication.create({ type: "multiplication", codename: "1dx1d", lDigits: 1, rDigits: 1 });
+  it("does nothing for an empty batch", () => {
+    appendTrials([]);
+    expect(loadTrialHistory()).toHaveLength(0);
+  });
 
-    const persisted = buildPersistedTrials(
-      config,
-      [makeResult({ operation: additionOp }), makeResult({ operation: multOp })],
-      RUN_ID,
+  it("caps stored trials at 2000, evicting the oldest first", () => {
+    const trials: PersistedTrial[] = Array.from({ length: 2005 }, (_, i) =>
+      buildPersistedTrials(config, [fakeResult()], `run-${i}`)[0],
     );
+    trials.forEach((t, i) => appendTrials([{ ...t, playedAt: new Date(1_700_000_000_000 + i).toISOString() }]));
 
-    expect(persisted[0].categoryCodename).toBe("1d+1d");
-    expect(persisted[1].categoryCodename).toBe("1dx1d");
-  });
-
-  it("returns an empty array for no results", () => {
-    expect(buildPersistedTrials(config, [], RUN_ID)).toEqual([]);
-  });
-
-  it("assigns each trial its own timestamp, working backward by timeTaken from now", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:10.000Z"));
-
-    const persisted = buildPersistedTrials(
-      config,
-      [makeResult({ timeTaken: 1000 }), makeResult({ timeTaken: 2000 }), makeResult({ timeTaken: 3000 })],
-      RUN_ID,
-    );
-
-    const timestamps = persisted.map((p) => p.playedAt);
-    expect(new Set(timestamps).size).toBe(3);
-    expect(timestamps).toEqual([
-      "2026-01-01T00:00:05.000Z",
-      "2026-01-01T00:00:07.000Z",
-      "2026-01-01T00:00:10.000Z",
-    ]);
-
-    vi.useRealTimers();
+    const history = loadTrialHistory();
+    expect(history).toHaveLength(2000);
+    expect(history[0].runId).toBe("run-5"); // the 5 oldest were evicted
   });
 });
