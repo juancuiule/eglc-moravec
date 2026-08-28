@@ -22,6 +22,8 @@ function additionTrial(overrides: Partial<PersistedTrial> = {}): PersistedTrial 
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
     runId: "run-1",
+    operands: [4, 5],
+    answer: 9,
     ...overrides,
   };
 }

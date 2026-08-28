@@ -17,6 +17,9 @@ export type PersistedTrial = {
   hintsAvailableAtStart: number;
   /** Identifies which single playthrough this trial belongs to — see Playing/Finished's runId. */
   runId: string;
+  /** Not read by any local consumer — kept only so a later sync push can re-validate this trial without the original in-memory TrialResult, which may be long gone by then (offline retry, page reload). */
+  operands: number[];
+  answer: number | null;
 };
 
 /** Map a finished level's trial results into the shape persisted to trial history. */
@@ -42,6 +45,8 @@ export function buildPersistedTrials(
     streakAtSubmit: r.streakAtSubmit,
     hintsAvailableAtStart: r.hintsAvailableAtStart,
     runId,
+    operands: r.operation.operands(),
+    answer: r.answer,
   }));
 }
 
@@ -63,6 +68,8 @@ export function loadTrialHistory(): PersistedTrial[] {
       streakAtSubmit: row.streakAtSubmit as number,
       hintsAvailableAtStart: row.hintsAvailableAtStart as number,
       runId: row.runId as string,
+      operands: JSON.parse(row.operands as string),
+      answer: "answer" in row ? (row.answer as number) : null,
     }));
 }
 
@@ -83,6 +90,9 @@ export function appendTrials(trials: PersistedTrial[]): void {
       streakAtSubmit: t.streakAtSubmit,
       hintsAvailableAtStart: t.hintsAvailableAtStart,
       runId: t.runId,
+      operands: JSON.stringify(t.operands),
+      // omitted (not null) when there's no answer, matching Practice's levelNumber convention — TinyBase cells can't hold null directly.
+      ...(t.answer !== null ? { answer: t.answer } : {}),
       synced: false,
     });
   });

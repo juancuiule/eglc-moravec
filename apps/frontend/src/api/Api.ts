@@ -6,8 +6,9 @@ export type OtpVerified = { token: string; expiresAt: number };
 
 export type Keystroke = { key: string; t: number };
 
-/** Wire shape of one finished Trial pushed to /sync/results. */
-export type SyncTrial = {
+/** Wire shape of one pending Trial pushed to POST /sync. */
+export type SyncTrialInput = {
+  id: string;
   runType: "level" | "practice";
   levelNumber: number | null;
   categoryCodename: string;
@@ -24,13 +25,41 @@ export type SyncTrial = {
   runId: string;
 };
 
-export type LevelStats = {
-  stars: 0 | 1 | 2 | 3;
-  totalTime: number; // ms
-  completedAt: string; // ISO date
+/** Wire shape of one Trial pulled back from POST /sync — no keystrokes/operands/answer, only the outcome. */
+export type SyncTrialOutput = {
+  id: string;
+  runType: "level" | "practice";
+  levelNumber: number | null;
+  categoryCodename: string;
+  correct: boolean;
+  timeExceeded: boolean;
+  timeTaken: number;
+  playedAt: number;
+  hintShown: boolean;
+  streakAtSubmit: number;
+  hintsAvailableAtStart: number;
+  runId: string;
 };
 
-export type PersistedLevelStats = Record<string, LevelStats>;
+export type SyncLevelRunOutput = {
+  id: string;
+  levelNumber: number;
+  stars: number;
+  totalTime: number;
+  levelCompleted: boolean;
+  playedAt: number;
+};
+
+export type SyncRequest = {
+  cursor: number;
+  trials: SyncTrialInput[];
+};
+
+export type SyncResponse = {
+  cursor: number;
+  trials: SyncTrialOutput[];
+  levelRuns: SyncLevelRunOutput[];
+};
 
 export type PerformanceSummary = {
   attemptCount: number;
@@ -132,16 +161,8 @@ export const Api = {
     return requestVoid("/auth/logout", { method: "POST", token });
   },
 
-  syncResults(token: string, trials: SyncTrial[]): Promise<void> {
-    return requestVoid("/sync/results", { method: "POST", token, body: { trials } });
-  },
-
-  async pullLevelStats(token: string): Promise<PersistedLevelStats> {
-    const data = await requestJson<{ levelStats: PersistedLevelStats }>("/sync/level-stats", {
-      method: "GET",
-      token,
-    });
-    return data.levelStats;
+  sync(token: string, request: SyncRequest): Promise<SyncResponse> {
+    return requestJson<SyncResponse>("/sync", { method: "POST", token, body: request });
   },
 
   fetchAdminStats(): Promise<AdminStats> {

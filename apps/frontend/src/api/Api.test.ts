@@ -94,44 +94,53 @@ test("logout throws on failure", async () => {
   await expect(Api.logout("tok")).rejects.toThrow();
 });
 
-test("syncResults resolves on success", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse({ ok: true, stored: 1 }));
-  await expect(
-    Api.syncResults("tok", [
-      {
-        runType: "level",
-        levelNumber: 1,
-        categoryCodename: "1d+1d",
-        correct: true,
-        timeExceeded: false,
-        timeTaken: 1200,
-        playedAt: Date.now(),
-        keystrokes: [],
-        hintShown: false,
-        streakAtSubmit: 0,
-        hintsAvailableAtStart: 3,
-        runId: "run-abc",
-        operands: [2, 3],
-        answer: 5,
-      },
-    ]),
-  ).resolves.toBeUndefined();
+const syncTrial = {
+  id: "trial-abc",
+  runType: "level" as const,
+  levelNumber: 1,
+  categoryCodename: "1d+1d",
+  correct: true,
+  timeExceeded: false,
+  timeTaken: 1200,
+  playedAt: Date.now(),
+  keystrokes: [],
+  hintShown: false,
+  streakAtSubmit: 0,
+  hintsAvailableAtStart: 3,
+  runId: "run-abc",
+  operands: [2, 3],
+  answer: 5,
+};
+
+test("sync resolves with the cursor/trials/levelRuns the backend returns", async () => {
+  const body = {
+    cursor: 12,
+    trials: [{ ...syncTrial, id: "trial-remote" }],
+    levelRuns: [{ id: "run-remote", levelNumber: 2, stars: 3, totalTime: 9000, levelCompleted: true, playedAt: 1_700_000_000_000 }],
+  };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(body));
+
+  await expect(Api.sync("tok", { cursor: 5, trials: [syncTrial] })).resolves.toEqual(body);
 });
 
-test("syncResults throws on failure", async () => {
+test("sync POSTs to /sync with the cursor and trials as the body", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse({ cursor: 5, trials: [], levelRuns: [] }));
+
+  await Api.sync("tok", { cursor: 5, trials: [syncTrial] });
+
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining("/sync"),
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ cursor: 5, trials: [syncTrial] }),
+      headers: expect.objectContaining({ Authorization: "Bearer tok" }),
+    }),
+  );
+});
+
+test("sync throws on failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "unauthenticated" }, false));
-  await expect(Api.syncResults("tok", [])).rejects.toThrow("unauthenticated");
-});
-
-test("pullLevelStats resolves with the remote LevelStats map on success", async () => {
-  const levelStats = { "1": { stars: 3, totalTime: 1000, completedAt: "2026-01-01T00:00:00.000Z" } };
-  vi.mocked(fetch).mockResolvedValue(jsonResponse({ levelStats }));
-  await expect(Api.pullLevelStats("tok")).resolves.toEqual(levelStats);
-});
-
-test("pullLevelStats throws on failure", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "unauthenticated" }, false));
-  await expect(Api.pullLevelStats("tok")).rejects.toThrow("unauthenticated");
+  await expect(Api.sync("tok", { cursor: 0, trials: [] })).rejects.toThrow("unauthenticated");
 });
 
 test("fetchAdminStats resolves with byLevel/byCategory on success", async () => {

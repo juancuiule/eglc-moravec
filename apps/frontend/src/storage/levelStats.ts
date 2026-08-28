@@ -90,22 +90,3 @@ export function isLevelUnlocked(levelNumber: number, stats: PersistedLevelStats)
   if (levelNumber === 1) return true;
   return (stats[String(levelNumber - 1)]?.stars ?? 0) > 0;
 }
-
-/**
- * Merges a remote LevelStats snapshot into local storage. Vestigial: the
- * endpoint this consumed (`GET /sync/level-stats`) no longer exists (see
- * ticket #37) — LevelStats is now derived from pulled `levelRuns` rows
- * directly (ticket #39), which supersedes this whole flow. Kept only so
- * `sync/syncLevelStatsFromRemote.ts` still compiles until that ticket
- * removes it; never reached in practice today, since its caller's request
- * already 404s.
- */
-export function mergeRemoteLevelStats(remote: PersistedLevelStats): void {
-  Object.entries(remote).forEach(([levelNumber, stats]) => {
-    updateLevelRecord(Number(levelNumber), randomId(), {
-      stars: stats.stars,
-      totalTime: stats.totalTime,
-      levelCompleted: stats.stars > 0,
-    });
-  });
-}

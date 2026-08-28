@@ -21,6 +21,8 @@ function trial(
     streakAtSubmit: 0,
     hintsAvailableAtStart: 3,
     runId: "run-abc",
+    operands: [1, 1],
+    answer: correct ? 2 : 999,
   };
 }
 

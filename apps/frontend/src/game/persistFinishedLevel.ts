@@ -2,15 +2,15 @@ import type { Finished } from "./index";
 import type { AuthState } from "../auth/store";
 import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
-import { pushResults } from "../sync/pushResults";
+import { sync } from "../sync/syncEngine";
 
 /**
- * Persists a finished Level locally, and syncs it to the backend for any
- * session at all — anonymous or logged in. Every player gets an anonymous
- * session automatically (see AuthBoot/ensureSession), so LoggedOut here
- * only means that first request hasn't resolved yet or failed; trials
- * pushed while anonymous are folded into a real account later if the
- * player logs in.
+ * Persists a finished Level locally, and triggers a sync for any session at
+ * all — anonymous or logged in; sync() itself no-ops for a LoggedOut one.
+ * Every player gets an anonymous session automatically (see AuthBoot/
+ * ensureSession), so LoggedOut here only means that first request hasn't
+ * resolved yet or failed; trials synced while anonymous are folded into a
+ * real account later if the player logs in.
  *
  * Returns whether this run set a new record for the level (see
  * `updateLevelRecord`) — FinishedScreen uses this to decide whether to
@@ -28,9 +28,7 @@ export function persistFinishedLevel(state: Finished, authState: AuthState): boo
   const persistedTrials = buildPersistedTrials(config, results, state.runId);
   appendTrials(persistedTrials);
 
-  if (authState.type !== "loggedOut") {
-    pushResults(authState.token, results, persistedTrials);
-  }
+  void sync(authState);
 
   return isNewRecord;
 }

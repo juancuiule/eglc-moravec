@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  loadLevelStats,
-  saveLevelStats,
-  updateLevelRecord,
-  mergeRemoteLevelStats,
-  isLevelUnlocked,
-} from "./levelStats";
+import { loadLevelStats, saveLevelStats, updateLevelRecord, isLevelUnlocked } from "./levelStats";
 import { resetLocalStore, localStore } from "./store";
 
 beforeEach(() => {
@@ -76,30 +70,6 @@ describe("updateLevelRecord", () => {
     expect(updateLevelRecord(1, "run-1", { stars: 2, totalTime: 10000, levelCompleted: false })).toBe(true);
     expect(updateLevelRecord(1, "run-2", { stars: 1, totalTime: 5000, levelCompleted: false })).toBe(false);
     expect(updateLevelRecord(1, "run-3", { stars: 2, totalTime: 5000, levelCompleted: false })).toBe(true);
-  });
-});
-
-describe("mergeRemoteLevelStats", () => {
-  it("adopts remote records when nothing local exists", () => {
-    mergeRemoteLevelStats({
-      "1": { stars: 3, totalTime: 5000, completedAt: "2025-01-01T00:00:00.000Z" },
-      "2": { stars: 1, totalTime: 9000, completedAt: "2025-01-01T00:00:00.000Z" },
-    });
-    const stats = loadLevelStats();
-    expect(stats["1"]?.stars).toBe(3);
-    expect(stats["2"]?.stars).toBe(1);
-  });
-
-  it("never downgrades a better local record", () => {
-    updateLevelRecord(1, "run-1", { stars: 3, totalTime: 5000, levelCompleted: true });
-    mergeRemoteLevelStats({ "1": { stars: 1, totalTime: 20000, completedAt: "2025-01-01T00:00:00.000Z" } });
-    expect(loadLevelStats()["1"]?.stars).toBe(3);
-  });
-
-  it("upgrades a worse local record", () => {
-    updateLevelRecord(1, "run-1", { stars: 1, totalTime: 20000, levelCompleted: false });
-    mergeRemoteLevelStats({ "1": { stars: 3, totalTime: 5000, completedAt: "2025-01-01T00:00:00.000Z" } });
-    expect(loadLevelStats()["1"]?.stars).toBe(3);
   });
 });
 

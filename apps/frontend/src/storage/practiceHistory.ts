@@ -19,6 +19,9 @@ export type PersistedPracticeTrial = {
   hintShown: boolean;
   /** Identifies which single Practice session this trial belongs to — see PracticeStopped's runId. */
   runId: string;
+  /** Not read by any local consumer — kept only so a later sync push can re-validate this trial without the original in-memory result, which may be long gone by then (offline retry, page reload). */
+  operands: number[];
+  answer: number | null;
 };
 
 /** Map a stopped Practice session's trial results into the shape persisted to Practice history. */
@@ -40,6 +43,8 @@ export function buildPersistedPracticeTrials(
     keystrokes: r.keystrokes,
     hintShown: r.hintShown,
     runId,
+    operands: r.operation.operands(),
+    answer: r.answer,
   }));
 }
 
@@ -58,6 +63,8 @@ export function loadPracticeHistory(): PersistedPracticeTrial[] {
       keystrokes: JSON.parse(row.keystrokes as string),
       hintShown: row.hintShown as boolean,
       runId: row.runId as string,
+      operands: JSON.parse(row.operands as string),
+      answer: "answer" in row ? (row.answer as number) : null,
     }));
 }
 
@@ -82,6 +89,8 @@ export function appendPracticeTrials(trials: PersistedPracticeTrial[]): void {
       keystrokes: JSON.stringify(t.keystrokes),
       hintShown: t.hintShown,
       runId: t.runId,
+      operands: JSON.stringify(t.operands),
+      ...(t.answer !== null ? { answer: t.answer } : {}),
       synced: false,
     });
   });

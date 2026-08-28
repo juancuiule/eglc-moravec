@@ -3,7 +3,6 @@
 import { Api } from "@/api/Api";
 import { useAuth } from "@/auth/store";
 import { backLink, button, panel } from "@/styles";
-import { syncLevelStatsFromRemote } from "@/sync/syncLevelStatsFromRemote";
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -40,7 +39,9 @@ export function OtpForm({
       ),
     onSuccess: (result) => {
       login({ token: result.token, email });
-      void syncLevelStatsFromRemote(result.token);
+      // A post-login sync flush (for anything queued before this login)
+      // is wired in a follow-up ticket (#40) alongside the other
+      // reconnect triggers, not here.
       router.push("/");
     },
   });

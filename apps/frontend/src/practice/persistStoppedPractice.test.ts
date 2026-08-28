@@ -5,13 +5,13 @@ vi.mock("../storage/practiceHistory", () => ({
   buildPersistedPracticeTrials: vi.fn(() => [{ fake: "persisted-practice-trial" }]),
 }));
 
-vi.mock("../sync/pushPracticeResults", () => ({
-  pushPracticeResults: vi.fn(),
+vi.mock("../sync/syncEngine", () => ({
+  sync: vi.fn(),
 }));
 
 import { persistStoppedPractice } from "./persistStoppedPractice";
 import { appendPracticeTrials, buildPersistedPracticeTrials } from "../storage/practiceHistory";
-import { pushPracticeResults } from "../sync/pushPracticeResults";
+import { sync } from "../sync/syncEngine";
 import { Addition } from "engine";
 import type { PracticeStopped, PracticeTrialResult } from "./index";
 import type { AuthState } from "../auth/store";
@@ -57,26 +57,14 @@ describe("persistStoppedPractice", () => {
     expect(appendPracticeTrials).toHaveBeenCalledWith([{ fake: "persisted-practice-trial" }]);
   });
 
-  it("does not sync to the backend when logged out", () => {
-    persistStoppedPractice(makeStopped(), loggedOut);
-    expect(pushPracticeResults).not.toHaveBeenCalled();
-  });
-
-  it("syncs results when logged in", () => {
-    const state = makeStopped();
-    persistStoppedPractice(state, loggedIn);
-
-    expect(pushPracticeResults).toHaveBeenCalledWith("tok123", state.results, [
-      { fake: "persisted-practice-trial" },
-    ]);
-  });
-
-  it("also syncs results when anonymous — every session gets pushed, not just logged-in ones", () => {
-    const state = makeStopped();
-    persistStoppedPractice(state, anonymous);
-
-    expect(pushPracticeResults).toHaveBeenCalledWith("anon-tok", state.results, [
-      { fake: "persisted-practice-trial" },
-    ]);
+  // sync() itself decides whether to no-op for a loggedOut session (see
+  // sync/syncEngine.test.ts) — persistStoppedPractice just always calls it.
+  it.each([
+    ["logged out", loggedOut],
+    ["anonymous", anonymous],
+    ["logged in", loggedIn],
+  ])("calls sync with the current authState when %s", (_label, authState) => {
+    persistStoppedPractice(makeStopped(), authState);
+    expect(sync).toHaveBeenCalledWith(authState);
   });
 });

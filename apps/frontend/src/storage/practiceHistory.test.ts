@@ -42,6 +42,8 @@ describe("buildPersistedPracticeTrials", () => {
     const [persisted] = buildPersistedPracticeTrials([result], RUN_ID);
 
     expect(persisted.id).toBeTruthy();
+    expect(persisted.operands).toEqual(result.operation.operands());
+    expect(persisted.answer).toBe(result.answer);
     expect(persisted).not.toHaveProperty("levelNumber");
     expect(persisted.categoryCodename).toBe(result.operation.categoryCodename());
     expect(persisted.correct).toBe(true);
@@ -98,11 +100,18 @@ describe("loadPracticeHistory / appendPracticeTrials", () => {
     expect(loadPracticeHistory()).toEqual([]);
   });
 
-  it("round-trips appended trials through storage", () => {
+  it("round-trips appended trials through storage, including operands and answer", () => {
     const persisted = buildPersistedPracticeTrials([makeResult()], RUN_ID);
     appendPracticeTrials(persisted);
 
     expect(loadPracticeHistory()).toEqual(persisted);
+  });
+
+  it("round-trips a timed-out trial's null answer", () => {
+    const persisted = buildPersistedPracticeTrials([makeResult({ answer: null })], RUN_ID);
+    appendPracticeTrials(persisted);
+
+    expect(loadPracticeHistory()[0].answer).toBeNull();
   });
 
   it("accumulates across multiple appends", () => {

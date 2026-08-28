@@ -9,14 +9,14 @@ vi.mock("../storage/trialHistory", () => ({
   buildPersistedTrials: vi.fn(() => [{ fake: "persisted-trial" }]),
 }));
 
-vi.mock("../sync/pushResults", () => ({
-  pushResults: vi.fn(),
+vi.mock("../sync/syncEngine", () => ({
+  sync: vi.fn(),
 }));
 
 import { persistFinishedLevel } from "./persistFinishedLevel";
 import { updateLevelRecord } from "../storage/levelStats";
 import { appendTrials, buildPersistedTrials } from "../storage/trialHistory";
-import { pushResults } from "../sync/pushResults";
+import { sync } from "../sync/syncEngine";
 import { Addition } from "engine";
 import type { Level } from "../level";
 import type { Finished, TrialResult } from "./index";
@@ -85,31 +85,14 @@ describe("persistFinishedLevel", () => {
     expect(persistFinishedLevel(makeFinished(), loggedOut)).toBe(false);
   });
 
-  it("does not sync to the backend when logged out", () => {
-    persistFinishedLevel(makeFinished(), loggedOut);
-
-    expect(pushResults).not.toHaveBeenCalled();
-  });
-
-  it("syncs results when logged in", () => {
-    const state = makeFinished();
-    persistFinishedLevel(state, loggedIn);
-
-    expect(pushResults).toHaveBeenCalledWith(
-      "tok123",
-      state.results,
-      [{ fake: "persisted-trial" }],
-    );
-  });
-
-  it("also syncs results when anonymous — every session gets pushed, not just logged-in ones", () => {
-    const state = makeFinished();
-    persistFinishedLevel(state, anonymous);
-
-    expect(pushResults).toHaveBeenCalledWith(
-      "anon-tok",
-      state.results,
-      [{ fake: "persisted-trial" }],
-    );
+  // sync() itself decides whether to no-op for a loggedOut session (see
+  // sync/syncEngine.test.ts) — persistFinishedLevel just always calls it.
+  it.each([
+    ["logged out", loggedOut],
+    ["anonymous", anonymous],
+    ["logged in", loggedIn],
+  ])("calls sync with the current authState when %s", (_label, authState) => {
+    persistFinishedLevel(makeFinished(), authState);
+    expect(sync).toHaveBeenCalledWith(authState);
   });
 });

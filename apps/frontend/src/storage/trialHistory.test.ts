@@ -80,6 +80,13 @@ describe("buildPersistedTrials", () => {
     expect(persisted[0].id).not.toBe(persisted[1].id);
   });
 
+  it("carries operands and answer from each result's own operation — needed for the backend to re-validate later", () => {
+    const result = makeResult();
+    const [persisted] = buildPersistedTrials(config, [result], RUN_ID);
+    expect(persisted.operands).toEqual(result.operation.operands());
+    expect(persisted.answer).toBe(result.answer);
+  });
+
   it("assigns each trial its own timestamp, working backward by timeTaken from now", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:10.000Z"));
@@ -107,11 +114,18 @@ describe("loadTrialHistory / appendTrials", () => {
     expect(loadTrialHistory()).toEqual([]);
   });
 
-  it("round-trips appended trials through the store", () => {
+  it("round-trips appended trials through the store, including operands and answer", () => {
     const persisted = buildPersistedTrials(config, [makeResult()], RUN_ID);
     appendTrials(persisted);
 
     expect(loadTrialHistory()).toEqual(persisted);
+  });
+
+  it("round-trips a timed-out trial's null answer", () => {
+    const persisted = buildPersistedTrials(config, [makeResult({ answer: null })], RUN_ID);
+    appendTrials(persisted);
+
+    expect(loadTrialHistory()[0].answer).toBeNull();
   });
 
   it("accumulates across multiple appends", () => {
