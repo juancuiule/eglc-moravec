@@ -1,6 +1,7 @@
 import { isBetterLevelRecord } from "engine";
+import { store } from "./store";
 
-const STORAGE_KEY = "moravec:levelStats";
+const TABLE = "levelStats";
 
 export type LevelStats = {
   stars: 0 | 1 | 2 | 3;
@@ -11,21 +12,17 @@ export type LevelStats = {
 export type PersistedLevelStats = Record<string, LevelStats>;
 
 export function loadLevelStats(): PersistedLevelStats {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw) as PersistedLevelStats;
-  } catch {
-    return {};
-  }
+  const result: PersistedLevelStats = {};
+  Object.entries(store.getTable(TABLE)).forEach(([levelNumber, row]) => {
+    result[levelNumber] = row as LevelStats;
+  });
+  return result;
 }
 
 export function saveLevelStats(stats: PersistedLevelStats): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
-  } catch {
-    // storage quota exceeded — silently ignore
-  }
+  Object.entries(stats).forEach(([levelNumber, levelStats]) => {
+    store.setRow(TABLE, levelNumber, levelStats);
+  });
 }
 
 /**
@@ -39,19 +36,17 @@ export function updateLevelRecord(
   run: { stars: 0 | 1 | 2 | 3; totalTime: number },
 ): boolean {
   const key = String(levelNumber);
-  const all = loadLevelStats();
-  const existing = all[key];
+  // getRow returns {} (truthy!) for a missing row, not undefined — hasRow
+  // is the only reliable way to distinguish "no record yet" from a real one.
+  const existing = store.hasRow(TABLE, key) ? (store.getRow(TABLE, key) as LevelStats) : undefined;
 
   const isNewRecord = isBetterLevelRecord(run, existing);
   if (!isNewRecord) return false;
 
-  saveLevelStats({
-    ...all,
-    [key]: {
-      stars: run.stars,
-      totalTime: run.totalTime,
-      completedAt: new Date().toISOString(),
-    },
+  store.setRow(TABLE, key, {
+    stars: run.stars,
+    totalTime: run.totalTime,
+    completedAt: new Date().toISOString(),
   });
   return true;
 }

@@ -395,7 +395,9 @@ export function updateLevelRecord(
   run: { stars: 0 | 1 | 2 | 3; totalTime: number },
 ): boolean {
   const key = String(levelNumber);
-  const existing = store.getRow(TABLE, key) as LevelStats | undefined;
+  // getRow returns {} (truthy!) for a missing row, not undefined — hasRow
+  // is the only reliable way to distinguish "no record yet" from a real one.
+  const existing = store.hasRow(TABLE, key) ? (store.getRow(TABLE, key) as LevelStats) : undefined;
 
   const isNewRecord = isBetterLevelRecord(run, existing);
   if (!isNewRecord) return false;

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+import { store } from "./store";
 import {
   loadLevelStats,
   saveLevelStats,
@@ -7,20 +8,8 @@ import {
   isLevelUnlocked,
 } from "./levelStats";
 
-const STORAGE_KEY = "moravec:levelStats";
-
-// Minimal localStorage mock
-const store: Record<string, string> = {};
-const localStorageMock = {
-  getItem: (key: string) => store[key] ?? null,
-  setItem: (key: string, val: string) => { store[key] = val; },
-  removeItem: (key: string) => { delete store[key]; },
-  clear: () => { for (const k in store) delete store[k]; },
-};
-
 beforeEach(() => {
-  localStorageMock.clear();
-  vi.stubGlobal("localStorage", localStorageMock);
+  store.delTables();
 });
 
 describe("loadLevelStats", () => {
@@ -28,23 +17,19 @@ describe("loadLevelStats", () => {
     expect(loadLevelStats()).toEqual({});
   });
 
-  it("returns parsed stats when present", () => {
-    const data = { "1": { stars: 3, totalTime: 5000, completedAt: "2025-01-01T00:00:00.000Z" } };
-    store[STORAGE_KEY] = JSON.stringify(data);
-    expect(loadLevelStats()).toEqual(data);
-  });
-
-  it("returns empty object on malformed JSON", () => {
-    store[STORAGE_KEY] = "not-json";
-    expect(loadLevelStats()).toEqual({});
+  it("returns stored stats", () => {
+    store.setRow("levelStats", "1", { stars: 3, totalTime: 5000, completedAt: "2025-01-01T00:00:00.000Z" });
+    expect(loadLevelStats()).toEqual({
+      "1": { stars: 3, totalTime: 5000, completedAt: "2025-01-01T00:00:00.000Z" },
+    });
   });
 });
 
 describe("saveLevelStats", () => {
-  it("persists stats to localStorage", () => {
+  it("persists stats to the store", () => {
     const data = { "5": { stars: 2 as const, totalTime: 12000, completedAt: "2025-01-01T00:00:00.000Z" } };
     saveLevelStats(data);
-    expect(JSON.parse(store[STORAGE_KEY])).toEqual(data);
+    expect(store.getRow("levelStats", "5")).toEqual(data["5"]);
   });
 });
 
