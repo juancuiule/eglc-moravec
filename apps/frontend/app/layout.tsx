@@ -1,4 +1,5 @@
 import { AuthBoot } from "@/auth/AuthBoot";
+import { StorageBoot } from "@/storage/StorageBoot";
 import { QueryProvider } from "@/providers/QueryProvider";
 import type { Metadata } from "next";
 import { Overpass_Mono } from "next/font/google";
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-dvh bg-base text-foreground font-sans">
         <QueryProvider>
           <AuthBoot />
+          <StorageBoot />
           {/* Top-aligned rather than centered, paired with `panel`'s fixed max-width,
               so navigating between screens of different heights doesn't shift the surface. */}
           <main className="min-h-dvh flex items-start justify-center p-6 pt-12">
