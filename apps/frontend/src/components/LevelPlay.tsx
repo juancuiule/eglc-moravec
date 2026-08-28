@@ -6,6 +6,7 @@ import { persistFinishedLevel } from "@/game/persistFinishedLevel";
 import { gameStore, useGame } from "@/game/store";
 import type { Level } from "@/level";
 import { isLevelUnlocked, loadLevelStats } from "@/storage/levelStats";
+import { useStorage } from "@/storage/storageStore";
 import { watchStoreTransition } from "@/storeWatch";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -26,6 +27,7 @@ export function LevelPlay({ levelNumber, level }: Props) {
   const gameState = useGame((s) => s.state);
   const load = useGame((s) => s.load);
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const storageReady = useStorage((s) => s.ready);
 
   // Persist + sync a Level the moment the game store reaches Finished —
   // tied to the state transition, not to whether FinishedScreen renders.
@@ -41,6 +43,8 @@ export function LevelPlay({ levelNumber, level }: Props) {
   }, []);
 
   useEffect(() => {
+    if (!storageReady) return; // don't judge "locked" before local data has loaded
+
     if (!isLevelUnlocked(levelNumber, loadLevelStats())) {
       router.replace("/");
       return;
@@ -56,7 +60,7 @@ export function LevelPlay({ levelNumber, level }: Props) {
     const state = gameStore.getState().state;
     if (state.type !== "loading") gameStore.getState().reset();
     load({ levelNumber, level, totalTrials: TOTAL_TRIALS });
-  }, [levelNumber, level, load, router]);
+  }, [levelNumber, level, load, router, storageReady]);
 
   const { type } = gameState;
 

@@ -1,9 +1,11 @@
 import { act, render } from "@testing-library/react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { LevelPlay } from "./LevelPlay";
 import { gameStore } from "@/game/store";
 import { TOTAL_TRIALS } from "@/game/index";
 import { saveLevelStats } from "@/storage/levelStats";
+import { store } from "@/storage/store";
+import { storageStore } from "@/storage/storageStore";
 import type { Level } from "@/level";
 
 const router = { replace: vi.fn(), push: vi.fn() };
@@ -16,28 +18,10 @@ vi.mock("next/navigation", () => ({
 const level1: Level = { "1d+1d": 100 };
 const level2: Level = { "1dx1d": 100 };
 
-const localStorageStore: Record<string, string> = {};
-const localStorageMock = {
-  getItem: (key: string) => localStorageStore[key] ?? null,
-  setItem: (key: string, val: string) => {
-    localStorageStore[key] = val;
-  },
-  removeItem: (key: string) => {
-    delete localStorageStore[key];
-  },
-  clear: () => {
-    for (const k in localStorageStore) delete localStorageStore[k];
-  },
-};
-
 beforeEach(() => {
-  localStorageMock.clear();
-  vi.stubGlobal("localStorage", localStorageMock);
+  store.delTables();
+  storageStore.setState({ ready: true });
   gameStore.getState().reset();
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
 });
 
 function finishCurrentRun() {

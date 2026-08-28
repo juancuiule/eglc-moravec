@@ -2,9 +2,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, test } from "vitest";
 import { StatsScreen } from "./StatsScreen";
 import { store } from "../storage/store";
+import { storageStore } from "../storage/storageStore";
 
 beforeEach(() => {
   store.delTables();
+  storageStore.setState({ ready: true });
 });
 
 function seedLevelTrial(categoryCodename: string) {

@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { loadTrialHistory, type PersistedTrial } from "../storage/trialHistory";
 import { loadPracticeHistory, type PersistedPracticeTrial } from "../storage/practiceHistory";
+import { useStorage } from "../storage/storageStore";
 import { computeStats } from "../stats/computeStats";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
 import { panel, backLink } from "../styles";
@@ -45,11 +46,13 @@ export function StatsScreen() {
   // server-rendered (empty) HTML against the client's first render.
   const [levelTrials, setLevelTrials] = useState<PersistedTrial[]>([]);
   const [practiceTrials, setPracticeTrials] = useState<PersistedPracticeTrial[]>([]);
+  const storageReady = useStorage((s) => s.ready);
 
   useEffect(() => {
+    if (!storageReady) return;
     setLevelTrials(loadTrialHistory());
     setPracticeTrials(loadPracticeHistory());
-  }, []);
+  }, [storageReady]);
 
   const trials = tab === "level" ? levelTrials : practiceTrials;
 

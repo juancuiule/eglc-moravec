@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LevelsList } from "./LevelsList";
+import { store } from "@/storage/store";
+import { storageStore } from "@/storage/storageStore";
 
 vi.mock("@/api/Api", () => ({
   Api: { fetchLevelNumbers: vi.fn() },
@@ -9,25 +11,9 @@ vi.mock("@/api/Api", () => ({
 
 import { Api } from "@/api/Api";
 
-// Minimal localStorage mock, matching the convention used elsewhere in this
-// codebase — LevelsList reads level stats at mount time.
-const store: Record<string, string> = {};
-const localStorageMock = {
-  getItem: (key: string) => store[key] ?? null,
-  setItem: (key: string, val: string) => {
-    store[key] = val;
-  },
-  removeItem: (key: string) => {
-    delete store[key];
-  },
-  clear: () => {
-    for (const k in store) delete store[k];
-  },
-};
-
 beforeEach(() => {
-  localStorageMock.clear();
-  vi.stubGlobal("localStorage", localStorageMock);
+  store.delTables();
+  storageStore.setState({ ready: true });
   vi.mocked(Api.fetchLevelNumbers).mockResolvedValue([1, 2, 3]);
 });
 

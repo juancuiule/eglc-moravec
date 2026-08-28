@@ -9,6 +9,7 @@ import {
   isLevelUnlocked,
   type PersistedLevelStats,
 } from "@/storage/levelStats";
+import { useStorage } from "@/storage/storageStore";
 import { formatDuration } from "@/formatTime";
 import { panel, backLink, textLink } from "@/styles";
 
@@ -41,10 +42,12 @@ function RowStars({
 
 export function LevelsList() {
   const [stats, setStats] = useState<PersistedLevelStats>({});
+  const storageReady = useStorage((s) => s.ready);
 
   useEffect(() => {
+    if (!storageReady) return;
     setStats(loadLevelStats());
-  }, []);
+  }, [storageReady]);
 
   // Level numbers come from the backend's catalog — content that
   // can change without a frontend rebuild — not a static bundled map.
@@ -77,7 +80,7 @@ export function LevelsList() {
         </p>
       )}
 
-      {isLoading && (
+      {(isLoading || !storageReady) && (
         <p className="text-center text-sm text-muted py-8">Loading levels…</p>
       )}
       {isError && (
@@ -91,7 +94,7 @@ export function LevelsList() {
         </div>
       )}
 
-      {levelKeys && (
+      {levelKeys && storageReady && (
         <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto">
           {levelKeys.map((n) => {
             const levelStats = stats[String(n)];
