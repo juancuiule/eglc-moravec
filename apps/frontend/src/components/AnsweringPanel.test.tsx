@@ -38,7 +38,7 @@ test("keypad and Submit respond to a plain click, not only a pointerdown", () =>
   fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
   expect(onSubmitAnswer).toHaveBeenCalledTimes(1);
-  expect(onSubmitAnswer).toHaveBeenCalledWith(53, expect.any(Array), false);
+  expect(onSubmitAnswer).toHaveBeenCalledWith(53);
 });
 
 test("backspace removes the last digit on click", () => {
@@ -49,7 +49,7 @@ test("backspace removes the last digit on click", () => {
   fireEvent.click(screen.getByRole("button", { name: "Delete last digit" }));
   fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-  expect(onSubmitAnswer).toHaveBeenCalledWith(5, expect.any(Array), true);
+  expect(onSubmitAnswer).toHaveBeenCalledWith(5);
 });
 
 test("the clear and backspace keys have a descriptive accessible name, not just their glyph", () => {

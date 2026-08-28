@@ -19,8 +19,6 @@ export function getOrCreateDeviceId(): string {
     localStorage.setItem(STORAGE_KEY, created);
     return created;
   } catch {
-    // localStorage unavailable (private browsing, quota) — fall back to an
-    // id that works for this one session but won't be found again next time.
     return randomId();
   }
 }

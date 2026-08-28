@@ -18,7 +18,7 @@ vi.mock("../storage/deviceId", () => ({
   getOrCreateDeviceId: vi.fn(() => "device-1"),
 }));
 
-import { createAuthStore } from "./store";
+import { createAuthStore, authToken } from "./store";
 import { Api } from "../api/Api";
 import { loadSession, saveSession, clearSession } from "../storage/session";
 
@@ -32,21 +32,21 @@ describe("createAuthStore", () => {
     vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     const store = createAuthStore();
     // Deliberately not read at store-creation time — see AuthStore.hydrate.
-    expect(store.getState().state).toEqual({ type: "loggedOut" });
+    expect(store.getState().state).toEqual({ type: "logged-out" });
     expect(loadSession).not.toHaveBeenCalled();
   });
 
   it("hydrate() stays loggedOut when there's no persisted session", () => {
     const store = createAuthStore();
     store.getState().hydrate();
-    expect(store.getState().state).toEqual({ type: "loggedOut" });
+    expect(store.getState().state).toEqual({ type: "logged-out" });
   });
 
   it("hydrate() restores a loggedIn state from a persisted session", () => {
     vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     const store = createAuthStore();
     store.getState().hydrate();
-    expect(store.getState().state).toEqual({ type: "loggedIn", token: "t1", email: "a@b.com" });
+    expect(store.getState().state).toEqual({ type: "logged-in", token: "t1", email: "a@b.com" });
   });
 
   it("hydrate() never calls the backend — validation happens in proxy.ts, not here", () => {
@@ -108,7 +108,7 @@ describe("createAuthStore", () => {
       const store = createAuthStore();
 
       await expect(store.getState().ensureSession()).resolves.toBeUndefined();
-      expect(store.getState().state).toEqual({ type: "loggedOut" });
+      expect(store.getState().state).toEqual({ type: "logged-out" });
     });
   });
 
@@ -117,7 +117,7 @@ describe("createAuthStore", () => {
 
     store.getState().login({ token: "tok", email: "a@b.com" });
 
-    expect(store.getState().state).toEqual({ type: "loggedIn", token: "tok", email: "a@b.com" });
+    expect(store.getState().state).toEqual({ type: "logged-in", token: "tok", email: "a@b.com" });
     expect(saveSession).toHaveBeenCalledWith({ token: "tok", email: "a@b.com" });
   });
 
@@ -129,7 +129,7 @@ describe("createAuthStore", () => {
 
     store.getState().logout();
 
-    expect(store.getState().state).toEqual({ type: "loggedOut" });
+    expect(store.getState().state).toEqual({ type: "logged-out" });
     expect(clearSession).toHaveBeenCalled();
     expect(Api.logout).toHaveBeenCalledWith("t1");
   });
@@ -141,5 +141,19 @@ describe("createAuthStore", () => {
 
     expect(Api.logout).not.toHaveBeenCalled();
     expect(clearSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("authToken", () => {
+  it("is null when logged out", () => {
+    expect(authToken({ type: "logged-out" })).toBeNull();
+  });
+
+  it("is the session token when anonymous", () => {
+    expect(authToken({ type: "anonymous", token: "t1" })).toBe("t1");
+  });
+
+  it("is the session token when logged in", () => {
+    expect(authToken({ type: "logged-in", token: "t1", email: "a@b.com" })).toBe("t1");
   });
 });

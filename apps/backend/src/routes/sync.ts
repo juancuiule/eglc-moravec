@@ -1,13 +1,8 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
 import { bearerToken, resolveEmailHash } from "../auth/session.js";
-import { parseTrialResults, evaluateTrialResult, deriveLevelRuns } from "../sync/logic.js";
-import {
-  insertTrialResults,
-  insertLevelRuns,
-  upsertLevelStatsIfBetter,
-  getAllLevelStatsForUser,
-} from "../sync/repo.js";
+import { parseTrialResults, evaluateTrialResult, deriveLevelStats } from "../sync/logic.js";
+import { insertTrialResults, getTrialResultsForUser, type TrialResultRow } from "../sync/repo.js";
 
 export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void {
   app.post("/sync/results", async (request: FastifyRequest, reply) => {
@@ -20,17 +15,6 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
     const evaluated = trials.map(evaluateTrialResult);
     insertTrialResults(db, emailHash, evaluated);
 
-    const levelTrials = evaluated.filter((t) => t.runType === "level");
-    if (levelTrials.length > 0) {
-      const runs = deriveLevelRuns(levelTrials);
-      insertLevelRuns(db, emailHash, runs, Date.now());
-
-      const syncedAt = Date.now();
-      runs.forEach((run) => {
-        upsertLevelStatsIfBetter(db, emailHash, run.levelNumber, run, syncedAt);
-      });
-    }
-
     return reply.send({ ok: true, stored: trials.length });
   });
 
@@ -38,14 +22,43 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
     const emailHash = resolveEmailHash(db, bearerToken(request.headers.authorization));
     if (emailHash === null) return reply.code(401).send({ error: "unauthenticated" });
 
-    const rows = getAllLevelStatsForUser(db, emailHash);
+    const rows = getTrialResultsForUser(db, emailHash).filter(
+      (r: TrialResultRow) => r.run_type === "level",
+    );
+    const stats = deriveLevelStats(
+      rows.map((r) => ({
+        levelNumber: r.level_number,
+        correct: r.correct === 1,
+        timeTaken: r.time_taken,
+        playedAt: r.played_at,
+        runId: r.run_id,
+      })),
+    );
     const levelStats = Object.fromEntries(
-      rows.map((r) => [
-        String(r.level_number),
-        { stars: r.stars, totalTime: r.total_time, completedAt: new Date(r.completed_at).toISOString() },
+      stats.map((s) => [
+        String(s.levelNumber),
+        { stars: s.stars, totalTime: s.totalTime, completedAt: new Date(s.completedAt).toISOString() },
       ]),
     );
 
     return reply.send({ levelStats });
+  });
+
+  // The frontend keeps no local trial history anymore — the Stats screen's
+  // per-category effectiveness/histogram is computed client-side (see
+  // stats/computeStats.ts) over whatever this returns, every time it loads.
+  app.get("/sync/trials", async (request: FastifyRequest, reply) => {
+    const emailHash = resolveEmailHash(db, bearerToken(request.headers.authorization));
+    if (emailHash === null) return reply.code(401).send({ error: "unauthenticated" });
+
+    const trials = getTrialResultsForUser(db, emailHash).map((r: TrialResultRow) => ({
+      categoryCodename: r.category_codename,
+      correct: r.correct === 1,
+      timeExceeded: r.time_exceeded === 1,
+      timeTaken: r.time_taken,
+      runType: r.run_type,
+    }));
+
+    return reply.send({ trials });
   });
 }

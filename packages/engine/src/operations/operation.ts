@@ -121,6 +121,9 @@ export class Multiplication extends Operation {
   }
 
   hint(): Hint {
+    if (this.leftOperand < 10 && this.rightOperand < 10) {
+      return new NoHint();
+    }
     return new MultiplicationHint(this.leftOperand, this.rightOperand);
   }
 

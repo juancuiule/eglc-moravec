@@ -1,31 +1,23 @@
+import {
+  canShowHint,
+  createOperation,
+  Trial,
+  TrialResult,
+  type Answering,
+  type Operation,
+} from "engine";
 import { createStore } from "zustand/vanilla";
 import { randomId } from "../randomId";
-import {
-  createOperation,
-  type Operation,
-  scoreAnswer,
-  scoreTimeout,
-  canShowHint,
-  type Answering,
-  type Keystroke,
-  type BaseTrialResult,
-} from "engine";
 
-// ─── Config ────────────────────────────────────────────────────────────────────
+export type { TrialResult };
 
 export type PracticeConfig = {
   categoryCodename: string;
 };
 
-// ─── Trial result ──────────────────────────────────────────────────────────────
-
-export type PracticeTrialResult = BaseTrialResult;
-
-// ─── States ────────────────────────────────────────────────────────────────────
-
 export type PracticeReviewing = {
   type: "reviewing";
-  result: PracticeTrialResult;
+  result: TrialResult;
 };
 
 export type PracticeIdle = { type: "idle" };
@@ -36,7 +28,7 @@ export type PracticePlaying = {
   runId: string;
   currentOperation: Operation;
   trialId: number;
-  results: PracticeTrialResult[];
+  results: TrialResult[];
   playingState: Answering | PracticeReviewing;
   hintVisible: boolean;
 };
@@ -45,44 +37,21 @@ export type PracticeStopped = {
   type: "stopped";
   config: PracticeConfig;
   runId: string;
-  results: PracticeTrialResult[];
+  results: TrialResult[];
 };
 
 export type PracticeState = PracticeIdle | PracticePlaying | PracticeStopped;
 
-// ─── Store ─────────────────────────────────────────────────────────────────────
-
 export type PracticeStore = {
   state: PracticeState;
-
-  /** Start a practice session for a category. */
   start: (config: PracticeConfig) => void;
-
-  /** Submit an answer. Valid from: playing › answering. */
-  submitAnswer: (answer: number, keystrokes?: Keystroke[], hasErased?: boolean) => void;
-
-  /**
-   * Time ran out. Valid from: playing › answering.
-   * In practice, this is not penalised — just triggers review then advance.
-   * `answer` is whatever was entered when the timer hit zero (or null),
-   * still scored for correctness, not discarded.
-   */
-  timeUp: (answer: number | null, keystrokes?: Keystroke[], hasErased?: boolean) => void;
-
-  /** Advance to next trial. Valid from: playing › reviewing. */
+  submitAnswer: (answer: number) => void;
+  timeUp: (answer: number | null) => void;
   advance: () => void;
-
-  /** Show the hint for the current trial (unlimited in practice). Valid from: playing › answering. */
   requestHint: () => void;
-
-  /** Stop the session and show summary. Valid from: playing. */
   stop: () => void;
-
-  /** Return to idle (dismiss summary). */
   reset: () => void;
 };
-
-// ─── Factory ───────────────────────────────────────────────────────────────────
 
 function startPlaying(config: PracticeConfig, trialId = 0): PracticePlaying {
   return {
@@ -97,7 +66,10 @@ function startPlaying(config: PracticeConfig, trialId = 0): PracticePlaying {
   };
 }
 
-function toReviewing(state: PracticePlaying, result: PracticeTrialResult): PracticePlaying {
+function toReviewing(
+  state: PracticePlaying,
+  result: TrialResult,
+): PracticePlaying {
   return { ...state, playingState: { type: "reviewing", result } };
 }
 
@@ -109,29 +81,32 @@ export function createPracticeStore() {
       set({ state: startPlaying(config) });
     },
 
-    submitAnswer(answer, keystrokes = [], hasErased = false) {
+    submitAnswer(answer) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
 
       const { startedAt } = state.playingState;
-      const result: PracticeTrialResult = scoreAnswer(state.currentOperation, startedAt, answer, {
-        keystrokes,
-        hasErased,
-        hintShown: state.hintVisible,
-      });
+      const result: TrialResult = Trial.scoreAnswer(
+        {
+          operation: state.currentOperation,
+          answer,
+          hintShown: state.hintVisible,
+        },
+        startedAt,
+      );
 
       set({ state: toReviewing(state, result) });
     },
 
-    timeUp(answer, keystrokes = [], hasErased = false) {
+    timeUp(answer) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
 
-      const result: PracticeTrialResult = scoreTimeout(state.currentOperation, answer, {
-        keystrokes,
-        hasErased,
+      const result: TrialResult = Trial.scoreTimeout({
+        operation: state.currentOperation,
+        answer,
         hintShown: state.hintVisible,
       });
 
@@ -162,7 +137,10 @@ export function createPracticeStore() {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
-      if (!canShowHint(state.hintVisible, state.currentOperation.hint().hasHint())) return;
+      if (
+        !canShowHint(state.hintVisible, state.currentOperation.hint().hasHint())
+      )
+        return;
       set({ state: { ...state, hintVisible: true } });
     },
 

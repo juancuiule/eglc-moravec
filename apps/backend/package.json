@@ -14,7 +14,8 @@
   "dependencies": {
     "@fastify/cors": "^10.0.1",
     "engine": "workspace:*",
-    "fastify": "^5.2.0"
+    "fastify": "^5.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

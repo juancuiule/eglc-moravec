@@ -33,13 +33,11 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
       return reply.code(400).send({ error: "invalid_email" });
     }
 
-    const emailHash = hashEmail(email, config.emailHashSecret);
+    const emailHash = hashEmail(email, config.hashSecret);
     const now = Date.now();
     const before = getOtpRow(db, emailHash);
     const code = generateOtp();
 
-    // Claims the rate-limit slot before sending — see reserveOtpSlot for why
-    // this has to happen atomically rather than as a separate check.
     const reserved = reserveOtpSlot(db, emailHash, code, now + config.otpTtlMs, now, config.otpMinIntervalMs);
     if (!reserved) {
       return reply.code(429).send({ error: "rate_limited" });
@@ -59,9 +57,6 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
     return reply.send({ ok: true });
   });
 
-  // Unauthenticated, no OTP round-trip — mints a low-friction anonymous
-  // identity so a player's trials always have somewhere to sync to, even
-  // before they ever give an email.
   app.post("/auth/device", async (request, reply) => {
     const body = request.body as { deviceId?: unknown };
     const deviceId = typeof body.deviceId === "string" ? body.deviceId : "";
@@ -70,7 +65,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
       return reply.code(400).send({ error: "invalid_request" });
     }
 
-    const emailHash = hashDeviceId(deviceId, config.emailHashSecret);
+    const emailHash = hashDeviceId(deviceId, config.hashSecret);
     const now = Date.now();
     upsertUser(db, emailHash, now, true);
     const token = generateSessionToken();
@@ -89,7 +84,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
       return reply.code(400).send({ error: "invalid_request" });
     }
 
-    const emailHash = hashEmail(email, config.emailHashSecret);
+    const emailHash = hashEmail(email, config.hashSecret);
     const now = Date.now();
     const row = getOtpRow(db, emailHash);
     const stored = row ? { code: row.code, expiresAt: row.expires_at, attempts: row.attempts } : null;
@@ -99,10 +94,6 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync, confi
       return reply.code(401).send({ error: "invalid_code" });
     }
 
-    // Resolved *before* minting the new session, from whatever token this
-    // request happened to carry — only acted on below if it turns out to
-    // genuinely be an anonymous identity's own token, never another real
-    // account's (that would merge one player's data into a different one).
     const anonToken = bearerToken(request.headers.authorization);
     const anonEmailHash = resolveEmailHash(db, anonToken);
 

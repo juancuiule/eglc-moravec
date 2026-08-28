@@ -36,7 +36,7 @@ test("also shows the Log in link when anonymous — an anonymous session isn't a
     expect(screen.getByRole("link", { name: "Log in" })).toBeDefined();
     expect(screen.queryByRole("button", { name: "Log out" })).toBeNull();
   } finally {
-    authStore.setState({ state: { type: "loggedOut" } });
+    authStore.setState({ state: { type: "logged-out" } });
   }
 });
 

@@ -99,17 +99,13 @@ test("syncResults resolves on success", async () => {
   await expect(
     Api.syncResults("tok", [
       {
+        id: "trial-1",
         runType: "level",
         levelNumber: 1,
         categoryCodename: "1d+1d",
-        correct: true,
-        timeExceeded: false,
         timeTaken: 1200,
         playedAt: Date.now(),
-        keystrokes: [],
         hintShown: false,
-        streakAtSubmit: 0,
-        hintsAvailableAtStart: 3,
         runId: "run-abc",
         operands: [2, 3],
         answer: 5,
@@ -123,15 +119,15 @@ test("syncResults throws on failure", async () => {
   await expect(Api.syncResults("tok", [])).rejects.toThrow("unauthenticated");
 });
 
-test("pullLevelStats resolves with the remote LevelStats map on success", async () => {
+test("fetchLevelStats resolves with the remote LevelStats map on success", async () => {
   const levelStats = { "1": { stars: 3, totalTime: 1000, completedAt: "2026-01-01T00:00:00.000Z" } };
   vi.mocked(fetch).mockResolvedValue(jsonResponse({ levelStats }));
-  await expect(Api.pullLevelStats("tok")).resolves.toEqual(levelStats);
+  await expect(Api.fetchLevelStats("tok")).resolves.toEqual(levelStats);
 });
 
-test("pullLevelStats throws on failure", async () => {
+test("fetchLevelStats throws on failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse({ error: "unauthenticated" }, false));
-  await expect(Api.pullLevelStats("tok")).rejects.toThrow("unauthenticated");
+  await expect(Api.fetchLevelStats("tok")).rejects.toThrow("unauthenticated");
 });
 
 test("fetchAdminStats resolves with byLevel/byCategory on success", async () => {

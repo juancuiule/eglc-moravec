@@ -1,105 +1,80 @@
-import { reconstructOperation, evaluateTrial, starsForScore, LEVEL_COMPLETE_THRESHOLD } from "engine";
+import {
+  isBetterLevelRecord,
+  LEVEL_COMPLETE_THRESHOLD,
+  reconstructOperation,
+  starsForScore,
+  Trial,
+} from "engine";
+import * as z from "zod";
 
-export type KeystrokeInput = {
-  key: string;
-  t: number;
-};
+const TrialResultSchema = z.object({
+  id: z.uuid(),
+  levelNumber: z.number().nullable(),
+  categoryCodename: z.string(),
+  timeTaken: z.number(),
+  playedAt: z.number(),
+  operands: z.array(z.number()),
+  answer: z.number().nullable(),
+  hintShown: z.boolean(),
+  runId: z.string(),
+  runType: z.enum(["level", "practice"]),
+});
 
-function isKeystrokeInput(value: unknown): value is KeystrokeInput {
-  if (typeof value !== "object" || value === null) return false;
-  const k = value as Record<string, unknown>;
-  return typeof k.key === "string" && typeof k.t === "number";
-}
+export type TrialResultInput = z.infer<typeof TrialResultSchema>;
 
-export type TrialResultInput = {
-  levelNumber: number | null;
-  categoryCodename: string;
-  correct: boolean; // client-submitted claim
-  timeExceeded: boolean; // client-submitted claim
-  timeTaken: number;
-  playedAt: number;
-  keystrokes: KeystrokeInput[];
-  operands: number[];
-  answer: number | null;
-  hintShown: boolean;
-  streakAtSubmit: number;
-  hintsAvailableAtStart: number;
-  runId: string;
-  runType: "level" | "practice";
-};
-
-function isTrialResultInput(value: unknown): value is TrialResultInput {
-  if (typeof value !== "object" || value === null) return false;
-  const r = value as Record<string, unknown>;
-  return (
-    (r.levelNumber === null || typeof r.levelNumber === "number") &&
-    typeof r.categoryCodename === "string" &&
-    typeof r.correct === "boolean" &&
-    typeof r.timeExceeded === "boolean" &&
-    typeof r.timeTaken === "number" &&
-    typeof r.playedAt === "number" &&
-    Array.isArray(r.keystrokes) &&
-    r.keystrokes.every(isKeystrokeInput) &&
-    Array.isArray(r.operands) &&
-    r.operands.every((o) => typeof o === "number") &&
-    (r.answer === null || typeof r.answer === "number") &&
-    typeof r.hintShown === "boolean" &&
-    typeof r.streakAtSubmit === "number" &&
-    typeof r.hintsAvailableAtStart === "number" &&
-    typeof r.runId === "string" &&
-    (r.runType === "level" || r.runType === "practice")
-  );
-}
-
-/** Parses and validates a sync request body; null means the body was malformed. */
 export function parseTrialResults(body: unknown): TrialResultInput[] | null {
   if (typeof body !== "object" || body === null) return null;
   const trials = (body as { trials?: unknown }).trials;
+
   if (!Array.isArray(trials)) return null;
-  return trials.every(isTrialResultInput) ? trials : null;
+  return trials.every((trial) => {
+    const parsed = TrialResultSchema.safeParse(trial);
+    return parsed.success;
+  })
+    ? trials
+    : null;
 }
 
 export type EvaluatedTrialResult = {
+  id: string;
   levelNumber: number | null;
   categoryCodename: string;
+  operands: number[];
+  answer: number | null;
   correct: boolean; // server-computed (authoritative)
   timeExceeded: boolean; // server-computed (authoritative)
-  clientCorrect: boolean; // original client claim, kept for auditing
-  clientTimeExceeded: boolean; // original client claim, kept for auditing
   timeTaken: number;
   playedAt: number;
-  keystrokes: KeystrokeInput[];
   hintShown: boolean;
-  streakAtSubmit: number;
-  hintsAvailableAtStart: number;
   runId: string;
   runType: "level" | "practice";
 };
 
-/**
- * Independently re-derives correctness/timing from a trial's own reported
- * operands/answer/timeTaken, using packages/engine — the same scoring rules
- * the client itself uses. A disagreement with the client's claim is never an
- * error: both are returned, and the caller stores both (see CONTEXT.md's
- * "backend independently re-validates trial correctness" entry).
- */
-export function evaluateTrialResult(input: TrialResultInput): EvaluatedTrialResult {
-  const operation = reconstructOperation(input.categoryCodename, input.operands);
-  const { correct, timeExceeded } = evaluateTrial(operation, input.answer, input.timeTaken);
+export function evaluateTrialResult(
+  input: TrialResultInput,
+): EvaluatedTrialResult {
+  const operation = reconstructOperation(
+    input.categoryCodename,
+    input.operands,
+  );
+  const { correct, timeExceeded } = Trial.evaluate({
+    operation,
+    answer: input.answer,
+    timeTaken: input.timeTaken,
+    hintShown: input.hintShown,
+  });
 
   return {
+    id: input.id,
     levelNumber: input.levelNumber,
     categoryCodename: input.categoryCodename,
+    operands: input.operands,
+    answer: input.answer,
     correct,
     timeExceeded,
-    clientCorrect: input.correct,
-    clientTimeExceeded: input.timeExceeded,
     timeTaken: input.timeTaken,
     playedAt: input.playedAt,
-    keystrokes: input.keystrokes,
     hintShown: input.hintShown,
-    streakAtSubmit: input.streakAtSubmit,
-    hintsAvailableAtStart: input.hintsAvailableAtStart,
     runId: input.runId,
     runType: input.runType,
   };
@@ -111,20 +86,21 @@ export type LevelRunSummary = {
   stars: 0 | 1 | 2 | 3;
   totalTime: number;
   levelCompleted: boolean;
+  playedAt: number;
 };
 
-/**
- * Derive each individual level-run's outcome (stars/totalTime/completed)
- * from a batch of validated trials, grouped by levelRunId rather than
- * levelNumber — a batch is expected to carry exactly one run today (one
- * POST /sync/results call per finished Level), but grouping by the run's
- * own id rather than assuming that shape is what actually makes each run's
- * record correct even if that assumption ever stops holding. Stars/
- * completion use the server's own recomputed correctness (packages/engine's
- * starsForScore/LEVEL_COMPLETE_THRESHOLD), never the client's claim.
- */
-export function deriveLevelRuns(trials: readonly EvaluatedTrialResult[]): LevelRunSummary[] {
-  const byRun = new Map<string, EvaluatedTrialResult[]>();
+export type TrialForLevelRun = {
+  levelNumber: number | null;
+  correct: boolean;
+  timeTaken: number;
+  playedAt: number;
+  runId: string;
+};
+
+export function deriveLevelRuns(
+  trials: readonly TrialForLevelRun[],
+): LevelRunSummary[] {
+  const byRun = new Map<string, TrialForLevelRun[]>();
   trials.forEach((t) => {
     byRun.set(t.runId, [...(byRun.get(t.runId) ?? []), t]);
   });
@@ -134,14 +110,51 @@ export function deriveLevelRuns(trials: readonly EvaluatedTrialResult[]): LevelR
     const totalTime = runTrials.reduce((sum, t) => sum + t.timeTaken, 0);
     return {
       levelRunId,
-      // Non-null: the caller (routes/sync.ts) only ever passes the
-      // runType === "level" subset here, which always carries a real
-      // levelNumber — levelNumber is number | null only to accommodate
-      // Practice trials, which never reach this function.
       levelNumber: runTrials[0].levelNumber!,
       stars: starsForScore(correctCount),
       totalTime,
       levelCompleted: correctCount >= LEVEL_COMPLETE_THRESHOLD,
+      playedAt: Math.max(...runTrials.map((t) => t.playedAt)),
     };
   });
+}
+
+export type LevelStatsSummary = {
+  levelNumber: number;
+  stars: 0 | 1 | 2 | 3;
+  totalTime: number;
+  completedAt: number;
+};
+
+/**
+ * Derives best-ever per-level stats straight from a user's full trial
+ * history — there is no stored `level_stats`/`level_runs` cache to read
+ * anymore, so this groups into runs (see deriveLevelRuns) and folds them
+ * with the same isBetterLevelRecord comparison the old cache-write path
+ * used, keeping only each level's best run.
+ */
+export function deriveLevelStats(
+  trials: readonly TrialForLevelRun[],
+): LevelStatsSummary[] {
+  const best = new Map<number, LevelStatsSummary>();
+  deriveLevelRuns(trials).forEach((run) => {
+    const existing = best.get(run.levelNumber);
+    const existingRecord = existing
+      ? { stars: existing.stars, totalTime: existing.totalTime }
+      : null;
+    if (
+      isBetterLevelRecord(
+        { stars: run.stars, totalTime: run.totalTime },
+        existingRecord,
+      )
+    ) {
+      best.set(run.levelNumber, {
+        levelNumber: run.levelNumber,
+        stars: run.stars,
+        totalTime: run.totalTime,
+        completedAt: run.playedAt,
+      });
+    }
+  });
+  return Array.from(best.values());
 }

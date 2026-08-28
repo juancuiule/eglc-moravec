@@ -2,9 +2,8 @@
 
 import type { Playing } from "../game/index";
 import { useGame } from "../game/store";
-import { AnsweringPanel } from "./AnsweringPanel";
-import { TrialHistoryDots } from "./TrialHistoryDots";
 import { hintButton } from "../styles";
+import { AnsweringPanel } from "./AnsweringPanel";
 
 type Props = { state: Playing };
 
@@ -30,12 +29,6 @@ export function AnsweringView({ state }: Props) {
       onSubmitAnswer={submitAnswer}
       onTimeUp={timeUp}
       onAdvance={advance}
-      aboveTimer={
-        <TrialHistoryDots
-          outcomes={state.results.map((r) => r.correct)}
-          total={state.config.totalTrials}
-        />
-      }
       beforeOperation={
         <h1 className="text-center text-xs text-muted font-mono tracking-wider">
           Level {state.config.levelNumber}

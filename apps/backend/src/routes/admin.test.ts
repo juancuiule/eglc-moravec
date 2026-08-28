@@ -9,25 +9,25 @@ import type { EvaluatedTrialResult } from "../sync/logic.js";
 
 function setup(): { db: DatabaseSync; app: FastifyInstance } {
   const db = openDb(":memory:");
-  const config = loadConfig({ EMAIL_HASH_SECRET: "test-secret" } as NodeJS.ProcessEnv);
+  const config = loadConfig({ HASH_SECRET: "test-secret" } as NodeJS.ProcessEnv);
   const app = buildApp(db, config);
   return { db, app };
 }
 
+let nextTrialId = 0;
+
 function trial(overrides: Partial<EvaluatedTrialResult> = {}): EvaluatedTrialResult {
   return {
+    id: `trial-${++nextTrialId}`,
     levelNumber: 1,
     categoryCodename: "1d+1d",
+    operands: [4, 5],
+    answer: 9,
     correct: true,
     timeExceeded: false,
-    clientCorrect: true,
-    clientTimeExceeded: false,
     timeTaken: 1000,
     playedAt: 1_700_000_000_000,
-    keystrokes: [],
     hintShown: false,
-    streakAtSubmit: 0,
-    hintsAvailableAtStart: 3,
     runId: "run-1",
     runType: "level",
     ...overrides,

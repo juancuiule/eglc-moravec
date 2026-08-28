@@ -1,6 +1,9 @@
-import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 import { Api } from "@/api/Api";
 import { LevelPlay } from "@/components/LevelPlay";
+import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
+import { SESSION_COOKIE, parseSessionCookie } from "@/storage/session";
 
 type Props = { params: Promise<{ levelNumber: string }> };
 
@@ -9,12 +12,15 @@ export default async function LevelPage({ params }: Props) {
   const levelNumber = Number(raw);
   if (!Number.isInteger(levelNumber)) notFound();
 
-  // Whether this level *number* exists is public data from the backend's
-  // Level catalog — safe to check server-side. Whether *this
-  // player* has it unlocked is not (that's local LevelStats) — see
-  // LevelPlay for that half.
   const mix = await Api.fetchLevel(levelNumber);
   if (mix === null) notFound();
+
+  const cookieStore = await cookies();
+  const session = parseSessionCookie(cookieStore.get(SESSION_COOKIE)?.value);
+  const stats = session
+    ? await Api.fetchLevelStats(session.token).catch(() => ({}))
+    : {};
+  if (!isLevelUnlocked(levelNumber, stats)) redirect("/");
 
   return <LevelPlay levelNumber={levelNumber} level={mix} />;
 }

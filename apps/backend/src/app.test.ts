@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { FastifyInstance } from "fastify";
 import { openDb } from "./db.js";
@@ -9,7 +10,7 @@ import { hashEmail } from "./auth/logic.js";
 
 const TEST_SECRET = "test-secret";
 const EMAIL = "player@example.com";
-const testConfig = loadConfig({ EMAIL_HASH_SECRET: TEST_SECRET } as NodeJS.ProcessEnv);
+const testConfig = loadConfig({ HASH_SECRET: TEST_SECRET } as NodeJS.ProcessEnv);
 
 async function loginAndGetToken(db: DatabaseSync, app: FastifyInstance): Promise<string> {
   await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
@@ -51,22 +52,19 @@ describe("global error handler", () => {
     const app = buildApp(db, testConfig);
     const token = await loginAndGetToken(db, app);
 
-    // categoryCodename doesn't match a known category — sync/logic.ts's
-    // manual validator lets this through, and reconstructOperation() then
-    // throws a plain Error with the codename in its message.
+    // categoryCodename doesn't match a known category — the zod schema only
+    // checks it's a string, so this passes validation, and
+    // reconstructOperation() then throws a plain Error with the codename in
+    // its message.
     const trial = {
+      id: randomUUID(),
       levelNumber: 1,
       categoryCodename: "garbage",
-      correct: true,
-      timeExceeded: false,
       timeTaken: 1000,
       playedAt: 1_700_000_000_000,
-      keystrokes: [],
       operands: [1, 2],
       answer: 3,
       hintShown: false,
-      streakAtSubmit: 0,
-      hintsAvailableAtStart: 0,
       runId: "run-1",
       runType: "level" as const,
     };

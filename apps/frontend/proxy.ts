@@ -21,7 +21,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = parseSessionCookie(request.cookies.get(SESSION_COOKIE)?.value);
+  const session = parseSessionCookie(request.cookies.get(SESSION_COOKIE)?.value);  console.log("proxy session", session);
   if (!session) return NextResponse.next();
 
   const valid = await Api.checkSession(session.token).catch(() => true);

@@ -1,16 +1,8 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Api } from "@/api/Api";
-import {
-  loadLevelStats,
-  isLevelUnlocked,
-  type PersistedLevelStats,
-} from "@/storage/levelStats";
+import { type LevelStats } from "@/api/Api";
 import { formatDuration } from "@/formatTime";
-import { panel, backLink, textLink } from "@/styles";
+import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
+import { backLink, panel } from "@/styles";
+import Link from "next/link";
 
 function RowStars({
   stars,
@@ -39,28 +31,15 @@ function RowStars({
   );
 }
 
-export function LevelsList() {
-  const [stats, setStats] = useState<PersistedLevelStats>({});
+export function LevelsList(props: {
+  stats: Record<string, LevelStats>;
+  levelKeys: number[];
+}) {
+  const { stats, levelKeys } = props;
 
-  useEffect(() => {
-    setStats(loadLevelStats());
-  }, []);
-
-  // Level numbers come from the backend's catalog — content that
-  // can change without a frontend rebuild — not a static bundled map.
-  const {
-    data: levelKeys,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ["levels"],
-    queryFn: Api.fetchLevelNumbers,
-  });
-
-  const completedCount = Object.keys(stats).filter(
-    (k) => (stats[k]?.stars ?? 0) > 0,
-  ).length;
+  const completedCount = stats
+    ? Object.keys(stats).filter((k) => (stats[k]?.stars ?? 0) > 0).length
+    : 0;
 
   return (
     <div className={`${panel} p-6 gap-3`}>
@@ -77,21 +56,7 @@ export function LevelsList() {
         </p>
       )}
 
-      {isLoading && (
-        <p className="text-center text-sm text-muted py-8">Loading levels…</p>
-      )}
-      {isError && (
-        <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-center text-sm text-danger">
-            Couldn't load levels.
-          </p>
-          <button onClick={() => refetch()} className={`${textLink} underline`}>
-            Try again
-          </button>
-        </div>
-      )}
-
-      {levelKeys && (
+      {levelKeys && stats && (
         <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto">
           {levelKeys.map((n) => {
             const levelStats = stats[String(n)];

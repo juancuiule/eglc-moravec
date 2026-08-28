@@ -2,10 +2,6 @@ import type { FastifyInstance } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
 import { getLevelNumbers, getLevelMix } from "../levels/repo.js";
 
-/**
- * Public, unauthenticated — level content isn't sensitive, and Home's
- * level grid needs to work even before a session exists.
- */
 export function registerLevelsRoutes(app: FastifyInstance, db: DatabaseSync): void {
   app.get("/levels", async (request, reply) => {
     return reply.send({ levels: getLevelNumbers(db) });

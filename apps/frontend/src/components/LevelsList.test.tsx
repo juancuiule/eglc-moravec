@@ -2,33 +2,21 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LevelsList } from "./LevelsList";
+import { authStore } from "@/auth/store";
+import type { LevelStats } from "@/api/Api";
 
 vi.mock("@/api/Api", () => ({
-  Api: { fetchLevelNumbers: vi.fn() },
+  Api: { fetchLevelNumbers: vi.fn(), fetchLevelStats: vi.fn() },
 }));
 
 import { Api } from "@/api/Api";
 
-// Minimal localStorage mock, matching the convention used elsewhere in this
-// codebase — LevelsList reads level stats at mount time.
-const store: Record<string, string> = {};
-const localStorageMock = {
-  getItem: (key: string) => store[key] ?? null,
-  setItem: (key: string, val: string) => {
-    store[key] = val;
-  },
-  removeItem: (key: string) => {
-    delete store[key];
-  },
-  clear: () => {
-    for (const k in store) delete store[k];
-  },
-};
-
 beforeEach(() => {
-  localStorageMock.clear();
-  vi.stubGlobal("localStorage", localStorageMock);
   vi.mocked(Api.fetchLevelNumbers).mockResolvedValue([1, 2, 3]);
+  vi.mocked(Api.fetchLevelStats).mockResolvedValue({});
+  // Every real player has a session by the time this renders (see
+  // AuthBoot) — LevelsList's stats fetch needs a token to run at all.
+  authStore.setState({ state: { type: "anonymous", token: "test-token" } });
 });
 
 function renderWithQueryClient() {
@@ -40,7 +28,7 @@ function renderWithQueryClient() {
   );
 }
 
-test("level 1 is unlocked and links to play; level 2 is locked, not a link", async () => {
+test("level 1 is unlocked and links to play; level 2 is locked (level 1 has no stars), not a link", async () => {
   renderWithQueryClient();
 
   const level1 = await screen.findByRole("link", { name: /Level 1/ });
@@ -49,6 +37,18 @@ test("level 1 is unlocked and links to play; level 2 is locked, not a link", asy
   const level2Row = screen.getByText("Level 2").closest("a, div");
   expect(level2Row?.tagName).toBe("DIV");
   expect(screen.getByText("Level 2").closest("a")).toBeNull();
+});
+
+test("level 2 unlocks once level 1 has at least one star", async () => {
+  const stats: Record<string, LevelStats> = {
+    "1": { stars: 1, totalTime: 9000, completedAt: new Date().toISOString() },
+  };
+  vi.mocked(Api.fetchLevelStats).mockResolvedValue(stats);
+
+  renderWithQueryClient();
+
+  const level2 = await screen.findByRole("link", { name: /Level 2/ });
+  expect(level2.getAttribute("href")).toBe("/level/2");
 });
 
 test("shows an error message when the level catalog fails to load", async () => {

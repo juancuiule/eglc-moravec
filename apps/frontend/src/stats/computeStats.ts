@@ -1,8 +1,8 @@
 // The minimal shape this module actually needs — deliberately not tied to
-// Level's PersistedTrial (which also carries levelNumber). Both PersistedTrial
-// and Practice's PersistedPracticeTrial satisfy this structurally, so the
-// same aggregation runs over either trial history without a levelNumber or
-// an adapter — this module never cared about levelNumber to begin with.
+// Api.ts's SyncedTrial (which also carries a runType). StatsScreen filters
+// by runType before calling in, so the same aggregation runs over either
+// Level or Practice trials without an adapter — this module never cared
+// about runType or levelNumber to begin with.
 export type StatsTrial = {
   categoryCodename: string;
   correct: boolean;

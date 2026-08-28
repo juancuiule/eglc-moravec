@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { DatabaseSync } from "node:sqlite";
 import { openDb } from "./db.js";
 
 let tmpDir: string | undefined;
@@ -12,182 +12,81 @@ afterEach(() => {
   tmpDir = undefined;
 });
 
+function columnNames(db: DatabaseSync, table: string): string[] {
+  return (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map(
+    (c) => c.name,
+  );
+}
+
+function tableNames(db: DatabaseSync): string[] {
+  return (
+    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as {
+      name: string;
+    }[]
+  ).map((t) => t.name);
+}
+
 describe("openDb", () => {
   it("creates users with is_anonymous on a fresh database", () => {
     const db = openDb(":memory:");
-    const columns = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map(
-      (c) => c.name,
+    expect(columnNames(db, "users")).toEqual(
+      expect.arrayContaining(["email_hash", "created_at", "is_anonymous"]),
     );
-    expect(columns).toEqual(expect.arrayContaining(["email_hash", "created_at", "is_anonymous"]));
   });
 
-  it("migrates a pre-anonymous-accounts database, defaulting is_anonymous to 0", () => {
-    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
-    const dbPath = join(tmpDir, "old.sqlite");
-
-    const legacyDb = new DatabaseSync(dbPath);
-    legacyDb.exec(`CREATE TABLE users (email_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL)`);
-    legacyDb.exec(`INSERT INTO users (email_hash, created_at) VALUES ('hash1', 1700000000000)`);
-    legacyDb.close();
-
-    const migrated = openDb(dbPath);
-    const row = migrated.prepare("SELECT * FROM users").get() as Record<string, number>;
-    expect(row.is_anonymous).toBe(0);
-  });
-
-  it("creates trial_results with client_correct/client_time_exceeded on a fresh database", () => {
+  it("creates trial_results with operands and answer on a fresh database", () => {
     const db = openDb(":memory:");
-    const columns = (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
-      (c) => c.name,
-    );
-    expect(columns).toEqual(
-      expect.arrayContaining(["correct", "time_exceeded", "client_correct", "client_time_exceeded"]),
+    expect(columnNames(db, "trial_results")).toEqual(
+      expect.arrayContaining(["operands", "answer"]),
     );
   });
 
-  it("creates trial_results with hint_shown/streak_at_submit/hints_available_at_start on a fresh database", () => {
+  it("creates trial_results with run_id, run_type, and hint_shown on a fresh database", () => {
     const db = openDb(":memory:");
-    const columns = (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
-      (c) => c.name,
-    );
-    expect(columns).toEqual(
-      expect.arrayContaining(["hint_shown", "streak_at_submit", "hints_available_at_start"]),
-    );
+    const columns = columnNames(db, "trial_results");
+    expect(columns).toEqual(expect.arrayContaining(["run_id", "run_type", "hint_shown"]));
   });
 
-  it("migrates a pre-hint-tracking database, defaulting the new columns to 0", () => {
-    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
-    const dbPath = join(tmpDir, "old.sqlite");
-
-    // Simulate a deployed database from before hint/streak tracking existed.
-    const legacyDb = new DatabaseSync(dbPath);
-    legacyDb.exec(`CREATE TABLE trial_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email_hash TEXT NOT NULL,
-      level_number INTEGER NOT NULL,
-      category_codename TEXT NOT NULL,
-      correct INTEGER NOT NULL,
-      time_exceeded INTEGER NOT NULL,
-      client_correct INTEGER NOT NULL,
-      client_time_exceeded INTEGER NOT NULL,
-      time_taken INTEGER NOT NULL,
-      played_at INTEGER NOT NULL
-    )`);
-    legacyDb.exec(
-      `INSERT INTO trial_results (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at)
-       VALUES ('hash1', 1, '1d+1d', 1, 0, 1, 0, 1000, 1700000000000)`,
-    );
-    legacyDb.close();
-
-    const migrated = openDb(dbPath);
-    const row = migrated.prepare("SELECT * FROM trial_results").get() as Record<string, number>;
-    expect(row.hint_shown).toBe(0);
-    expect(row.streak_at_submit).toBe(0);
-    expect(row.hints_available_at_start).toBe(0);
-  });
-
-  it("creates trial_results with run_id and run_type on a fresh database", () => {
+  it("creates trial_results.id as a client-generated TEXT primary key, not an autoincrement integer", () => {
     const db = openDb(":memory:");
-    const columns = (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
-      (c) => c.name,
-    );
-    expect(columns).toEqual(expect.arrayContaining(["run_id", "run_type"]));
-    expect(columns).not.toContain("level_run_id");
+    const [idColumn] = db.prepare("PRAGMA table_info(trial_results)").all() as {
+      name: string;
+      type: string;
+      pk: number;
+    }[];
+    expect(idColumn).toMatchObject({ name: "id", type: "TEXT", pk: 1 });
   });
 
-  it("migrates a pre-run-type database, renaming level_run_id to run_id and defaulting run_type to 'level'", () => {
-    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
-    const dbPath = join(tmpDir, "old.sqlite");
-
-    // Simulate a deployed database from before Practice sync existed.
-    const legacyDb = new DatabaseSync(dbPath);
-    legacyDb.exec(`CREATE TABLE trial_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email_hash TEXT NOT NULL,
-      level_number INTEGER NOT NULL,
-      category_codename TEXT NOT NULL,
-      correct INTEGER NOT NULL,
-      time_exceeded INTEGER NOT NULL,
-      client_correct INTEGER NOT NULL,
-      client_time_exceeded INTEGER NOT NULL,
-      time_taken INTEGER NOT NULL,
-      played_at INTEGER NOT NULL,
-      hint_shown INTEGER NOT NULL DEFAULT 0,
-      streak_at_submit INTEGER NOT NULL DEFAULT 0,
-      hints_available_at_start INTEGER NOT NULL DEFAULT 0,
-      level_run_id TEXT NOT NULL DEFAULT ''
-    )`);
-    legacyDb.exec(`CREATE INDEX trial_results_level_run_id_idx ON trial_results (level_run_id)`);
-    legacyDb.exec(
-      `INSERT INTO trial_results (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, level_run_id)
-       VALUES ('hash1', 1, '1d+1d', 1, 0, 1, 0, 1000, 1700000000000, 'old-run')`,
+  it("does not carry the removed client-claim/hint-history columns", () => {
+    const db = openDb(":memory:");
+    const columns = columnNames(db, "trial_results");
+    expect(columns).not.toEqual(
+      expect.arrayContaining([
+        "client_correct",
+        "client_time_exceeded",
+        "streak_at_submit",
+        "hints_available_at_start",
+      ]),
     );
-    legacyDb.close();
-
-    const migrated = openDb(dbPath);
-    const row = migrated.prepare("SELECT * FROM trial_results").get() as Record<string, unknown>;
-    expect(row.run_id).toBe("old-run");
-    expect(row.run_type).toBe("level");
-    expect(row.level_run_id).toBeUndefined();
   });
 
-  it("is idempotent — running the run_id/run_type migration twice does not error, and leaves exactly one run_id index", () => {
+  it("does not create the level_stats, level_runs, or trial_keystrokes tables", () => {
+    const db = openDb(":memory:");
+    expect(tableNames(db)).not.toEqual(
+      expect.arrayContaining(["level_stats", "level_runs", "trial_keystrokes"]),
+    );
+  });
+
+  it("is idempotent — opening the same database twice does not error or duplicate columns", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
     const dbPath = join(tmpDir, "twice.sqlite");
 
     openDb(dbPath).close();
     const db = openDb(dbPath);
 
-    const columns = (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
-      (c) => c.name,
-    );
+    const columns = columnNames(db, "trial_results");
     expect(columns.filter((c) => c === "run_type")).toHaveLength(1);
-
-    const indexNames = (db.prepare("PRAGMA index_list(trial_results)").all() as { name: string }[]).map(
-      (i) => i.name,
-    );
-    expect(indexNames.filter((n) => n === "trial_results_run_id_idx")).toHaveLength(1);
-    expect(indexNames).not.toContain("trial_results_level_run_id_idx");
-  });
-
-  it("migrates a pre-ticket-05 database, backfilling client claims from the existing correct/time_exceeded", () => {
-    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
-    const dbPath = join(tmpDir, "old.sqlite");
-
-    // Simulate a deployed database from before ticket 05 (no client_* columns).
-    const legacyDb = new DatabaseSync(dbPath);
-    legacyDb.exec(`CREATE TABLE trial_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email_hash TEXT NOT NULL,
-      level_number INTEGER NOT NULL,
-      category_codename TEXT NOT NULL,
-      correct INTEGER NOT NULL,
-      time_exceeded INTEGER NOT NULL,
-      time_taken INTEGER NOT NULL,
-      played_at INTEGER NOT NULL
-    )`);
-    legacyDb.exec(
-      `INSERT INTO trial_results (email_hash, level_number, category_codename, correct, time_exceeded, time_taken, played_at)
-       VALUES ('hash1', 1, '1d+1d', 1, 0, 1000, 1700000000000)`,
-    );
-    legacyDb.close();
-
-    const migrated = openDb(dbPath);
-    const row = migrated.prepare("SELECT * FROM trial_results").get() as Record<string, number>;
-    expect(row.client_correct).toBe(1);
-    expect(row.client_time_exceeded).toBe(0);
-  });
-
-  it("is idempotent — running the migration twice does not error or change already-migrated data", () => {
-    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
-    const dbPath = join(tmpDir, "twice.sqlite");
-
-    openDb(dbPath).close();
-    const db = openDb(dbPath);
-    const columns = (db.prepare("PRAGMA table_info(trial_results)").all() as { name: string }[]).map(
-      (c) => c.name,
-    );
-    expect(columns.filter((c) => c === "client_correct")).toHaveLength(1);
+    expect(columns.filter((c) => c === "operands")).toHaveLength(1);
   });
 
   it("seeds the levels table from LEVEL_SEED_DATA on a fresh database", () => {

@@ -1,41 +1,26 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactNode } from "react";
-import type { Operation, Answering, BaseTrialResult, Keystroke } from "engine";
-import { HintCard } from "./HintCard";
+import type { Answering, Operation, TrialResult } from "engine";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { panel } from "../styles";
+import { HintCard } from "./HintCard";
 
-type ReviewingResult = { type: "reviewing"; result: BaseTrialResult };
+type ReviewingResult = { type: "reviewing"; result: TrialResult };
 
 type Props = {
   operation: Operation;
   playingState: Answering | ReviewingResult;
   trialId: number;
   hintVisible: boolean;
-  onSubmitAnswer: (
-    answer: number,
-    keystrokes: Keystroke[],
-    hasErased: boolean,
-  ) => void;
-  onTimeUp: (
-    answer: number | null,
-    keystrokes: Keystroke[],
-    hasErased: boolean,
-  ) => void;
+  onSubmitAnswer: (answer: number) => void;
+  onTimeUp: (answer: number | null) => void;
   onAdvance: () => void;
-  /** Left side of the header row (trial count / correct count). */
   headerLeft: ReactNode;
-  /** Right side of the header row (hint budget, stop button, …). The countdown sits between the two. */
   headerRight: ReactNode;
-  /** Rendered directly above the timer bar (e.g. a per-trial history strip). */
-  aboveTimer?: ReactNode;
-  /** Rendered between the timer bar and the operation display (e.g. a category label). */
   beforeOperation?: ReactNode;
-  /** Extra line rendered inside the feedback overlay, alongside the correct/wrong message. */
-  extraFeedback?: (result: BaseTrialResult) => ReactNode;
+  extraFeedback?: (result: TrialResult) => ReactNode;
 };
 
-/** Parses the calculator's current raw input, or null if it's empty/unparseable. */
 function parsedAnswer(raw: string): number | null {
   const parsed = parseInt(raw, 10);
   return raw !== "" && !isNaN(parsed) ? parsed : null;
@@ -48,7 +33,6 @@ const ROWS = [
   ["C", "0", "⌫"],
 ];
 
-/** Accessible names for the two symbol/letter action keys — their own glyph isn't a reliable screen-reader name. */
 const KEY_LABELS: Record<string, string> = {
   C: "Clear",
   "⌫": "Delete last digit",
@@ -64,7 +48,6 @@ export function AnsweringPanel({
   onAdvance,
   headerLeft,
   headerRight,
-  aboveTimer,
   beforeOperation,
   extraFeedback,
 }: Props) {
@@ -75,8 +58,6 @@ export function AnsweringPanel({
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(solveTime);
   const answerRef = useRef("");
-  const keystrokesRef = useRef<Keystroke[]>([]);
-  const hasErasedRef = useRef(false);
 
   // Reset state on each new trial
   useEffect(() => {
@@ -84,8 +65,6 @@ export function AnsweringPanel({
     answerRef.current = "";
     setPressedKey(null);
     setRemaining(solveTime);
-    keystrokesRef.current = [];
-    hasErasedRef.current = false;
   }, [trialId, solveTime]);
 
   // Countdown timer — only active while answering
@@ -99,11 +78,7 @@ export function AnsweringPanel({
       setRemaining(left);
       if (left === 0) {
         clearInterval(id);
-        onTimeUp(
-          parsedAnswer(answerRef.current),
-          keystrokesRef.current,
-          hasErasedRef.current,
-        );
+        onTimeUp(parsedAnswer(answerRef.current));
       }
     }, 100);
     return () => clearInterval(id);
@@ -151,18 +126,9 @@ export function AnsweringPanel({
       setAnswer("");
       answerRef.current = "";
     } else if (key === "⌫") {
-      keystrokesRef.current.push({
-        key: "⌫",
-        t: Date.now() - (startedAt ?? Date.now()),
-      });
-      hasErasedRef.current = true;
       setAnswer((prev) => prev.slice(0, -1));
       answerRef.current = answerRef.current.slice(0, -1);
     } else {
-      keystrokesRef.current.push({
-        key,
-        t: Date.now() - (startedAt ?? Date.now()),
-      });
       setAnswer((prev) => (prev.length < 10 ? prev + key : prev));
       answerRef.current =
         answerRef.current.length < 10
@@ -173,8 +139,7 @@ export function AnsweringPanel({
 
   function doSubmit() {
     const parsed = parsedAnswer(answerRef.current);
-    if (parsed !== null)
-      onSubmitAnswer(parsed, keystrokesRef.current, hasErasedRef.current);
+    if (parsed !== null) onSubmitAnswer(parsed);
   }
 
   const isReviewing = playingState.type === "reviewing";
@@ -203,8 +168,6 @@ export function AnsweringPanel({
         </span>
         <div className="flex flex-1 justify-end">{headerRight}</div>
       </div>
-
-      {/* {aboveTimer} */}
 
       {/* Timer bar */}
       <div
@@ -265,7 +228,6 @@ export function AnsweringPanel({
           Submit
         </button>
 
-        {/* Feedback overlay */}
         {isReviewing && result && (
           <div
             className={[

@@ -1,26 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { computeStats, ALL_CATEGORIES } from "./computeStats";
-import type { PersistedTrial } from "../storage/trialHistory";
+import { computeStats, ALL_CATEGORIES, type StatsTrial } from "./computeStats";
 
 function trial(
   categoryCodename: string,
   correct: boolean,
   timeExceeded = false,
   timeTaken = 3000,
-): PersistedTrial {
-  return {
-    levelNumber: 1,
-    categoryCodename,
-    correct,
-    timeExceeded,
-    timeTaken,
-    playedAt: new Date().toISOString(),
-    keystrokes: [],
-    hintShown: false,
-    streakAtSubmit: 0,
-    hintsAvailableAtStart: 3,
-    runId: "run-abc",
-  };
+): StatsTrial {
+  return { categoryCodename, correct, timeExceeded, timeTaken };
 }
 
 describe("computeStats", () => {

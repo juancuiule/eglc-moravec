@@ -1,19 +1,16 @@
 import { describe, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
 import { parseTrialResults, evaluateTrialResult, deriveLevelRuns } from "./logic.js";
 
 const validTrial = {
+  id: randomUUID(),
   levelNumber: 3,
   categoryCodename: "1d+1d",
-  correct: true,
-  timeExceeded: false,
   timeTaken: 1200,
   playedAt: 1_700_000_000_000,
-  keystrokes: [{ key: "9", t: 100 }, { key: "2", t: 340 }],
   operands: [4, 5],
   answer: 9,
   hintShown: false,
-  streakAtSubmit: 2,
-  hintsAvailableAtStart: 3,
   runId: "run-abc",
   runType: "level" as const,
 };
@@ -41,21 +38,16 @@ describe("parseTrialResults", () => {
   });
 
   it("rejects a trial with a wrong-typed field", () => {
-    expect(parseTrialResults({ trials: [{ ...validTrial, correct: "yes" }] })).toBeNull();
+    expect(parseTrialResults({ trials: [{ ...validTrial, timeTaken: "yes" }] })).toBeNull();
   });
 
-  it("accepts an empty keystrokes array", () => {
-    const trial = { ...validTrial, keystrokes: [] };
-    expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
+  it("rejects a trial with a missing id", () => {
+    const { id: _id, ...withoutId } = validTrial;
+    expect(parseTrialResults({ trials: [withoutId] })).toBeNull();
   });
 
-  it("rejects a trial with a malformed keystroke", () => {
-    const trial = { ...validTrial, keystrokes: [{ key: "9", t: "not-a-number" }] };
-    expect(parseTrialResults({ trials: [trial] })).toBeNull();
-  });
-
-  it("rejects a trial with a non-array keystrokes field", () => {
-    const trial = { ...validTrial, keystrokes: "nope" };
+  it("rejects a trial with a non-uuid id", () => {
+    const trial = { ...validTrial, id: "not-a-uuid" };
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
@@ -81,16 +73,6 @@ describe("parseTrialResults", () => {
 
   it("rejects a trial with a wrong-typed hintShown", () => {
     const trial = { ...validTrial, hintShown: "yes" };
-    expect(parseTrialResults({ trials: [trial] })).toBeNull();
-  });
-
-  it("rejects a trial with a wrong-typed streakAtSubmit", () => {
-    const trial = { ...validTrial, streakAtSubmit: "2" };
-    expect(parseTrialResults({ trials: [trial] })).toBeNull();
-  });
-
-  it("rejects a trial with a wrong-typed hintsAvailableAtStart", () => {
-    const trial = { ...validTrial, hintsAvailableAtStart: "3" };
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
@@ -121,19 +103,18 @@ describe("parseTrialResults", () => {
 });
 
 describe("evaluateTrialResult", () => {
-  it("confirms a client claim that matches the server's own recomputation", () => {
+  it("recomputes correctness/timing from operands/answer/timeTaken via the engine", () => {
     const evaluated = evaluateTrialResult(validTrial);
     expect(evaluated.correct).toBe(true);
     expect(evaluated.timeExceeded).toBe(false);
-    expect(evaluated.clientCorrect).toBe(true);
-    expect(evaluated.clientTimeExceeded).toBe(false);
   });
 
-  it("passes hintShown, streakAtSubmit, hintsAvailableAtStart, runId, and runType through unchanged", () => {
+  it("passes id, operands, answer, hintShown, runId, and runType through unchanged", () => {
     const evaluated = evaluateTrialResult(validTrial);
+    expect(evaluated.id).toBe(validTrial.id);
+    expect(evaluated.operands).toEqual([4, 5]);
+    expect(evaluated.answer).toBe(9);
     expect(evaluated.hintShown).toBe(false);
-    expect(evaluated.streakAtSubmit).toBe(2);
-    expect(evaluated.hintsAvailableAtStart).toBe(3);
     expect(evaluated.runId).toBe("run-abc");
     expect(evaluated.runType).toBe("level");
   });
@@ -143,30 +124,26 @@ describe("evaluateTrialResult", () => {
     expect(evaluateTrialResult(trial).levelNumber).toBeNull();
   });
 
-  it("overrides a client claim that disagrees with the server's own recomputation, keeping the claim for auditing", () => {
-    // operands say 4 + 5 = 9, but the client claims a wrong answer was correct
-    const trial = { ...validTrial, answer: 100, correct: true };
+  it("computes correct: false when the submitted answer doesn't match the operands", () => {
+    // operands say 4 + 5 = 9, but the submitted answer is wrong
+    const trial = { ...validTrial, answer: 100 };
     const evaluated = evaluateTrialResult(trial);
-
-    expect(evaluated.correct).toBe(false); // server-computed wins
-    expect(evaluated.clientCorrect).toBe(true); // original claim preserved for auditing
+    expect(evaluated.correct).toBe(false);
   });
 });
 
 function evaluatedTrial(overrides: Partial<ReturnType<typeof evaluateTrialResult>> = {}) {
   return {
+    id: "11111111-1111-1111-1111-111111111111",
     levelNumber: 4,
     categoryCodename: "1d+1d",
+    operands: [4, 5],
+    answer: 9,
     correct: true,
     timeExceeded: false,
-    clientCorrect: true,
-    clientTimeExceeded: false,
     timeTaken: 1000,
     playedAt: 1_700_000_000_000,
-    keystrokes: [],
     hintShown: false,
-    streakAtSubmit: 0,
-    hintsAvailableAtStart: 3,
     runId: "run-1",
     runType: "level" as const,
     ...overrides,
@@ -186,16 +163,6 @@ describe("deriveLevelRuns", () => {
     expect(summary.levelNumber).toBe(4);
     expect(summary.totalTime).toBe(6000); // sums every trial, not just correct ones
     expect(summary.stars).toBe(0); // 2 correct < LEVEL_COMPLETE_THRESHOLD (15)
-    expect(summary.levelCompleted).toBe(false);
-  });
-
-  it("bases stars/completion on the server-computed correct, not the client's claim", () => {
-    const trials = Array.from({ length: 20 }, () =>
-      evaluatedTrial({ correct: false, clientCorrect: true }), // client claims correct; server disagrees
-    );
-
-    const [summary] = deriveLevelRuns(trials);
-    expect(summary.stars).toBe(0);
     expect(summary.levelCompleted).toBe(false);
   });
 
@@ -220,8 +187,24 @@ describe("deriveLevelRuns", () => {
     ];
 
     const summaries = deriveLevelRuns(trials);
-    expect(summaries.find((s) => s.levelRunId === "run-1")).toMatchObject({ levelNumber: 1, stars: 3 });
-    expect(summaries.find((s) => s.levelRunId === "run-2")).toMatchObject({ levelNumber: 2, stars: 0 });
+    expect(summaries.find((s) => s.levelRunId === "run-1")).toMatchObject({
+      levelNumber: 1,
+      stars: 3,
+    });
+    expect(summaries.find((s) => s.levelRunId === "run-2")).toMatchObject({
+      levelNumber: 2,
+      stars: 0,
+    });
+  });
+
+  it("takes the latest trial's playedAt within a run", () => {
+    const trials = [
+      evaluatedTrial({ playedAt: 1000 }),
+      evaluatedTrial({ playedAt: 3000 }),
+      evaluatedTrial({ playedAt: 2000 }),
+    ];
+    const [summary] = deriveLevelRuns(trials);
+    expect(summary.playedAt).toBe(3000);
   });
 
   it("returns an empty array for no trials", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createGameStore, TOTAL_TRIALS, HINTS_PER_LEVEL } from "./index";
+import { createGameStore, TRIALS_PER_LEVEL } from "./index";
 import type { Level } from "../level";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -12,15 +12,15 @@ function makeConfig(overrides: Partial<{ levelNumber: number; totalTrials: numbe
   return {
     levelNumber: overrides.levelNumber ?? 1,
     level: level1,
-    totalTrials: overrides.totalTrials ?? TOTAL_TRIALS,
+    totalTrials: overrides.totalTrials ?? TRIALS_PER_LEVEL,
   };
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 describe("constants", () => {
-  it("TOTAL_TRIALS is 20", () => {
-    expect(TOTAL_TRIALS).toBe(20);
+  it("TRIALS_PER_LEVEL is 20", () => {
+    expect(TRIALS_PER_LEVEL).toBe(20);
   });
 });
 
@@ -125,22 +125,6 @@ describe("createGameStore", () => {
       expect(next.playingState.result.timeExceeded).toBe(true);
     });
 
-    it("a correct-but-late answer does not break the streak — only being wrong does", () => {
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error("not playing");
-      const solveTime = s.currentOperation.solveTime();
-      vi.spyOn(Date, "now").mockReturnValue(1_000_000 + solveTime + 1);
-      store.getState().submitAnswer(s.currentOperation.result());
-      store.getState().advance();
-
-      const next = store.getState().state;
-      if (next.type !== "playing") throw new Error("not playing");
-      store.getState().submitAnswer(next.currentOperation.result());
-      const after = store.getState().state;
-      if (after.type !== "playing" || after.playingState.type !== "reviewing") throw new Error();
-      expect(after.playingState.result.streakAtSubmit).toBe(1);
-    });
-
     it("advance after wrong answer records the result", () => {
       const s = store.getState().state;
       if (s.type !== "playing") throw new Error();
@@ -162,9 +146,11 @@ describe("createGameStore", () => {
     });
 
     it("requestHint sets hintVisible and decrements hintsRemaining", () => {
-      // Fresh store guaranteed to use multiplication (which has a hint)
+      // 2dx1d, not 1dx1d — Multiplication.hint() returns NoHint when both
+      // operands are single-digit, so this needs a category guaranteed to
+      // actually have one.
       const multStore = createGameStore();
-      multStore.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
+      multStore.getState().load({ levelNumber: 1, level: { "2dx1d": 100 }, totalTrials: TRIALS_PER_LEVEL });
       const s = multStore.getState().state;
       if (s.type !== "playing") throw new Error();
       expect(s.hintsRemaining).toBe(3);
@@ -177,7 +163,7 @@ describe("createGameStore", () => {
 
     it("requestHint is idempotent — second call doesn't decrement again", () => {
       const multStore = createGameStore();
-      multStore.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
+      multStore.getState().load({ levelNumber: 1, level: { "2dx1d": 100 }, totalTrials: TRIALS_PER_LEVEL });
       multStore.getState().requestHint();
       multStore.getState().requestHint();
       const s = multStore.getState().state;
@@ -186,7 +172,7 @@ describe("createGameStore", () => {
     });
 
     it("hintVisible resets to false after advance", () => {
-      store.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
+      store.getState().load({ levelNumber: 1, level: { "2dx1d": 100 }, totalTrials: TRIALS_PER_LEVEL });
       store.getState().requestHint();
       const s = store.getState().state;
       if (s.type !== "playing") throw new Error();
@@ -199,7 +185,7 @@ describe("createGameStore", () => {
 
     it("hintShown is recorded in TrialResult", () => {
       const multStore = createGameStore();
-      multStore.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
+      multStore.getState().load({ levelNumber: 1, level: { "2dx1d": 100 }, totalTrials: TRIALS_PER_LEVEL });
       multStore.getState().requestHint();
       const s = multStore.getState().state;
       if (s.type !== "playing") throw new Error();
@@ -207,29 +193,6 @@ describe("createGameStore", () => {
       const reviewing = multStore.getState().state;
       if (reviewing.type !== "playing" || reviewing.playingState.type !== "reviewing") throw new Error();
       expect(reviewing.playingState.result.hintShown).toBe(true);
-    });
-
-    it("hintsAvailableAtStart reconstructs the pre-trial budget, undoing this trial's own decrement", () => {
-      const multStore = createGameStore();
-      multStore.getState().load({ levelNumber: 1, level: { "1dx1d": 100 }, totalTrials: TOTAL_TRIALS });
-      multStore.getState().requestHint();
-      const s = multStore.getState().state;
-      if (s.type !== "playing") throw new Error();
-      expect(s.hintsRemaining).toBe(HINTS_PER_LEVEL - 1); // already decremented for this trial
-
-      multStore.getState().submitAnswer(s.currentOperation.result());
-      const reviewing = multStore.getState().state;
-      if (reviewing.type !== "playing" || reviewing.playingState.type !== "reviewing") throw new Error();
-      expect(reviewing.playingState.result.hintsAvailableAtStart).toBe(HINTS_PER_LEVEL);
-    });
-
-    it("hintsAvailableAtStart equals hintsRemaining when no hint was requested this trial", () => {
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error();
-      store.getState().submitAnswer(s.currentOperation.result());
-      const reviewing = store.getState().state;
-      if (reviewing.type !== "playing" || reviewing.playingState.type !== "reviewing") throw new Error();
-      expect(reviewing.playingState.result.hintsAvailableAtStart).toBe(s.hintsRemaining);
     });
 
     it("advance after correct-but-late still records the result and advances (no retry-the-slot)", () => {

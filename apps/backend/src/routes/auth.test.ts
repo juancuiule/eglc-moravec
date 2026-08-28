@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { FastifyInstance } from "fastify";
 import { openDb } from "../db.js";
@@ -6,14 +7,14 @@ import { buildApp } from "../app.js";
 import { loadConfig } from "../config.js";
 import { getOtpRow } from "../auth/repo.js";
 import { hashEmail, hashDeviceId } from "../auth/logic.js";
-import { getTrialResultsForUser, getAllLevelStatsForUser } from "../sync/repo.js";
+import { getTrialResultsForUser } from "../sync/repo.js";
 
 const TEST_SECRET = "test-secret";
 const EMAIL = "player@example.com";
 
 function setup(env: NodeJS.ProcessEnv = {}): { db: DatabaseSync; app: FastifyInstance } {
   const db = openDb(":memory:");
-  const config = loadConfig({ EMAIL_HASH_SECRET: TEST_SECRET, ...env } as NodeJS.ProcessEnv);
+  const config = loadConfig({ HASH_SECRET: TEST_SECRET, ...env } as NodeJS.ProcessEnv);
   const app = buildApp(db, config);
   return { db, app };
 }
@@ -27,18 +28,14 @@ function codeFor(db: DatabaseSync, email: string): string {
 // A minimal, valid /sync/results trial — level/category/operands don't
 // matter for these tests, only that the payload is accepted.
 const trial = {
+  id: randomUUID(),
   levelNumber: 5,
   categoryCodename: "1d+1d",
-  correct: true,
-  timeExceeded: false,
   timeTaken: 1000,
   playedAt: 1_700_000_000_000,
-  keystrokes: [],
   operands: [4, 5],
   answer: 9,
   hintShown: false,
-  streakAtSubmit: 0,
-  hintsAvailableAtStart: 3,
   runId: "run-1",
   runType: "level" as const,
 };
@@ -251,7 +248,7 @@ describe("POST /auth/device", () => {
       method: "POST",
       url: "/sync/results",
       headers: { authorization: `Bearer ${token2}` },
-      payload: { trials: [{ ...trial, runId: "run-2" }] },
+      payload: { trials: [{ ...trial, id: randomUUID(), runId: "run-2" }] },
     });
 
     const deviceEmailHash = hashDeviceId("device-1", TEST_SECRET);
@@ -260,7 +257,7 @@ describe("POST /auth/device", () => {
 });
 
 describe("anonymous → email upgrade merge", () => {
-  it("merges an anonymous identity's trials and level_stats into the new email account on login", async () => {
+  it("merges an anonymous identity's trials into the new email account on login", async () => {
     const { db, app } = setup();
 
     const deviceRes = await app.inject({
@@ -274,7 +271,9 @@ describe("anonymous → email upgrade merge", () => {
       method: "POST",
       url: "/sync/results",
       headers: { authorization: `Bearer ${anonToken}` },
-      payload: { trials: Array.from({ length: 20 }, () => trial) }, // 20 correct → completes the level
+      // 20 correct → completes the level; each needs its own id, since id is
+      // now the PK trial_results dedupes on.
+      payload: { trials: Array.from({ length: 20 }, () => ({ ...trial, id: randomUUID() })) },
     });
 
     await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
@@ -289,7 +288,15 @@ describe("anonymous → email upgrade merge", () => {
 
     const realEmailHash = hashEmail(EMAIL, TEST_SECRET);
     expect(getTrialResultsForUser(db, realEmailHash)).toHaveLength(20);
-    expect(getAllLevelStatsForUser(db, realEmailHash)).toMatchObject([{ level_number: 5, stars: 3 }]);
+
+    // The merged trials are what level-stats derives from, so the new
+    // account sees the anonymous identity's completed level.
+    const levelStatsRes = await app.inject({
+      method: "GET",
+      url: "/sync/level-stats",
+      headers: { authorization: `Bearer ${realToken}` },
+    });
+    expect(levelStatsRes.json().levelStats["5"]).toMatchObject({ stars: 3 });
 
     // The old anonymous session is gone…
     const anonMeRes = await app.inject({

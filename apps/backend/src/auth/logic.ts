@@ -10,18 +10,16 @@ export function isValidEmail(email: string): boolean {
   return EMAIL_PATTERN.test(normalizeEmail(email));
 }
 
-/** Salted, deterministic User identifier — never the plaintext email. */
 export function hashEmail(email: string, secret: string): string {
-  return createHmac("sha256", secret).update(normalizeEmail(email)).digest("hex");
+  return createHmac("sha256", secret)
+    .update(`email:${normalizeEmail(email)}`)
+    .digest("hex");
 }
 
-/**
- * Same idea as hashEmail, for a client-generated anonymous device id
- * instead of an email — namespaced with a fixed prefix so a crafted
- * device id can never land on the same hash as a real email's.
- */
 export function hashDeviceId(deviceId: string, secret: string): string {
-  return createHmac("sha256", secret).update(`device:${deviceId}`).digest("hex");
+  return createHmac("sha256", secret)
+    .update(`device:${deviceId}`)
+    .digest("hex");
 }
 
 export type StoredOtp = {
@@ -36,8 +34,10 @@ export function isOtpValid(
   now: number,
   maxAttempts: number,
 ): boolean {
-  if (stored === null) return false;
-  if (stored.attempts >= maxAttempts) return false;
-  if (now > stored.expiresAt) return false;
-  return stored.code === submittedCode;
+  return (
+    stored !== null &&
+    stored.attempts < maxAttempts &&
+    now <= stored.expiresAt &&
+    stored.code === submittedCode
+  );
 }

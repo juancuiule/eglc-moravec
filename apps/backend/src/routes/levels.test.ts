@@ -7,7 +7,7 @@ import { loadConfig } from "../config.js";
 
 function setup(): { db: DatabaseSync; app: FastifyInstance } {
   const db = openDb(":memory:");
-  const config = loadConfig({ EMAIL_HASH_SECRET: "test-secret" } as NodeJS.ProcessEnv);
+  const config = loadConfig({ HASH_SECRET: "test-secret" } as NodeJS.ProcessEnv);
   const app = buildApp(db, config);
   return { db, app };
 }

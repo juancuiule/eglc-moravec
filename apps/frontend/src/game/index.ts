@@ -1,44 +1,25 @@
+import {
+  canShowHint,
+  LEVEL_COMPLETE_THRESHOLD,
+  Operation,
+  starsForScore,
+  Trial,
+  TRIALS_PER_LEVEL,
+  type Answering,
+  type TrialResult,
+} from "engine";
 import { createStore } from "zustand/vanilla";
 import { createRandomOperation, Level } from "../level";
 import { randomId } from "../randomId";
-import {
-  Operation,
-  scoreAnswer,
-  scoreTimeout,
-  canShowHint,
-  currentStreak,
-  starsForScore,
-  LEVEL_COMPLETE_THRESHOLD,
-  TRIALS_PER_LEVEL,
-  type Keystroke,
-  type Answering,
-  type BaseTrialResult,
-} from "engine";
 
-export type { Keystroke, Answering };
-export { LEVEL_COMPLETE_THRESHOLD };
-
-// ─── Config ────────────────────────────────────────────────────────────────────
+export { LEVEL_COMPLETE_THRESHOLD, TRIALS_PER_LEVEL };
+export type { Answering, TrialResult };
 
 export type GameConfig = {
   levelNumber: number;
   level: Level;
   totalTrials: number; // always TRIALS_PER_LEVEL for levelled play
 };
-
-// ─── Scoring ───────────────────────────────────────────────────────────────────
-
-export const TOTAL_TRIALS = TRIALS_PER_LEVEL;
-
-// ─── Trial result ──────────────────────────────────────────────────────────────
-
-export type TrialResult = BaseTrialResult & {
-  streakAtSubmit: number;
-  /** Hints left *before* this trial's own hint request (if any) — distinct from hintShown, which only says whether one was actually used. */
-  hintsAvailableAtStart: number;
-};
-
-// ─── Playing nested states ─────────────────────────────────────────────────────
 
 export type Reviewing = {
   type: "reviewing";
@@ -47,31 +28,30 @@ export type Reviewing = {
 
 export type PlayingState = Answering | Reviewing;
 
-// ─── Top-level states ──────────────────────────────────────────────────────────
-
 export type Loading = { type: "loading" };
 
 export const HINTS_PER_LEVEL = 3;
 
-export type Playing = {
+export type Playing = CommonState & {
   type: "playing";
-  config: GameConfig;
-  /** Identifies this one playthrough — generated fresh per attempt (including each Replay) — so its trials can be grouped back together after they're flattened into trial_results. */
-  runId: string;
+
   currentOperation: Operation; // current trial's operation
   seenOperations: Set<string>; // humanReadable() strings shown this level
-  trialId: number;              // monotonically increasing, used to reset UI between trials
-  results: TrialResult[];       // all submitted results
+  trialId: number; // monotonically increasing, used to reset UI between trials
+
   playingState: PlayingState;
   hintsRemaining: number;
   hintVisible: boolean;
 };
 
-export type Finished = {
-  type: "finished";
+type CommonState = {
   config: GameConfig;
   runId: string;
   results: TrialResult[];
+};
+
+export type Finished = CommonState & {
+  type: "finished";
   correctCount: number;
   levelCompleted: boolean; // correctCount >= LEVEL_COMPLETE_THRESHOLD
   stars: 0 | 1 | 2 | 3;
@@ -83,58 +63,21 @@ export type GameState = Loading | Playing | Finished;
 
 export type GameStore = {
   state: GameState;
-
-  /**
-   * Start a level. Valid from: Loading, Finished.
-   */
   load: (config: GameConfig) => void;
-
-  /**
-   * Submit an answer for the current operation.
-   * Valid from: Playing › Answering
-   */
-  submitAnswer: (answer: number, keystrokes?: Keystroke[], hasErased?: boolean) => void;
-
-  /**
-   * Mark the current trial as timed out. `answer` is whatever was entered
-   * into the calculator when the timer hit zero (or null if nothing was) —
-   * still scored for correctness, not discarded.
-   * Valid from: Playing › Answering
-   */
-  timeUp: (answer: number | null, keystrokes?: Keystroke[], hasErased?: boolean) => void;
-
-  /**
-   * Advance after the result is shown.
-   * Valid from: Playing › Reviewing
-   */
+  submitAnswer: (answer: number) => void;
+  timeUp: (answer: number | null) => void;
   advance: () => void;
-
-  /**
-   * Show the hint for the current trial (costs one hint if not yet shown this trial).
-   * Valid from: Playing › Answering
-   */
   requestHint: () => void;
-
-  /**
-   * Replay the same level immediately.
-   * Valid from: Finished
-   */
   replay: () => void;
-
-  /**
-   * Return to level selection.
-   */
   reset: () => void;
 };
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function pickFreshOperation(level: Level, seen: Set<string>): Operation {
   for (let i = 0; i < 50; i++) {
     const op = createRandomOperation(level);
     if (!seen.has(op.humanReadable())) return op;
   }
-  // Fallback: all (or nearly all) combinations exhausted
+
   return createRandomOperation(level);
 }
 
@@ -156,28 +99,12 @@ function startPlaying(config: GameConfig, trialId = 0): Playing {
   };
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Reconstructs the hint budget as it stood before this trial's own hint
- * request, if any — at most one hint can be requested per trial (see
- * requestHint's canShowHint gate), so undoing that single possible
- * decrement is enough; no separate snapshot needs to be threaded through.
- */
-function computeHintsAvailableAtStart(hintsRemaining: number, hintShown: boolean): number {
-  return hintsRemaining + (hintShown ? 1 : 0);
-}
-
-function toReviewing(state: Playing, base: BaseTrialResult): Playing {
-  const result: TrialResult = {
-    ...base,
-    streakAtSubmit: currentStreak(state.results),
-    hintsAvailableAtStart: computeHintsAvailableAtStart(state.hintsRemaining, state.hintVisible),
+function toReviewing(state: Playing, result: TrialResult): Playing {
+  return {
+    ...state,
+    playingState: { type: "reviewing", result },
   };
-  return { ...state, playingState: { type: "reviewing", result } };
 }
-
-// ─── Factory ───────────────────────────────────────────────────────────────────
 
 export function createGameStore() {
   return createStore<GameStore>((set, get) => ({
@@ -189,29 +116,32 @@ export function createGameStore() {
       set({ state: startPlaying(config) });
     },
 
-    submitAnswer(answer, keystrokes = [], hasErased = false) {
+    submitAnswer(answer) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
 
       const { startedAt } = state.playingState;
-      const base = scoreAnswer(state.currentOperation, startedAt, answer, {
-        keystrokes,
-        hasErased,
-        hintShown: state.hintVisible,
-      });
+      const base = Trial.scoreAnswer(
+        {
+          operation: state.currentOperation,
+          answer,
+          hintShown: state.hintVisible,
+        },
+        startedAt,
+      );
 
       set({ state: toReviewing(state, base) });
     },
 
-    timeUp(answer, keystrokes = [], hasErased = false) {
+    timeUp(answer) {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
 
-      const base = scoreTimeout(state.currentOperation, answer, {
-        keystrokes,
-        hasErased,
+      const base = Trial.scoreTimeout({
+        operation: state.currentOperation,
+        answer,
         hintShown: state.hintVisible,
       });
 
@@ -240,7 +170,10 @@ export function createGameStore() {
           },
         });
       } else {
-        const nextOp = pickFreshOperation(state.config.level, state.seenOperations);
+        const nextOp = pickFreshOperation(
+          state.config.level,
+          state.seenOperations,
+        );
         const newSeen = new Set(state.seenOperations);
         newSeen.add(nextOp.humanReadable());
         set({
@@ -261,7 +194,14 @@ export function createGameStore() {
       const { state } = get();
       if (state.type !== "playing") return;
       if (state.playingState.type !== "answering") return;
-      if (!canShowHint(state.hintVisible, state.currentOperation.hint().hasHint(), state.hintsRemaining)) return;
+      if (
+        !canShowHint(
+          state.hintVisible,
+          state.currentOperation.hint().hasHint(),
+          state.hintsRemaining,
+        )
+      )
+        return;
 
       set({
         state: {

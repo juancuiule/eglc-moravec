@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { loadTrialHistory, type PersistedTrial } from "../storage/trialHistory";
-import { loadPracticeHistory, type PersistedPracticeTrial } from "../storage/practiceHistory";
+import { useQuery } from "@tanstack/react-query";
+import { Api } from "../api/Api";
+import { authToken, useAuth } from "../auth/store";
 import { computeStats } from "../stats/computeStats";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
-import { panel, backLink } from "../styles";
+import { panel, backLink, textLink } from "../styles";
 
 type Tab = "level" | "practice";
 
@@ -39,19 +40,22 @@ export function StatsScreen() {
   const [tab, setTab] = useState<Tab>("level");
   const [selected, setSelected] = useState<string | null>(null);
 
+  const token = useAuth((s) => authToken(s.state));
+  const {
+    data: allTrials,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["trials", token],
+    queryFn: () => (token ? Api.fetchTrials(token) : Promise.resolve([])),
+  });
+
   // Level and Practice trials are never merged — separate histories, separate numbers.
-  // Read on mount rather than during render — localStorage isn't available
-  // during SSR, and reading it synchronously here would mismatch the
-  // server-rendered (empty) HTML against the client's first render.
-  const [levelTrials, setLevelTrials] = useState<PersistedTrial[]>([]);
-  const [practiceTrials, setPracticeTrials] = useState<PersistedPracticeTrial[]>([]);
-
-  useEffect(() => {
-    setLevelTrials(loadTrialHistory());
-    setPracticeTrials(loadPracticeHistory());
-  }, []);
-
-  const trials = tab === "level" ? levelTrials : practiceTrials;
+  const trials = useMemo(
+    () => (allTrials ?? []).filter((t) => t.runType === tab),
+    [allTrials, tab],
+  );
 
   const stats = useMemo(() => computeStats(trials), [trials]);
   const hasAnyData = stats.some((s) => s.total > 0);
@@ -90,7 +94,20 @@ export function StatsScreen() {
         ))}
       </div>
 
-      {!hasAnyData ? (
+      {isLoading && (
+        <p className="text-center text-sm text-muted py-8">Loading stats…</p>
+      )}
+
+      {isError && (
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-center text-sm text-danger">Couldn't load stats.</p>
+          <button onClick={() => refetch()} className={`${textLink} underline`}>
+            Try again
+          </button>
+        </div>
+      )}
+
+      {!isLoading && !isError && !hasAnyData && (
         <p className="text-center text-muted-2 py-8">
           {tab === "level" ? (
             <>
@@ -110,7 +127,9 @@ export function StatsScreen() {
             </>
           )}
         </p>
-      ) : (
+      )}
+
+      {!isLoading && !isError && hasAnyData && (
         <div className="flex flex-col gap-1">
           {/* Header */}
           <div className="grid grid-cols-[6rem_1fr_4rem] gap-2 px-2 pb-1 text-xs text-muted-2 font-medium uppercase tracking-wider">
