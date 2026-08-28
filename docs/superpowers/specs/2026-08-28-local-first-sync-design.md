@@ -211,12 +211,24 @@ bandwidth (mitigated by the exclusion in protocol step 5).
 `levelRuns` rows are never pushed for insertion (see the protocol section
 above) — only their underlying trials are. A local `levelRuns` row is
 confirmed synced purely by watching the *pull* side: when a level run with
-a matching `id` comes back, if the id already exists locally, only its
-`synced` flag flips to `true` — its stars/totalTime/levelCompleted are left
-alone, even if the server's re-derived values differ, mirroring the
-existing "a disagreement never overrides local LevelStats" rule. If the id
-doesn't exist locally yet (another device's run), it's inserted fresh with
-the server's values and `synced: true`.
+a matching `id` comes back, it's written with `setRow` unconditionally —
+same mechanism as trials, no special case for "do I already have this id."
+The server's re-derived stars/totalTime/levelCompleted always win, even
+over what the client originally computed for its own run.
+
+This is deliberate, not an oversight: `totalTime` is a sum of
+client-reported `timeTaken` values the server never re-measures, so it
+can't actually disagree; `stars`/`levelCompleted` can only disagree if the
+server's re-validation found at least one trial incorrect that the client
+called correct (or vice versa) — a bug or a tampered client, not normal
+operation, and exactly the case where the correction should be visible
+rather than permanently masked by "the client already had a value." The
+existing "a disagreement never overrides local LevelStats" rule is about
+protecting the *in-session* celebration the instant a Level finishes — and
+that's already handled structurally: a device's own just-pushed level run
+is excluded from that same push's pull response (protocol step 5), so a
+disagreement can only ever be discovered later, in a subsequent sync, once
+it's plain background reconciliation rather than live UX.
 
 Consumers keep their existing public shape:
 
@@ -245,8 +257,9 @@ One `sync()` function (new `apps/frontend/src/sync/syncEngine.ts`):
    never pushed directly, see above), and the current `cursor` value.
 3. `POST /sync` with that payload.
 4. On success: mark the pushed trial rows `synced: true`; apply every row in
-   the response — trials via `setRow` (idempotent), level runs via the
-   flip-if-known / insert-if-unknown rule above; store the new `cursor`.
+   the response via `setRow` — trials and level runs alike, unconditionally
+   (see above for why level runs don't need a special case); store the new
+   `cursor`.
 5. On failure: no state change, schedule a retry.
 
 Backoff is in-memory only (module-level counter + timer handle), not
