@@ -5,12 +5,18 @@ import { openDb } from "../db.js";
 import { buildApp } from "../app.js";
 import { loadConfig } from "../config.js";
 import { insertTrialResults } from "../sync/repo.js";
+import { upsertUser } from "../auth/repo.js";
 import type { EvaluatedTrialResult } from "../sync/logic.js";
 
 function setup(): { db: DatabaseSync; app: FastifyInstance } {
   const db = openDb(":memory:");
   const config = loadConfig({ EMAIL_HASH_SECRET: "test-secret" } as NodeJS.ProcessEnv);
   const app = buildApp(db, config);
+  // This file's tests insert trial_results directly (not via a real
+  // login), so the FK on trial_results.email_hash needs both stand-in
+  // users to exist up front.
+  upsertUser(db, "userA", 1_700_000_000_000);
+  upsertUser(db, "userB", 1_700_000_000_000);
   return { db, app };
 }
 

@@ -61,6 +61,8 @@ describe("openDb", () => {
 
     // Simulate a deployed database from before hint/streak tracking existed.
     const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE users (email_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL, is_anonymous INTEGER NOT NULL DEFAULT 0)`);
+    legacyDb.exec(`INSERT INTO users (email_hash, created_at) VALUES ('hash1', 1700000000000)`);
     legacyDb.exec(`CREATE TABLE trial_results (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email_hash TEXT NOT NULL,
@@ -101,6 +103,8 @@ describe("openDb", () => {
 
     // Simulate a deployed database from before Practice sync existed.
     const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE users (email_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL, is_anonymous INTEGER NOT NULL DEFAULT 0)`);
+    legacyDb.exec(`INSERT INTO users (email_hash, created_at) VALUES ('hash1', 1700000000000)`);
     legacyDb.exec(`CREATE TABLE trial_results (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email_hash TEXT NOT NULL,
@@ -156,6 +160,8 @@ describe("openDb", () => {
 
     // Simulate a deployed database from before ticket 05 (no client_* columns).
     const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE users (email_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL, is_anonymous INTEGER NOT NULL DEFAULT 0)`);
+    legacyDb.exec(`INSERT INTO users (email_hash, created_at) VALUES ('hash1', 1700000000000)`);
     legacyDb.exec(`CREATE TABLE trial_results (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email_hash TEXT NOT NULL,
@@ -220,6 +226,7 @@ describe("openDb", () => {
 
   it("enforces uniqueness on a non-empty run_trial_id", () => {
     const db = openDb(":memory:");
+    db.prepare("INSERT INTO users (email_hash, created_at) VALUES ('hash-1', 1700000000000)").run();
     db.prepare(
       `INSERT INTO trial_results
          (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, run_trial_id)
@@ -239,6 +246,7 @@ describe("openDb", () => {
 
   it("allows multiple rows with an empty run_trial_id (legacy/un-migrated clients)", () => {
     const db = openDb(":memory:");
+    db.prepare("INSERT INTO users (email_hash, created_at) VALUES ('hash-1', 1700000000000)").run();
     const insert = db.prepare(
       `INSERT INTO trial_results
          (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, run_trial_id)
@@ -255,6 +263,8 @@ describe("openDb", () => {
     const dbPath = join(tmpDir, "old.sqlite");
 
     const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE users (email_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL, is_anonymous INTEGER NOT NULL DEFAULT 0)`);
+    legacyDb.exec(`INSERT INTO users (email_hash, created_at) VALUES ('hash-1', 1700000000000)`);
     legacyDb.exec(`CREATE TABLE trial_results (
        id INTEGER PRIMARY KEY AUTOINCREMENT,
        email_hash TEXT NOT NULL,
@@ -291,6 +301,8 @@ describe("openDb", () => {
     const dbPath = join(tmpDir, "old.sqlite");
 
     const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE users (email_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL, is_anonymous INTEGER NOT NULL DEFAULT 0)`);
+    legacyDb.exec(`INSERT INTO users (email_hash, created_at) VALUES ('hash-1', 1700000000000)`);
     legacyDb.exec(`CREATE TABLE level_runs (
        id TEXT PRIMARY KEY,
        email_hash TEXT NOT NULL,
@@ -309,5 +321,270 @@ describe("openDb", () => {
     const migrated = openDb(dbPath);
     const row = migrated.prepare("SELECT server_seq FROM level_runs").get() as { server_seq: number };
     expect(row.server_seq).toBe(0);
+  });
+
+  it("enforces trial_keystrokes.trial_result_id as a real foreign key on a fresh database", () => {
+    const db = openDb(":memory:");
+    expect(() =>
+      db
+        .prepare(`INSERT INTO trial_keystrokes (trial_result_id, key, t) VALUES (999999, '5', 100)`)
+        .run(),
+    ).toThrow();
+  });
+
+  it("enforces level_runs.email_hash as a real foreign key on a fresh database", () => {
+    const db = openDb(":memory:");
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO level_runs (id, email_hash, level_number, stars, total_time, level_completed, played_at)
+           VALUES ('run-1', 'nonexistent-hash', 1, 3, 5000, 1, 1700000000000)`,
+        )
+        .run(),
+    ).toThrow();
+  });
+
+  it("reports the expected foreign key references via PRAGMA foreign_key_list", () => {
+    const db = openDb(":memory:");
+
+    const keystrokeFks = db.prepare("PRAGMA foreign_key_list(trial_keystrokes)").all() as {
+      table: string;
+      from: string;
+      to: string;
+    }[];
+    expect(keystrokeFks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ table: "trial_results", from: "trial_result_id", to: "id" }),
+      ]),
+    );
+
+    const sessionFks = db.prepare("PRAGMA foreign_key_list(sessions)").all() as {
+      table: string;
+      from: string;
+      to: string;
+    }[];
+    expect(sessionFks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ table: "users", from: "email_hash", to: "email_hash" }),
+      ]),
+    );
+  });
+
+  it("does NOT put a foreign key on otp_codes.email_hash, since OTP request precedes user creation", () => {
+    const db = openDb(":memory:");
+
+    // POST /auth/otp/request writes an otp_codes row for a brand-new email
+    // before any users row exists for it (the users row is only created in
+    // POST /auth/otp/verify) — a FK here would break every first-time login.
+    const fks = db.prepare("PRAGMA foreign_key_list(otp_codes)").all();
+    expect(fks).toEqual([]);
+
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO otp_codes (email_hash, code, expires_at, attempts, requested_at)
+           VALUES ('brand-new-hash', '123456', 1700000000000, 0, 1699999999000)`,
+        )
+        .run(),
+    ).not.toThrow();
+  });
+
+  it("migrates an existing (pre-FK) database, preserving all data exactly", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "old.sqlite");
+
+    // Reproduces the CURRENT schema verbatim, minus any FOREIGN KEY clause —
+    // exactly what a database created before this migration looks like.
+    const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE users (
+      email_hash TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      is_anonymous INTEGER NOT NULL DEFAULT 0
+    )`);
+    legacyDb.exec(`CREATE TABLE otp_codes (
+      email_hash TEXT PRIMARY KEY,
+      code TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      requested_at INTEGER NOT NULL
+    )`);
+    legacyDb.exec(`CREATE TABLE sessions (
+      token TEXT PRIMARY KEY,
+      email_hash TEXT NOT NULL,
+      expires_at INTEGER NOT NULL
+    )`);
+    legacyDb.exec(`CREATE TABLE trial_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email_hash TEXT NOT NULL,
+      level_number INTEGER NOT NULL,
+      category_codename TEXT NOT NULL,
+      correct INTEGER NOT NULL,
+      time_exceeded INTEGER NOT NULL,
+      client_correct INTEGER NOT NULL,
+      client_time_exceeded INTEGER NOT NULL,
+      time_taken INTEGER NOT NULL,
+      played_at INTEGER NOT NULL,
+      hint_shown INTEGER NOT NULL DEFAULT 0,
+      streak_at_submit INTEGER NOT NULL DEFAULT 0,
+      hints_available_at_start INTEGER NOT NULL DEFAULT 0,
+      run_id TEXT NOT NULL DEFAULT '',
+      run_type TEXT NOT NULL DEFAULT 'level',
+      run_trial_id TEXT NOT NULL DEFAULT ''
+    )`);
+    legacyDb.exec(`CREATE TABLE trial_keystrokes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      trial_result_id INTEGER NOT NULL,
+      key TEXT NOT NULL,
+      t INTEGER NOT NULL
+    )`);
+    legacyDb.exec(`CREATE TABLE level_stats (
+      email_hash TEXT NOT NULL,
+      level_number INTEGER NOT NULL,
+      stars INTEGER NOT NULL,
+      total_time INTEGER NOT NULL,
+      completed_at INTEGER NOT NULL,
+      PRIMARY KEY (email_hash, level_number)
+    )`);
+    legacyDb.exec(`CREATE TABLE level_runs (
+      id TEXT PRIMARY KEY,
+      email_hash TEXT NOT NULL,
+      level_number INTEGER NOT NULL,
+      stars INTEGER NOT NULL,
+      total_time INTEGER NOT NULL,
+      level_completed INTEGER NOT NULL,
+      played_at INTEGER NOT NULL,
+      server_seq INTEGER NOT NULL DEFAULT 0
+    )`);
+
+    legacyDb.exec(
+      `INSERT INTO users (email_hash, created_at, is_anonymous) VALUES ('user-hash-1', 1700000000000, 0)`,
+    );
+    legacyDb.exec(
+      `INSERT INTO sessions (token, email_hash, expires_at) VALUES ('token-1', 'user-hash-1', 1700003600000)`,
+    );
+    legacyDb.exec(
+      `INSERT INTO trial_results
+         (email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start, run_id, run_type, run_trial_id)
+       VALUES ('user-hash-1', 4, '2dx1d', 1, 0, 1, 0, 3400, 1700000001000, 1, 2, 3, 'run-xyz', 'level', 'trial-xyz')`,
+    );
+    legacyDb.exec(
+      `INSERT INTO trial_keystrokes (trial_result_id, key, t)
+       SELECT id, '7', 250 FROM trial_results WHERE run_trial_id = 'trial-xyz'`,
+    );
+    legacyDb.exec(
+      `INSERT INTO level_stats (email_hash, level_number, stars, total_time, completed_at)
+       VALUES ('user-hash-1', 4, 2, 5000, 1700000002000)`,
+    );
+    legacyDb.exec(
+      `INSERT INTO level_runs (id, email_hash, level_number, stars, total_time, level_completed, played_at, server_seq)
+       VALUES ('run-xyz', 'user-hash-1', 4, 2, 5000, 1, 1700000002000, 1)`,
+    );
+    legacyDb.close();
+
+    const migrated = openDb(dbPath);
+
+    const user = migrated.prepare("SELECT * FROM users WHERE email_hash = 'user-hash-1'").get() as Record<
+      string,
+      unknown
+    >;
+    expect(user).toMatchObject({ email_hash: "user-hash-1", created_at: 1700000000000, is_anonymous: 0 });
+
+    const session = migrated.prepare("SELECT * FROM sessions WHERE token = 'token-1'").get() as Record<
+      string,
+      unknown
+    >;
+    expect(session).toMatchObject({ email_hash: "user-hash-1", expires_at: 1700003600000 });
+
+    const trial = migrated
+      .prepare("SELECT * FROM trial_results WHERE run_trial_id = 'trial-xyz'")
+      .get() as Record<string, unknown>;
+    expect(trial).toMatchObject({
+      email_hash: "user-hash-1",
+      level_number: 4,
+      category_codename: "2dx1d",
+      correct: 1,
+      run_id: "run-xyz",
+      run_type: "level",
+    });
+
+    const keystroke = migrated
+      .prepare("SELECT * FROM trial_keystrokes WHERE trial_result_id = ?")
+      .get((trial as { id: number }).id) as Record<string, unknown>;
+    expect(keystroke).toMatchObject({ key: "7", t: 250 });
+
+    const levelStats = migrated
+      .prepare("SELECT * FROM level_stats WHERE email_hash = 'user-hash-1' AND level_number = 4")
+      .get() as Record<string, unknown>;
+    expect(levelStats).toMatchObject({ stars: 2, total_time: 5000, completed_at: 1700000002000 });
+
+    const levelRun = migrated.prepare("SELECT * FROM level_runs WHERE id = 'run-xyz'").get() as Record<
+      string,
+      unknown
+    >;
+    expect(levelRun).toMatchObject({
+      email_hash: "user-hash-1",
+      level_number: 4,
+      stars: 2,
+      total_time: 5000,
+      level_completed: 1,
+      server_seq: 1,
+    });
+  });
+
+  it("is idempotent — reopening an already-migrated database does not rebuild again or duplicate constraints", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "twice.sqlite");
+
+    openDb(dbPath).close(); // first open: fresh DB, created with FKs from CREATE TABLE directly
+    const db = openDb(dbPath); // second open: already has FKs — must not rebuild again
+
+    const fks = db.prepare("PRAGMA foreign_key_list(level_runs)").all() as { table: string }[];
+    expect(fks).toHaveLength(1);
+    expect(fks[0].table).toBe("users");
+  });
+
+  it("enforces foreign keys on a migrated (rebuilt) database, not just a freshly created one", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "old.sqlite");
+
+    const legacyDb = new DatabaseSync(dbPath);
+    legacyDb.exec(`CREATE TABLE users (
+      email_hash TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      is_anonymous INTEGER NOT NULL DEFAULT 0
+    )`);
+    legacyDb.exec(`CREATE TABLE trial_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email_hash TEXT NOT NULL,
+      level_number INTEGER NOT NULL,
+      category_codename TEXT NOT NULL,
+      correct INTEGER NOT NULL,
+      time_exceeded INTEGER NOT NULL,
+      client_correct INTEGER NOT NULL,
+      client_time_exceeded INTEGER NOT NULL,
+      time_taken INTEGER NOT NULL,
+      played_at INTEGER NOT NULL,
+      hint_shown INTEGER NOT NULL DEFAULT 0,
+      streak_at_submit INTEGER NOT NULL DEFAULT 0,
+      hints_available_at_start INTEGER NOT NULL DEFAULT 0,
+      run_id TEXT NOT NULL DEFAULT '',
+      run_type TEXT NOT NULL DEFAULT 'level',
+      run_trial_id TEXT NOT NULL DEFAULT ''
+    )`);
+    legacyDb.exec(`CREATE TABLE trial_keystrokes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      trial_result_id INTEGER NOT NULL,
+      key TEXT NOT NULL,
+      t INTEGER NOT NULL
+    )`);
+    legacyDb.close();
+
+    const migrated = openDb(dbPath);
+
+    expect(() =>
+      migrated
+        .prepare(`INSERT INTO trial_keystrokes (trial_result_id, key, t) VALUES (999999, '5', 100)`)
+        .run(),
+    ).toThrow();
   });
 });

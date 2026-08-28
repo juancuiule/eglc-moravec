@@ -182,6 +182,7 @@ describe("createSession / getSession / deleteSession", () => {
 
   it("stores and retrieves a session", () => {
     const db = openDb(":memory:");
+    upsertUser(db, "hash-1", 500);
     createSession(db, "tok-1", "hash-1", 999_999);
     expect(getSession(db, "tok-1")).toEqual({
       token: "tok-1",
@@ -192,6 +193,7 @@ describe("createSession / getSession / deleteSession", () => {
 
   it("deletes a session", () => {
     const db = openDb(":memory:");
+    upsertUser(db, "hash-1", 500);
     createSession(db, "tok-1", "hash-1", 999_999);
 
     deleteSession(db, "tok-1");

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { openDb } from "../db.js";
-import { createSession } from "./repo.js";
+import { createSession, upsertUser } from "./repo.js";
 import { bearerToken, resolveEmailHash } from "./session.js";
 
 describe("bearerToken", () => {
@@ -30,12 +30,14 @@ describe("resolveEmailHash", () => {
 
   it("returns the session's email hash for a valid, unexpired token", () => {
     const db = openDb(":memory:");
+    upsertUser(db, "hash-1", Date.now());
     createSession(db, "tok-1", "hash-1", Date.now() + 60_000);
     expect(resolveEmailHash(db, "tok-1")).toBe("hash-1");
   });
 
   it("returns null for an expired token", () => {
     const db = openDb(":memory:");
+    upsertUser(db, "hash-1", Date.now());
     createSession(db, "tok-1", "hash-1", Date.now() - 1);
     expect(resolveEmailHash(db, "tok-1")).toBeNull();
   });

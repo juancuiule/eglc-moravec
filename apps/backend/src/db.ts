@@ -25,12 +25,12 @@ const SCHEMA_STATEMENTS: readonly string[] = [
    )`,
   `CREATE TABLE IF NOT EXISTS sessions (
      token TEXT PRIMARY KEY,
-     email_hash TEXT NOT NULL,
+     email_hash TEXT NOT NULL REFERENCES users(email_hash),
      expires_at INTEGER NOT NULL
    )`,
   `CREATE TABLE IF NOT EXISTS trial_results (
      id INTEGER PRIMARY KEY AUTOINCREMENT,
-     email_hash TEXT NOT NULL,
+     email_hash TEXT NOT NULL REFERENCES users(email_hash),
      level_number INTEGER NOT NULL,
      category_codename TEXT NOT NULL,
      correct INTEGER NOT NULL,
@@ -50,13 +50,13 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)`,
   `CREATE TABLE IF NOT EXISTS trial_keystrokes (
      id INTEGER PRIMARY KEY AUTOINCREMENT,
-     trial_result_id INTEGER NOT NULL,
+     trial_result_id INTEGER NOT NULL REFERENCES trial_results(id),
      key TEXT NOT NULL,
      t INTEGER NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS trial_keystrokes_trial_result_id_idx ON trial_keystrokes (trial_result_id)`,
   `CREATE TABLE IF NOT EXISTS level_stats (
-     email_hash TEXT NOT NULL,
+     email_hash TEXT NOT NULL REFERENCES users(email_hash),
      level_number INTEGER NOT NULL,
      stars INTEGER NOT NULL,
      total_time INTEGER NOT NULL,
@@ -69,7 +69,7 @@ const SCHEMA_STATEMENTS: readonly string[] = [
   // which is also what trial_results.run_id groups back to this row.
   `CREATE TABLE IF NOT EXISTS level_runs (
      id TEXT PRIMARY KEY,
-     email_hash TEXT NOT NULL,
+     email_hash TEXT NOT NULL REFERENCES users(email_hash),
      level_number INTEGER NOT NULL,
      stars INTEGER NOT NULL,
      total_time INTEGER NOT NULL,
@@ -207,11 +207,162 @@ function applyColumnMigrations(db: DatabaseSync): void {
   );
 }
 
+function hasForeignKeys(db: DatabaseSync, table: string): boolean {
+  return (db.prepare(`PRAGMA foreign_key_list(${table})`).all() as unknown[]).length > 0;
+}
+
+// Rebuilds sessions/trial_results/trial_keystrokes/level_stats/level_runs
+// with real FOREIGN KEY constraints — SQLite can't ALTER TABLE ADD
+// CONSTRAINT, so an existing (pre-FK) database needs a create-new/copy-data/
+// drop-old/rename-new rebuild per table. Each table is guarded
+// independently (not just once for all five) — a database that predates
+// one of these tables entirely gets it freshly created with the FK already
+// inline via SCHEMA_STATEMENTS, which must not cause the *other*,
+// still-old tables to be skipped. Done in one transaction with FK
+// enforcement off (SQLite defers toggling `foreign_keys` until a
+// transaction ends, so it has to be set before BEGIN, not inside it) and
+// verified via `foreign_key_check` before committing. A no-op for a fully
+// fresh database, where every table already gets its constraint from
+// SCHEMA_STATEMENTS' CREATE TABLE.
+//
+// otp_codes deliberately has no FK to users: POST /auth/otp/request writes
+// an otp_codes row for a brand-new email before any users row exists for it
+// (the users row is only created in POST /auth/otp/verify) — a FK here
+// would break every first-time login.
+function rebuildTablesWithForeignKeys(db: DatabaseSync): void {
+  const needsRebuild =
+    !hasForeignKeys(db, "sessions") ||
+    !hasForeignKeys(db, "trial_results") ||
+    !hasForeignKeys(db, "trial_keystrokes") ||
+    !hasForeignKeys(db, "level_stats") ||
+    !hasForeignKeys(db, "level_runs");
+  if (!needsRebuild) return;
+
+  db.exec("PRAGMA foreign_keys = OFF");
+  db.exec("BEGIN TRANSACTION");
+  try {
+    if (!hasForeignKeys(db, "sessions")) {
+      db.exec(`CREATE TABLE sessions_new (
+         token TEXT PRIMARY KEY,
+         email_hash TEXT NOT NULL REFERENCES users(email_hash),
+         expires_at INTEGER NOT NULL
+       )`);
+      db.exec(
+        "INSERT INTO sessions_new (token, email_hash, expires_at) SELECT token, email_hash, expires_at FROM sessions",
+      );
+      db.exec("DROP TABLE sessions");
+      db.exec("ALTER TABLE sessions_new RENAME TO sessions");
+    }
+
+    if (!hasForeignKeys(db, "trial_results")) {
+      db.exec(`CREATE TABLE trial_results_new (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         email_hash TEXT NOT NULL REFERENCES users(email_hash),
+         level_number INTEGER NOT NULL,
+         category_codename TEXT NOT NULL,
+         correct INTEGER NOT NULL,
+         time_exceeded INTEGER NOT NULL,
+         client_correct INTEGER NOT NULL,
+         client_time_exceeded INTEGER NOT NULL,
+         time_taken INTEGER NOT NULL,
+         played_at INTEGER NOT NULL,
+         hint_shown INTEGER NOT NULL DEFAULT 0,
+         streak_at_submit INTEGER NOT NULL DEFAULT 0,
+         hints_available_at_start INTEGER NOT NULL DEFAULT 0,
+         run_id TEXT NOT NULL DEFAULT '',
+         run_type TEXT NOT NULL DEFAULT 'level',
+         run_trial_id TEXT NOT NULL DEFAULT ''
+       )`);
+      // Explicit column list on both sides — required, not stylistic: older
+      // columns (client_correct, run_type, run_trial_id, etc.) were added
+      // via ALTER TABLE ADD COLUMN, which always appends physically at the
+      // end regardless of where it's declared in CREATE TABLE, so a
+      // `SELECT *` here would silently copy values into the wrong columns
+      // on any database that predates one of them.
+      db.exec(`INSERT INTO trial_results_new
+         (id, email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start, run_id, run_type, run_trial_id)
+       SELECT id, email_hash, level_number, category_codename, correct, time_exceeded, client_correct, client_time_exceeded, time_taken, played_at, hint_shown, streak_at_submit, hints_available_at_start, run_id, run_type, run_trial_id
+       FROM trial_results`);
+      db.exec("DROP TABLE trial_results");
+      db.exec("ALTER TABLE trial_results_new RENAME TO trial_results");
+      db.exec("CREATE INDEX IF NOT EXISTS trial_results_email_hash_idx ON trial_results (email_hash)");
+      db.exec("CREATE INDEX IF NOT EXISTS trial_results_level_number_idx ON trial_results (level_number)");
+      db.exec("CREATE INDEX IF NOT EXISTS trial_results_run_id_idx ON trial_results (run_id)");
+      db.exec(
+        "CREATE UNIQUE INDEX IF NOT EXISTS trial_results_run_trial_id_idx ON trial_results (run_trial_id) WHERE run_trial_id != ''",
+      );
+    }
+
+    if (!hasForeignKeys(db, "trial_keystrokes")) {
+      db.exec(`CREATE TABLE trial_keystrokes_new (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         trial_result_id INTEGER NOT NULL REFERENCES trial_results(id),
+         key TEXT NOT NULL,
+         t INTEGER NOT NULL
+       )`);
+      db.exec(
+        "INSERT INTO trial_keystrokes_new (id, trial_result_id, key, t) SELECT id, trial_result_id, key, t FROM trial_keystrokes",
+      );
+      db.exec("DROP TABLE trial_keystrokes");
+      db.exec("ALTER TABLE trial_keystrokes_new RENAME TO trial_keystrokes");
+      db.exec(
+        "CREATE INDEX IF NOT EXISTS trial_keystrokes_trial_result_id_idx ON trial_keystrokes (trial_result_id)",
+      );
+    }
+
+    if (!hasForeignKeys(db, "level_stats")) {
+      db.exec(`CREATE TABLE level_stats_new (
+         email_hash TEXT NOT NULL REFERENCES users(email_hash),
+         level_number INTEGER NOT NULL,
+         stars INTEGER NOT NULL,
+         total_time INTEGER NOT NULL,
+         completed_at INTEGER NOT NULL,
+         PRIMARY KEY (email_hash, level_number)
+       )`);
+      db.exec(`INSERT INTO level_stats_new (email_hash, level_number, stars, total_time, completed_at)
+       SELECT email_hash, level_number, stars, total_time, completed_at FROM level_stats`);
+      db.exec("DROP TABLE level_stats");
+      db.exec("ALTER TABLE level_stats_new RENAME TO level_stats");
+    }
+
+    if (!hasForeignKeys(db, "level_runs")) {
+      db.exec(`CREATE TABLE level_runs_new (
+         id TEXT PRIMARY KEY,
+         email_hash TEXT NOT NULL REFERENCES users(email_hash),
+         level_number INTEGER NOT NULL,
+         stars INTEGER NOT NULL,
+         total_time INTEGER NOT NULL,
+         level_completed INTEGER NOT NULL,
+         played_at INTEGER NOT NULL,
+         server_seq INTEGER NOT NULL DEFAULT 0
+       )`);
+      db.exec(`INSERT INTO level_runs_new (id, email_hash, level_number, stars, total_time, level_completed, played_at, server_seq)
+       SELECT id, email_hash, level_number, stars, total_time, level_completed, played_at, server_seq FROM level_runs`);
+      db.exec("DROP TABLE level_runs");
+      db.exec("ALTER TABLE level_runs_new RENAME TO level_runs");
+      db.exec("CREATE INDEX IF NOT EXISTS level_runs_email_hash_idx ON level_runs (email_hash)");
+      db.exec("CREATE INDEX IF NOT EXISTS level_runs_level_number_idx ON level_runs (level_number)");
+    }
+
+    const violations = db.prepare("PRAGMA foreign_key_check").all();
+    if (violations.length > 0) {
+      throw new Error(`foreign key violations found while migrating to FK-enforced tables: ${JSON.stringify(violations)}`);
+    }
+
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
 export function openDb(path: string): DatabaseSync {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   SCHEMA_STATEMENTS.forEach((statement) => db.exec(statement));
   applyColumnMigrations(db);
+  rebuildTablesWithForeignKeys(db);
+  db.exec("PRAGMA foreign_keys = ON");
   seedLevelsIfEmpty(db);
   return db;
 }

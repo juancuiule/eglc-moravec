@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
+import type { DatabaseSync } from "node:sqlite";
 import { openDb } from "../db.js";
+import { upsertUser } from "../auth/repo.js";
 import { evaluateTrialResult, type TrialResultInput, type LevelRunSummary } from "./logic.js";
 import {
   getLevelStatsRow,
@@ -33,14 +35,27 @@ const baseTrialInput: TrialResultInput = {
   runType: "level",
 };
 
+// This file's tests use these four identities as stand-ins for "a real
+// user" — every trial_results/level_runs/level_stats row now needs a
+// matching users row to satisfy the FK constraints added alongside this
+// helper, so every openTestDb() seeds all four rather than each test
+// seeding only the ones it happens to use.
+const TEST_HASHES = ["hash-1", "hash-2", "anon-hash", "real-hash"];
+
+function openTestDb(): DatabaseSync {
+  const db = openDb(":memory:");
+  TEST_HASHES.forEach((hash) => upsertUser(db, hash, 1_700_000_000_000));
+  return db;
+}
+
 describe("getLevelStatsRow / upsertLevelStatsRow / getAllLevelStatsForUser", () => {
   it("returns undefined when there's no record yet", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     expect(getLevelStatsRow(db, "hash-1", 3)).toBeUndefined();
   });
 
   it("inserts a fresh record", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsRow(db, "hash-1", 3, 2, 5000, 1000);
 
     expect(getLevelStatsRow(db, "hash-1", 3)).toEqual({
@@ -53,7 +68,7 @@ describe("getLevelStatsRow / upsertLevelStatsRow / getAllLevelStatsForUser", () 
   });
 
   it("overwrites on conflict (same user + level)", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsRow(db, "hash-1", 3, 2, 5000, 1000);
     upsertLevelStatsRow(db, "hash-1", 3, 3, 4000, 2000);
 
@@ -67,7 +82,7 @@ describe("getLevelStatsRow / upsertLevelStatsRow / getAllLevelStatsForUser", () 
   });
 
   it("returns every level for a user, and none for another", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsRow(db, "hash-1", 1, 3, 1000, 100);
     upsertLevelStatsRow(db, "hash-1", 2, 1, 2000, 200);
     upsertLevelStatsRow(db, "hash-2", 1, 2, 1500, 150);
@@ -80,27 +95,27 @@ describe("getLevelStatsRow / upsertLevelStatsRow / getAllLevelStatsForUser", () 
 
 describe("upsertLevelStatsIfBetter", () => {
   it("inserts when there's no existing record", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsIfBetter(db, "hash-1", 1, { stars: 1, totalTime: 9000 }, 100);
     expect(getLevelStatsRow(db, "hash-1", 1)?.stars).toBe(1);
   });
 
   it("overwrites when the candidate has more stars", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsRow(db, "hash-1", 1, 1, 9000, 100);
     upsertLevelStatsIfBetter(db, "hash-1", 1, { stars: 2, totalTime: 9000 }, 200);
     expect(getLevelStatsRow(db, "hash-1", 1)?.stars).toBe(2);
   });
 
   it("overwrites when same stars but less time", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsRow(db, "hash-1", 1, 2, 9000, 100);
     upsertLevelStatsIfBetter(db, "hash-1", 1, { stars: 2, totalTime: 5000 }, 200);
     expect(getLevelStatsRow(db, "hash-1", 1)?.total_time).toBe(5000);
   });
 
   it("does not overwrite when the candidate is worse", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsRow(db, "hash-1", 1, 3, 5000, 100);
     upsertLevelStatsIfBetter(db, "hash-1", 1, { stars: 1, totalTime: 1000 }, 200);
 
@@ -112,7 +127,7 @@ describe("upsertLevelStatsIfBetter", () => {
 
 describe("insertTrialResults / getTrialResultsForUser / getKeystrokesForTrialResult", () => {
   it("stores a trial and its keystrokes, mapping booleans to 0/1", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     const trial = evaluateTrialResult(baseTrialInput);
 
     insertTrialResults(db, "hash-1", [trial]);
@@ -134,7 +149,7 @@ describe("insertTrialResults / getTrialResultsForUser / getKeystrokesForTrialRes
   });
 
   it("materializes a null levelNumber (Practice) as 0", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     const trial = evaluateTrialResult({ ...baseTrialInput, levelNumber: null, runType: "practice" });
 
     insertTrialResults(db, "hash-1", [trial]);
@@ -143,7 +158,7 @@ describe("insertTrialResults / getTrialResultsForUser / getKeystrokesForTrialRes
   });
 
   it("only returns trials for the requested user", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     insertTrialResults(db, "hash-1", [evaluateTrialResult(baseTrialInput)]);
     insertTrialResults(db, "hash-2", [evaluateTrialResult(baseTrialInput)]);
 
@@ -153,7 +168,7 @@ describe("insertTrialResults / getTrialResultsForUser / getKeystrokesForTrialRes
 
 describe("insertTrialResults idempotency", () => {
   it("does not double-insert a trial (or its keystrokes) when retried with the same trialId", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     const trial = evaluateTrialResult({ ...baseTrialInput, trialId: "trial-abc" } as TrialResultInput);
 
     insertTrialResults(db, "hash-1", [trial]);
@@ -165,7 +180,7 @@ describe("insertTrialResults idempotency", () => {
   });
 
   it("inserts every trial normally when trialId is omitted (un-migrated client)", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     const trial = evaluateTrialResult(baseTrialInput); // no trialId
 
     insertTrialResults(db, "hash-1", [trial]);
@@ -177,7 +192,7 @@ describe("insertTrialResults idempotency", () => {
 
 describe("insertLevelRuns / getLevelRunsForUser", () => {
   it("stores a level run", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     insertLevelRuns(
       db,
       "hash-1",
@@ -199,7 +214,7 @@ describe("insertLevelRuns / getLevelRunsForUser", () => {
   });
 
   it("ignores a retried insert of the same run id, rather than double-recording it", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     const run: LevelRunSummary = { levelRunId: "run-1", levelNumber: 3, stars: 2, totalTime: 5000, levelCompleted: true };
     insertLevelRuns(db, "hash-1", [run], 1000);
     insertLevelRuns(db, "hash-1", [run], 2000); // e.g. a retried sync batch
@@ -210,7 +225,7 @@ describe("insertLevelRuns / getLevelRunsForUser", () => {
 
 describe("insertLevelRuns server_seq assignment", () => {
   it("assigns increasing server_seq values across separate inserts", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     insertLevelRuns(db, "hash-1", [{ levelRunId: "run-1", levelNumber: 1, stars: 3, totalTime: 5000, levelCompleted: true }], 1_700_000_000_000);
     insertLevelRuns(db, "hash-1", [{ levelRunId: "run-2", levelNumber: 2, stars: 2, totalTime: 6000, levelCompleted: true }], 1_700_000_001_000);
 
@@ -222,7 +237,7 @@ describe("insertLevelRuns server_seq assignment", () => {
   });
 
   it("does not consume a server_seq value for a duplicate (INSERT OR IGNORE'd) run id", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     const run: LevelRunSummary = { levelRunId: "run-1", levelNumber: 1, stars: 3, totalTime: 5000, levelCompleted: true };
 
     insertLevelRuns(db, "hash-1", [run], 1_700_000_000_000);
@@ -238,7 +253,7 @@ describe("insertLevelRuns server_seq assignment", () => {
 
 describe("getTrialResultsSince / getLevelRunsSince", () => {
   it("returns only trial_results with id greater than the cursor, ordered by id", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     insertTrialResults(db, "hash-1", [
       evaluateTrialResult({ ...baseTrialInput, trialId: "t1" } as TrialResultInput),
       evaluateTrialResult({ ...baseTrialInput, trialId: "t2" } as TrialResultInput),
@@ -251,7 +266,7 @@ describe("getTrialResultsSince / getLevelRunsSince", () => {
   });
 
   it("scopes getTrialResultsSince to the requesting user", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     insertTrialResults(db, "hash-1", [evaluateTrialResult({ ...baseTrialInput, trialId: "t1" } as TrialResultInput)]);
     insertTrialResults(db, "hash-2", [evaluateTrialResult({ ...baseTrialInput, trialId: "t2" } as TrialResultInput)]);
 
@@ -259,7 +274,7 @@ describe("getTrialResultsSince / getLevelRunsSince", () => {
   });
 
   it("returns only level_runs with server_seq greater than the cursor, ordered by server_seq", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     insertLevelRuns(db, "hash-1", [{ levelRunId: "run-1", levelNumber: 1, stars: 3, totalTime: 5000, levelCompleted: true }], 1_700_000_000_000);
     insertLevelRuns(db, "hash-1", [{ levelRunId: "run-2", levelNumber: 2, stars: 2, totalTime: 6000, levelCompleted: true }], 1_700_000_001_000);
 
@@ -270,7 +285,7 @@ describe("getTrialResultsSince / getLevelRunsSince", () => {
 
 describe("mergeAnonymousIdentity", () => {
   it("re-keys trial_results and level_runs from the anonymous identity to the real one", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     insertTrialResults(db, "anon-hash", [evaluateTrialResult(baseTrialInput)]);
     insertLevelRuns(
       db,
@@ -288,7 +303,7 @@ describe("mergeAnonymousIdentity", () => {
   });
 
   it("adopts the anonymous identity's level_stats when the real user has no record", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsRow(db, "anon-hash", 1, 3, 5000, 100);
 
     mergeAnonymousIdentity(db, "anon-hash", "real-hash", 2000);
@@ -297,7 +312,7 @@ describe("mergeAnonymousIdentity", () => {
   });
 
   it("keeps the real user's better level_stats record rather than downgrading it", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsRow(db, "anon-hash", 1, 1, 9000, 100);
     upsertLevelStatsRow(db, "real-hash", 1, 3, 4000, 100);
 
@@ -307,7 +322,7 @@ describe("mergeAnonymousIdentity", () => {
   });
 
   it("upgrades the real user's worse level_stats record with the anonymous one's better record", () => {
-    const db = openDb(":memory:");
+    const db = openTestDb();
     upsertLevelStatsRow(db, "anon-hash", 1, 3, 4000, 100);
     upsertLevelStatsRow(db, "real-hash", 1, 1, 9000, 100);
 
