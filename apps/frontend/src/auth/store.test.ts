@@ -18,9 +18,14 @@ vi.mock("../storage/deviceId", () => ({
   getOrCreateDeviceId: vi.fn(() => "device-1"),
 }));
 
+vi.mock("../sync/syncEngine", () => ({ sync: vi.fn() }));
+vi.mock("../storage/store", () => ({ resetLocalStore: vi.fn() }));
+
 import { createAuthStore } from "./store";
 import { Api } from "../api/Api";
 import { loadSession, saveSession, clearSession } from "../storage/session";
+import { sync } from "../sync/syncEngine";
+import { resetLocalStore } from "../storage/store";
 
 describe("createAuthStore", () => {
   beforeEach(() => {
@@ -121,25 +126,55 @@ describe("createAuthStore", () => {
     expect(saveSession).toHaveBeenCalledWith({ token: "tok", email: "a@b.com" });
   });
 
-  it("logout clears the persisted session, calls Api.logout, and returns to loggedOut", () => {
+  it("logout clears the persisted session, calls Api.logout, and returns to loggedOut", async () => {
     vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     vi.mocked(Api.logout).mockResolvedValue(undefined);
+    vi.mocked(sync).mockResolvedValue(undefined);
     const store = createAuthStore();
     store.getState().hydrate();
 
-    store.getState().logout();
+    await store.getState().logout();
 
     expect(store.getState().state).toEqual({ type: "loggedOut" });
     expect(clearSession).toHaveBeenCalled();
     expect(Api.logout).toHaveBeenCalledWith("t1");
   });
 
-  it("logout is a no-op when already loggedOut", () => {
+  it("logout is a no-op when already loggedOut", async () => {
     const store = createAuthStore();
 
-    store.getState().logout();
+    await store.getState().logout();
 
     expect(Api.logout).not.toHaveBeenCalled();
     expect(clearSession).not.toHaveBeenCalled();
+  });
+
+  it("logout attempts a best-effort final flush under the old identity before clearing local data — on a shared browser, the next login must not inherit this user's still-pending trials", async () => {
+    vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
+    vi.mocked(Api.logout).mockResolvedValue(undefined);
+    vi.mocked(sync).mockResolvedValue(undefined);
+    const store = createAuthStore();
+    store.getState().hydrate();
+
+    await store.getState().logout();
+
+    expect(sync).toHaveBeenCalledWith({ type: "loggedIn", token: "t1", email: "a@b.com" });
+    expect(resetLocalStore).toHaveBeenCalled();
+    expect(vi.mocked(sync).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(resetLocalStore).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("still clears local data even when the final flush fails — the old data is accepted as lost, not left behind to leak into the next session", async () => {
+    vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
+    vi.mocked(Api.logout).mockResolvedValue(undefined);
+    vi.mocked(sync).mockRejectedValue(new Error("offline"));
+    const store = createAuthStore();
+    store.getState().hydrate();
+
+    await store.getState().logout();
+
+    expect(resetLocalStore).toHaveBeenCalled();
+    expect(store.getState().state).toEqual({ type: "loggedOut" });
   });
 });

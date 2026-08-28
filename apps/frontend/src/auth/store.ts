@@ -3,6 +3,8 @@ import { useStore } from "zustand";
 import { Api } from "../api/Api";
 import { loadSession, saveSession, clearSession, type PersistedSession } from "../storage/session";
 import { getOrCreateDeviceId } from "../storage/deviceId";
+import { sync } from "../sync/syncEngine";
+import { resetLocalStore } from "../storage/store";
 
 // Session *validation* against the backend happens in proxy.ts, before
 // "/" or "/login" ever render — not here. By the time this store hydrates,
@@ -47,8 +49,15 @@ export type AuthStore = {
   /** Record a successful login: persists the session and moves to LoggedIn. */
   login: (session: { token: string; email: string }) => void;
 
-  /** Log out and forget the session. Valid from: LoggedIn. */
-  logout: () => void;
+  /**
+   * Attempts a best-effort final sync under the outgoing identity, clears
+   * every local trial/level-run (so nothing pending survives to leak into
+   * a different user's account on a shared browser — see storage/store.ts's
+   * resetLocalStore), then logs out and forgets the session. If the flush
+   * fails (e.g. offline), whatever was still pending is accepted as lost
+   * rather than left behind. Valid from: LoggedIn.
+   */
+  logout: () => Promise<void>;
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -91,9 +100,16 @@ export function createAuthStore() {
       set({ state: { type: "loggedIn", token: session.token, email: session.email } });
     },
 
-    logout() {
+    async logout() {
       const { state } = get();
       if (state.type !== "loggedIn") return;
+
+      await sync(state).catch(() => {
+        // best-effort; whatever's still pending is accepted as lost rather
+        // than left behind to leak into a different user's account
+      });
+      resetLocalStore();
+
       void Api.logout(state.token).catch(() => {
         // best-effort; local logout proceeds regardless of network state
       });

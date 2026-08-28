@@ -7,10 +7,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-vi.mock("@/sync/syncEngine", () => ({ sync: vi.fn() }));
+vi.mock("@/sync/syncEngine", () => ({ sync: vi.fn(), resetCursor: vi.fn() }));
 
 import { Api } from "@/api/Api";
-import { sync } from "@/sync/syncEngine";
+import { sync, resetCursor } from "@/sync/syncEngine";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -43,5 +43,19 @@ test("flushes any still-unsynced trials under the new token right after a succes
 
   await waitFor(() =>
     expect(sync).toHaveBeenCalledWith({ type: "loggedIn", token: "tok123", email: "player@example.com" }),
+  );
+});
+
+test("resets the sync cursor before flushing on login — sync_log.seq is global, not per-user, so a stale cursor can skip a merged account's prior history", async () => {
+  vi.spyOn(Api, "verifyOtp").mockResolvedValue({ token: "tok123", expiresAt: 0 });
+  renderForm();
+
+  fireEvent.change(screen.getByLabelText("6-digit code"), { target: { value: "123456" } });
+  fireEvent.click(screen.getByRole("button", { name: "Verify" }));
+
+  await waitFor(() => expect(sync).toHaveBeenCalled());
+  expect(resetCursor).toHaveBeenCalled();
+  expect(vi.mocked(resetCursor).mock.invocationCallOrder[0]).toBeLessThan(
+    vi.mocked(sync).mock.invocationCallOrder[0],
   );
 });

@@ -3,7 +3,7 @@
 import { Api } from "@/api/Api";
 import { useAuth } from "@/auth/store";
 import { backLink, button, panel } from "@/styles";
-import { sync } from "@/sync/syncEngine";
+import { sync, resetCursor } from "@/sync/syncEngine";
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -40,6 +40,10 @@ export function OtpForm({
       ),
     onSuccess: (result) => {
       login({ token: result.token, email });
+      // sync_log.seq is global, not per-user — an anonymous device's cursor
+      // can land past a merged account's own pre-existing history from
+      // another device, permanently skipping it. Reset before flushing.
+      resetCursor();
       // Flushes anything still synced:false that never made it out under
       // the anonymous token (e.g. played offline before ever logging in).
       void sync({ type: "loggedIn", token: result.token, email });
