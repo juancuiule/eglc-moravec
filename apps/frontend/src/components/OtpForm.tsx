@@ -3,6 +3,7 @@
 import { Api } from "@/api/Api";
 import { useAuth } from "@/auth/store";
 import { backLink, button, panel } from "@/styles";
+import { sync } from "@/sync/syncEngine";
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -39,9 +40,9 @@ export function OtpForm({
       ),
     onSuccess: (result) => {
       login({ token: result.token, email });
-      // A post-login sync flush (for anything queued before this login)
-      // is wired in a follow-up ticket (#40) alongside the other
-      // reconnect triggers, not here.
+      // Flushes anything still synced:false that never made it out under
+      // the anonymous token (e.g. played offline before ever logging in).
+      void sync({ type: "loggedIn", token: result.token, email });
       router.push("/");
     },
   });
