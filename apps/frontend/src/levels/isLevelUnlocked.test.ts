@@ -11,12 +11,16 @@ describe("isLevelUnlocked", () => {
   });
 
   it("a level is locked when the previous one has zero stars", () => {
-    const stats = { "1": { stars: 0 as const, totalTime: 5000, completedAt: "x" } };
+    const stats = {
+      "1": { stars: 0 as const, totalTime: 5000, completedAt: "x" },
+    };
     expect(isLevelUnlocked(2, stats)).toBe(false);
   });
 
   it("a level unlocks once the previous one has at least one star", () => {
-    const stats = { "1": { stars: 1 as const, totalTime: 5000, completedAt: "x" } };
+    const stats = {
+      "1": { stars: 1 as const, totalTime: 5000, completedAt: "x" },
+    };
     expect(isLevelUnlocked(2, stats)).toBe(true);
   });
 });

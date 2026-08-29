@@ -33,25 +33,35 @@ describe("hashEmail", () => {
   });
 
   it("normalizes before hashing, so casing/whitespace don't change the result", () => {
-    expect(hashEmail("A@B.com", "secret")).toBe(hashEmail(" a@b.com ", "secret"));
+    expect(hashEmail("A@B.com", "secret")).toBe(
+      hashEmail(" a@b.com ", "secret"),
+    );
   });
 
   it("differs for a different secret", () => {
-    expect(hashEmail("a@b.com", "secret1")).not.toBe(hashEmail("a@b.com", "secret2"));
+    expect(hashEmail("a@b.com", "secret1")).not.toBe(
+      hashEmail("a@b.com", "secret2"),
+    );
   });
 });
 
 describe("hashDeviceId", () => {
   it("is deterministic for the same device id + secret", () => {
-    expect(hashDeviceId("device-abc", "secret")).toBe(hashDeviceId("device-abc", "secret"));
+    expect(hashDeviceId("device-abc", "secret")).toBe(
+      hashDeviceId("device-abc", "secret"),
+    );
   });
 
   it("differs for a different secret", () => {
-    expect(hashDeviceId("device-abc", "secret1")).not.toBe(hashDeviceId("device-abc", "secret2"));
+    expect(hashDeviceId("device-abc", "secret1")).not.toBe(
+      hashDeviceId("device-abc", "secret2"),
+    );
   });
 
   it("never collides with hashEmail for the same underlying string and secret", () => {
-    expect(hashDeviceId("a@b.com", "secret")).not.toBe(hashEmail("a@b.com", "secret"));
+    expect(hashDeviceId("a@b.com", "secret")).not.toBe(
+      hashEmail("a@b.com", "secret"),
+    );
   });
 });
 
@@ -75,6 +85,8 @@ describe("isOtpValid", () => {
   });
 
   it("rejects once attempts reach the max", () => {
-    expect(isOtpValid({ ...stored, attempts: 5 }, "123456", 50_000, 5)).toBe(false);
+    expect(isOtpValid({ ...stored, attempts: 5 }, "123456", 50_000, 5)).toBe(
+      false,
+    );
   });
 });

@@ -109,11 +109,11 @@ export const TUTORIAL_EXAMPLES: Record<TutorialTopic, WorkedExample[]> = {
       steps: [
         "6382² = (6382+382)(6382−382) + 382²",
         "= 6764 × 6000 + 382²",
-        "6764 × 6000 = 40,584,000 — hold onto \"584\" as a word (5=L, 8=G, 4=C → \"lógica\")",
+        '6764 × 6000 = 40,584,000 — hold onto "584" as a word (5=L, 8=G, 4=C → "lógica")',
         "382² = (382−2)(382+2) + 2² = 380 × 384 + 4 = 145,924",
         "40,584,000 + 145,924 = 40,729,924",
       ],
-      note: "\"lógica\" is a real Spanish word — the whole point of the Major System is picking a word that means something, not just any consonant string.",
+      note: '"lógica" is a real Spanish word — the whole point of the Major System is picking a word that means something, not just any consonant string.',
     },
   ],
   majorSystem: [{ steps: ['"lupa" → L, P → 5, 9 → 59'] }],

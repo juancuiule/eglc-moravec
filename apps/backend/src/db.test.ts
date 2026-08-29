@@ -13,9 +13,9 @@ afterEach(() => {
 });
 
 function columnNames(db: DatabaseSync, table: string): string[] {
-  return (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map(
-    (c) => c.name,
-  );
+  return (
+    db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  ).map((c) => c.name);
 }
 
 function tableNames(db: DatabaseSync): string[] {
@@ -44,7 +44,9 @@ describe("openDb", () => {
   it("creates trial_results with run_id, run_type, and hint_shown on a fresh database", () => {
     const db = openDb(":memory:");
     const columns = columnNames(db, "trial_results");
-    expect(columns).toEqual(expect.arrayContaining(["run_id", "run_type", "hint_shown"]));
+    expect(columns).toEqual(
+      expect.arrayContaining(["run_id", "run_type", "hint_shown"]),
+    );
   });
 
   it("creates trial_results.id as a client-generated TEXT primary key, not an autoincrement integer", () => {
@@ -91,7 +93,9 @@ describe("openDb", () => {
 
   it("seeds the levels table from LEVEL_SEED_DATA on a fresh database", () => {
     const db = openDb(":memory:");
-    const { count } = db.prepare("SELECT COUNT(*) as count FROM levels").get() as {
+    const { count } = db
+      .prepare("SELECT COUNT(*) as count FROM levels")
+      .get() as {
       count: number;
     };
     expect(count).toBe(150);
@@ -103,7 +107,9 @@ describe("openDb", () => {
 
     openDb(dbPath).close();
     const db = openDb(dbPath);
-    const { count } = db.prepare("SELECT COUNT(*) as count FROM levels").get() as {
+    const { count } = db
+      .prepare("SELECT COUNT(*) as count FROM levels")
+      .get() as {
       count: number;
     };
     expect(count).toBe(150); // not 300 — seeding ran once, not on every open

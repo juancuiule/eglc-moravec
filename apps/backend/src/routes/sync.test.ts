@@ -19,8 +19,15 @@ function setup(): { db: DatabaseSync; app: FastifyInstance } {
   return { db, app };
 }
 
-async function loginAndGetToken(db: DatabaseSync, app: FastifyInstance): Promise<string> {
-  await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
+async function loginAndGetToken(
+  db: DatabaseSync,
+  app: FastifyInstance,
+): Promise<string> {
+  await app.inject({
+    method: "POST",
+    url: "/auth/otp/request",
+    payload: { email: EMAIL },
+  });
   const row = getOtpRow(db, hashEmail(EMAIL, TEST_SECRET));
   const verifyRes = await app.inject({
     method: "POST",
@@ -118,7 +125,9 @@ describe("POST /sync/results", () => {
     });
 
     expect(retryRes.statusCode).toBe(200);
-    expect(getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET))).toHaveLength(1);
+    expect(
+      getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+    ).toHaveLength(1);
   });
 
   it("stores nothing for another user's requests", async () => {
@@ -187,8 +196,12 @@ function batchFor(
   runId: string = randomUUID(),
 ) {
   return [
-    ...Array.from({ length: correctCount }, () => trialFor(levelNumber, true, runId)),
-    ...Array.from({ length: wrongCount }, () => trialFor(levelNumber, false, runId)),
+    ...Array.from({ length: correctCount }, () =>
+      trialFor(levelNumber, true, runId),
+    ),
+    ...Array.from({ length: wrongCount }, () =>
+      trialFor(levelNumber, false, runId),
+    ),
   ];
 }
 
@@ -223,7 +236,10 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(getRes.statusCode).toBe(200);
-    expect(getRes.json().levelStats["4"]).toMatchObject({ stars: 2, totalTime: 17000 });
+    expect(getRes.json().levelStats["4"]).toMatchObject({
+      stars: 2,
+      totalTime: 17000,
+    });
   });
 
   it("does not downgrade an existing better record", async () => {
@@ -238,7 +254,10 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
       url: "/sync/level-stats",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3, totalTime: 20000 });
+    expect(getRes.json().levelStats["1"]).toMatchObject({
+      stars: 3,
+      totalTime: 20000,
+    });
   });
 
   it("upgrades to a better record", async () => {
@@ -253,7 +272,10 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
       url: "/sync/level-stats",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3, totalTime: 20000 });
+    expect(getRes.json().levelStats["1"]).toMatchObject({
+      stars: 3,
+      totalTime: 20000,
+    });
   });
 
   it("keeps every run's trials, even one that's no longer the best, as part of the derivation input", async () => {
@@ -290,7 +312,10 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
 
   it("rejects an unauthenticated GET", async () => {
     const { app } = setup();
-    const getRes = await app.inject({ method: "GET", url: "/sync/level-stats" });
+    const getRes = await app.inject({
+      method: "GET",
+      url: "/sync/level-stats",
+    });
     expect(getRes.statusCode).toBe(401);
   });
 });
@@ -414,10 +439,12 @@ describe("GET /sync/trials", () => {
       url: "/sync/trials",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(getRes.json().trials.map((t: { runType: string }) => t.runType).sort()).toEqual([
-      "level",
-      "practice",
-    ]);
+    expect(
+      getRes
+        .json()
+        .trials.map((t: { runType: string }) => t.runType)
+        .sort(),
+    ).toEqual(["level", "practice"]);
   });
 
   it("returns an empty array for a user with no records", async () => {
@@ -442,7 +469,11 @@ describe("GET /sync/trials", () => {
       payload: { trials: [trial] },
     });
 
-    const otherRes = await app.inject({ method: "POST", url: "/auth/device", payload: { deviceId: "d2" } });
+    const otherRes = await app.inject({
+      method: "POST",
+      url: "/auth/device",
+      payload: { deviceId: "d2" },
+    });
     const otherToken = otherRes.json().token as string;
 
     const getRes = await app.inject({

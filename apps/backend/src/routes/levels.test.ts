@@ -7,7 +7,9 @@ import { loadConfig } from "../config.js";
 
 function setup(): { db: DatabaseSync; app: FastifyInstance } {
   const db = openDb(":memory:");
-  const config = loadConfig({ HASH_SECRET: "test-secret" } as NodeJS.ProcessEnv);
+  const config = loadConfig({
+    HASH_SECRET: "test-secret",
+  } as NodeJS.ProcessEnv);
   const app = buildApp(db, config);
   return { db, app };
 }
@@ -30,7 +32,10 @@ describe("GET /levels/:levelNumber", () => {
     const res = await app.inject({ method: "GET", url: "/levels/1" });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ levelNumber: 1, mix: { "1d+1d": 50, "1dx1d": 50 } });
+    expect(res.json()).toEqual({
+      levelNumber: 1,
+      mix: { "1d+1d": 50, "1dx1d": 50 },
+    });
   });
 
   it("404s for an unknown level number", async () => {
@@ -41,7 +46,10 @@ describe("GET /levels/:levelNumber", () => {
 
   it("400s for a non-numeric level number", async () => {
     const { app } = setup();
-    const res = await app.inject({ method: "GET", url: "/levels/not-a-number" });
+    const res = await app.inject({
+      method: "GET",
+      url: "/levels/not-a-number",
+    });
     expect(res.statusCode).toBe(400);
   });
 });

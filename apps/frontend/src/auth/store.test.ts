@@ -46,7 +46,11 @@ describe("createAuthStore", () => {
     vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     const store = createAuthStore();
     store.getState().hydrate();
-    expect(store.getState().state).toEqual({ type: "logged-in", token: "t1", email: "a@b.com" });
+    expect(store.getState().state).toEqual({
+      type: "logged-in",
+      token: "t1",
+      email: "a@b.com",
+    });
   });
 
   it("hydrate() never calls the backend — validation happens in proxy.ts, not here", () => {
@@ -68,19 +72,31 @@ describe("createAuthStore", () => {
 
     store.getState().loginAnonymous({ token: "anon-tok" });
 
-    expect(store.getState().state).toEqual({ type: "anonymous", token: "anon-tok" });
-    expect(saveSession).toHaveBeenCalledWith({ token: "anon-tok", email: null });
+    expect(store.getState().state).toEqual({
+      type: "anonymous",
+      token: "anon-tok",
+    });
+    expect(saveSession).toHaveBeenCalledWith({
+      token: "anon-tok",
+      email: null,
+    });
   });
 
   describe("ensureSession", () => {
     it("mints and stores an anonymous session when starting loggedOut", async () => {
-      vi.mocked(Api.registerDevice).mockResolvedValue({ token: "anon-tok", expiresAt: 123 });
+      vi.mocked(Api.registerDevice).mockResolvedValue({
+        token: "anon-tok",
+        expiresAt: 123,
+      });
       const store = createAuthStore();
 
       await store.getState().ensureSession();
 
       expect(Api.registerDevice).toHaveBeenCalledWith("device-1");
-      expect(store.getState().state).toEqual({ type: "anonymous", token: "anon-tok" });
+      expect(store.getState().state).toEqual({
+        type: "anonymous",
+        token: "anon-tok",
+      });
     });
 
     it("is a no-op when already anonymous", async () => {
@@ -104,7 +120,9 @@ describe("createAuthStore", () => {
     });
 
     it("leaves state loggedOut when the request fails, without throwing", async () => {
-      vi.mocked(Api.registerDevice).mockRejectedValue(new Error("network down"));
+      vi.mocked(Api.registerDevice).mockRejectedValue(
+        new Error("network down"),
+      );
       const store = createAuthStore();
 
       await expect(store.getState().ensureSession()).resolves.toBeUndefined();
@@ -117,8 +135,15 @@ describe("createAuthStore", () => {
 
     store.getState().login({ token: "tok", email: "a@b.com" });
 
-    expect(store.getState().state).toEqual({ type: "logged-in", token: "tok", email: "a@b.com" });
-    expect(saveSession).toHaveBeenCalledWith({ token: "tok", email: "a@b.com" });
+    expect(store.getState().state).toEqual({
+      type: "logged-in",
+      token: "tok",
+      email: "a@b.com",
+    });
+    expect(saveSession).toHaveBeenCalledWith({
+      token: "tok",
+      email: "a@b.com",
+    });
   });
 
   it("logout clears the persisted session, calls Api.logout, and returns to loggedOut", () => {
@@ -154,6 +179,8 @@ describe("authToken", () => {
   });
 
   it("is the session token when logged in", () => {
-    expect(authToken({ type: "logged-in", token: "t1", email: "a@b.com" })).toBe("t1");
+    expect(
+      authToken({ type: "logged-in", token: "t1", email: "a@b.com" }),
+    ).toBe("t1");
   });
 });

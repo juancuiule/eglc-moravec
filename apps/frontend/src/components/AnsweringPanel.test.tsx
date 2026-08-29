@@ -9,7 +9,10 @@ const operation = new Addition(2, 3, category);
 
 function renderPanel() {
   const onSubmitAnswer = vi.fn();
-  const answeringState: Answering = { type: "answering", startedAt: Date.now() };
+  const answeringState: Answering = {
+    type: "answering",
+    startedAt: Date.now(),
+  };
   render(
     <AnsweringPanel
       operation={operation}
@@ -56,5 +59,7 @@ test("the clear and backspace keys have a descriptive accessible name, not just 
   renderPanel();
 
   expect(screen.getByRole("button", { name: "Clear" })).toBeDefined();
-  expect(screen.getByRole("button", { name: "Delete last digit" })).toBeDefined();
+  expect(
+    screen.getByRole("button", { name: "Delete last digit" }),
+  ).toBeDefined();
 });

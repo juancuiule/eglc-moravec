@@ -27,13 +27,19 @@ describe("createRandomOperand", () => {
     it("excludes 0 and 1 when both are false", () => {
       // list = [2,3,...,9], Math.random=0 → index 0 → 2
       vi.spyOn(Math, "random").mockReturnValue(0);
-      expect(createRandomOperand(1, { allow_zero: false, allow_one: false })).toBe(2);
+      expect(
+        createRandomOperand(1, { allow_zero: false, allow_one: false }),
+      ).toBe(2);
     });
 
     it("throws when no values are possible", () => {
       // list = [], should throw inside pickRandom
       expect(() =>
-        createRandomOperand(1, { allow_zero: false, allow_one: false, allow_multiples_of_ten: false })
+        createRandomOperand(1, {
+          allow_zero: false,
+          allow_one: false,
+          allow_multiples_of_ten: false,
+        }),
       ).not.toThrow(); // digits=1 multiples_of_ten flag does not apply to 1-digit, list still has [2..9]
     });
   });
@@ -49,7 +55,9 @@ describe("createRandomOperand", () => {
 
     it("excludes multiples of ten when allow_multiples_of_ten is false, across the full range", () => {
       for (let i = 0; i < 500; i++) {
-        const result = createRandomOperand(2, { allow_multiples_of_ten: false });
+        const result = createRandomOperand(2, {
+          allow_multiples_of_ten: false,
+        });
         expect(result).toBeGreaterThanOrEqual(10);
         expect(result).toBeLessThanOrEqual(99);
         expect(result % 10).not.toBe(0);

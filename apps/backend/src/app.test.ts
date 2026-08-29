@@ -10,10 +10,19 @@ import { hashEmail } from "./auth/logic.js";
 
 const TEST_SECRET = "test-secret";
 const EMAIL = "player@example.com";
-const testConfig = loadConfig({ HASH_SECRET: TEST_SECRET } as NodeJS.ProcessEnv);
+const testConfig = loadConfig({
+  HASH_SECRET: TEST_SECRET,
+} as NodeJS.ProcessEnv);
 
-async function loginAndGetToken(db: DatabaseSync, app: FastifyInstance): Promise<string> {
-  await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
+async function loginAndGetToken(
+  db: DatabaseSync,
+  app: FastifyInstance,
+): Promise<string> {
+  await app.inject({
+    method: "POST",
+    url: "/auth/otp/request",
+    payload: { email: EMAIL },
+  });
   const row = getOtpRow(db, hashEmail(EMAIL, TEST_SECRET));
   const verifyRes = await app.inject({
     method: "POST",

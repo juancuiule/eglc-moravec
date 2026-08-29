@@ -42,12 +42,17 @@ export function computeHistogram(
   );
   if (correct.length === 0) return [];
 
-  const maxBucket = Math.floor(Math.max(...correct.map((t) => t.timeTaken)) / 1000);
+  const maxBucket = Math.floor(
+    Math.max(...correct.map((t) => t.timeTaken)) / 1000,
+  );
 
-  const buckets: HistogramBucket[] = Array.from({ length: maxBucket + 1 }, (_, i) => ({
-    label: `${i}–${i + 1}s`,
-    count: 0,
-  }));
+  const buckets: HistogramBucket[] = Array.from(
+    { length: maxBucket + 1 },
+    (_, i) => ({
+      label: `${i}–${i + 1}s`,
+      count: 0,
+    }),
+  );
 
   for (const t of correct) {
     buckets[Math.floor(t.timeTaken / 1000)].count++;

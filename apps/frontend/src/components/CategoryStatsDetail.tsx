@@ -12,7 +12,10 @@ type Props = {
 };
 
 export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
-  const buckets = useMemo(() => computeHistogram(trials, codename), [trials, codename]);
+  const buckets = useMemo(
+    () => computeHistogram(trials, codename),
+    [trials, codename],
+  );
   const maxCount = Math.max(1, ...buckets.map((b) => b.count));
   const categoryTrials = trials.filter((t) => t.categoryCodename === codename);
   const correctCount = categoryTrials.filter((t) => t.correct).length;
@@ -20,10 +23,16 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
   return (
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className={backLink} aria-label="Back to statistics">
+        <button
+          onClick={onBack}
+          className={backLink}
+          aria-label="Back to statistics"
+        >
           ←
         </button>
-        <h1 className="text-xl font-bold tracking-tight font-mono">{codename}</h1>
+        <h1 className="text-xl font-bold tracking-tight font-mono">
+          {codename}
+        </h1>
       </div>
 
       <p className="text-sm text-muted">

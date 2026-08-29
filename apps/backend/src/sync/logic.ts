@@ -8,15 +8,15 @@ import {
 import * as z from "zod";
 
 const TrialResultSchema = z.object({
-  id: z.uuid(),
+  id: z.uuidv4(),
+  runId: z.uuidv4(),
   levelNumber: z.number().nullable(),
   categoryCodename: z.string(),
   timeTaken: z.number(),
   playedAt: z.number(),
-  operands: z.array(z.number()),
+  operands: z.array(z.number()).max(2).min(1),
   answer: z.number().nullable(),
   hintShown: z.boolean(),
-  runId: z.string(),
   runType: z.enum(["level", "practice"]),
 });
 
@@ -35,19 +35,9 @@ export function parseTrialResults(body: unknown): TrialResultInput[] | null {
     : null;
 }
 
-export type EvaluatedTrialResult = {
-  id: string;
-  levelNumber: number | null;
-  categoryCodename: string;
-  operands: number[];
-  answer: number | null;
+export type EvaluatedTrialResult = TrialResultInput & {
   correct: boolean; // server-computed (authoritative)
   timeExceeded: boolean; // server-computed (authoritative)
-  timeTaken: number;
-  playedAt: number;
-  hintShown: boolean;
-  runId: string;
-  runType: "level" | "practice";
 };
 
 export function evaluateTrialResult(
@@ -126,13 +116,6 @@ export type LevelStatsSummary = {
   completedAt: number;
 };
 
-/**
- * Derives best-ever per-level stats straight from a user's full trial
- * history — there is no stored `level_stats`/`level_runs` cache to read
- * anymore, so this groups into runs (see deriveLevelRuns) and folds them
- * with the same isBetterLevelRecord comparison the old cache-write path
- * used, keeping only each level's best run.
- */
 export function deriveLevelStats(
   trials: readonly TrialForLevelRun[],
 ): LevelStatsSummary[] {

@@ -12,16 +12,23 @@ import { getTrialResultsForUser } from "../sync/repo.js";
 const TEST_SECRET = "test-secret";
 const EMAIL = "player@example.com";
 
-function setup(env: NodeJS.ProcessEnv = {}): { db: DatabaseSync; app: FastifyInstance } {
+function setup(env: NodeJS.ProcessEnv = {}): {
+  db: DatabaseSync;
+  app: FastifyInstance;
+} {
   const db = openDb(":memory:");
-  const config = loadConfig({ HASH_SECRET: TEST_SECRET, ...env } as NodeJS.ProcessEnv);
+  const config = loadConfig({
+    HASH_SECRET: TEST_SECRET,
+    ...env,
+  } as NodeJS.ProcessEnv);
   const app = buildApp(db, config);
   return { db, app };
 }
 
 function codeFor(db: DatabaseSync, email: string): string {
   const row = getOtpRow(db, hashEmail(email, TEST_SECRET));
-  if (!row) throw new Error("no OTP row found — did /auth/otp/request run first?");
+  if (!row)
+    throw new Error("no OTP row found — did /auth/otp/request run first?");
   return row.code;
 }
 
@@ -66,7 +73,11 @@ describe("POST /auth/otp/request", () => {
 
   it("rate-limits a second request for the same email made too soon", async () => {
     const { app } = setup();
-    await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: EMAIL },
+    });
     const res = await app.inject({
       method: "POST",
       url: "/auth/otp/request",
@@ -81,15 +92,28 @@ describe("POST /auth/otp/request", () => {
     // prior request" snapshot before either finished sending and won.
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ ok: true }), 5)),
-      ),
+      vi
+        .fn()
+        .mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ ok: true }), 5),
+            ),
+        ),
     );
     const { app } = setup({ RESEND_API_KEY: "fake-key" } as NodeJS.ProcessEnv);
 
     const [resA, resB] = await Promise.all([
-      app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } }),
-      app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } }),
+      app.inject({
+        method: "POST",
+        url: "/auth/otp/request",
+        payload: { email: EMAIL },
+      }),
+      app.inject({
+        method: "POST",
+        url: "/auth/otp/request",
+        payload: { email: EMAIL },
+      }),
     ]);
 
     const statusCodes = [resA.statusCode, resB.statusCode].sort();
@@ -99,8 +123,17 @@ describe("POST /auth/otp/request", () => {
   });
 
   it("does not persist the code or arm the rate limit when email delivery fails", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, text: () => Promise.resolve("boom") }));
-    const { db, app } = setup({ RESEND_API_KEY: "fake-key" } as NodeJS.ProcessEnv);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve("boom"),
+      }),
+    );
+    const { db, app } = setup({
+      RESEND_API_KEY: "fake-key",
+    } as NodeJS.ProcessEnv);
 
     const failedRes = await app.inject({
       method: "POST",
@@ -127,7 +160,11 @@ describe("POST /auth/otp/request", () => {
 describe("POST /auth/otp/verify", () => {
   it("issues a session token for the correct code", async () => {
     const { db, app } = setup();
-    await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: EMAIL },
+    });
 
     const res = await app.inject({
       method: "POST",
@@ -141,7 +178,11 @@ describe("POST /auth/otp/verify", () => {
 
   it("rejects an incorrect code", async () => {
     const { app } = setup();
-    await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: EMAIL },
+    });
 
     const res = await app.inject({
       method: "POST",
@@ -164,8 +205,15 @@ describe("POST /auth/otp/verify", () => {
 });
 
 describe("GET /auth/me + POST /auth/logout", () => {
-  async function loginAndGetToken(db: DatabaseSync, app: FastifyInstance): Promise<string> {
-    await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
+  async function loginAndGetToken(
+    db: DatabaseSync,
+    app: FastifyInstance,
+  ): Promise<string> {
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: EMAIL },
+    });
     const verifyRes = await app.inject({
       method: "POST",
       url: "/auth/otp/verify",
@@ -226,14 +274,26 @@ describe("POST /auth/device", () => {
 
   it("rejects a missing deviceId", async () => {
     const { app } = setup();
-    const res = await app.inject({ method: "POST", url: "/auth/device", payload: {} });
+    const res = await app.inject({
+      method: "POST",
+      url: "/auth/device",
+      payload: {},
+    });
     expect(res.statusCode).toBe(400);
   });
 
   it("two sessions for the same device id share one identity", async () => {
     const { db, app } = setup();
-    const res1 = await app.inject({ method: "POST", url: "/auth/device", payload: { deviceId: "device-1" } });
-    const res2 = await app.inject({ method: "POST", url: "/auth/device", payload: { deviceId: "device-1" } });
+    const res1 = await app.inject({
+      method: "POST",
+      url: "/auth/device",
+      payload: { deviceId: "device-1" },
+    });
+    const res2 = await app.inject({
+      method: "POST",
+      url: "/auth/device",
+      payload: { deviceId: "device-1" },
+    });
     const token1 = res1.json().token as string;
     const token2 = res2.json().token as string;
     expect(token1).not.toBe(token2);
@@ -273,10 +333,19 @@ describe("anonymous → email upgrade merge", () => {
       headers: { authorization: `Bearer ${anonToken}` },
       // 20 correct → completes the level; each needs its own id, since id is
       // now the PK trial_results dedupes on.
-      payload: { trials: Array.from({ length: 20 }, () => ({ ...trial, id: randomUUID() })) },
+      payload: {
+        trials: Array.from({ length: 20 }, () => ({
+          ...trial,
+          id: randomUUID(),
+        })),
+      },
     });
 
-    await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: EMAIL },
+    });
     const verifyRes = await app.inject({
       method: "POST",
       url: "/auth/otp/verify",
@@ -319,7 +388,11 @@ describe("anonymous → email upgrade merge", () => {
     const { db, app } = setup();
     const emailA = "userA@example.com";
 
-    await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: emailA } });
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: emailA },
+    });
     const verifyA = await app.inject({
       method: "POST",
       url: "/auth/otp/verify",
@@ -336,7 +409,11 @@ describe("anonymous → email upgrade merge", () => {
 
     // A second login (a different email) arrives carrying A's still-valid
     // token — e.g. a shared/kiosk browser that never logged A out.
-    await app.inject({ method: "POST", url: "/auth/otp/request", payload: { email: EMAIL } });
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: EMAIL },
+    });
     await app.inject({
       method: "POST",
       url: "/auth/otp/verify",
@@ -345,7 +422,9 @@ describe("anonymous → email upgrade merge", () => {
     });
 
     // B must not inherit A's data…
-    expect(getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET))).toHaveLength(0);
+    expect(
+      getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+    ).toHaveLength(0);
 
     // …and A's own session and data must be completely untouched.
     const meResA = await app.inject({
@@ -354,6 +433,8 @@ describe("anonymous → email upgrade merge", () => {
       headers: { authorization: `Bearer ${tokenA}` },
     });
     expect(meResA.statusCode).toBe(200);
-    expect(getTrialResultsForUser(db, hashEmail(emailA, TEST_SECRET))).toHaveLength(1);
+    expect(
+      getTrialResultsForUser(db, hashEmail(emailA, TEST_SECRET)),
+    ).toHaveLength(1);
   });
 });

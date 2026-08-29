@@ -31,7 +31,12 @@ describe("MultiplicationHint", () => {
   });
 
   it("does not reveal the final answer", () => {
-    for (const [l, r] of [[7, 8], [23, 6], [123, 4], [2345, 3]] as const) {
+    for (const [l, r] of [
+      [7, 8],
+      [23, 6],
+      [123, 4],
+      [2345, 3],
+    ] as const) {
       const steps = new MultiplicationHint(l, r).getSteps();
       expect(steps.join(" ")).not.toContain(String(l * r));
     }
@@ -80,7 +85,9 @@ describe("Operation.hint() integration", () => {
     const { Multiplication } = await import("../operation");
     const { categoryFromCodename } = await import("../category");
     const cat = categoryFromCodename("2dx1d");
-    const op = Multiplication.create(cat as Parameters<typeof Multiplication.create>[0]);
+    const op = Multiplication.create(
+      cat as Parameters<typeof Multiplication.create>[0],
+    );
     expect(op.hint().hasHint()).toBe(true);
     expect(op.hint().getSteps().length).toBeGreaterThan(0);
   });

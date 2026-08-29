@@ -10,7 +10,12 @@ import {
 
 test("categoriesForTopic maps each topic to its engine category codename(s)", () => {
   expect(categoriesForTopic("addition")).toEqual(["1d+1d", "2d+2d"]);
-  expect(categoriesForTopic("multiplication")).toEqual(["1dx1d", "2dx1d", "3dx1d", "4dx1d"]);
+  expect(categoriesForTopic("multiplication")).toEqual([
+    "1dx1d",
+    "2dx1d",
+    "3dx1d",
+    "4dx1d",
+  ]);
   expect(categoriesForTopic("squaring2d")).toEqual(["(2d)^2"]);
   expect(categoriesForTopic("squaring3d")).toEqual(["(3d)^2"]);
   expect(categoriesForTopic("squaring4d")).toEqual(["(4d)^2"]);
@@ -45,5 +50,7 @@ test("every topic has at least one worked example", () => {
 });
 
 test("the Major System table covers all ten digits", () => {
-  expect(MAJOR_SYSTEM_TABLE.map((row) => row.digit)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  expect(MAJOR_SYSTEM_TABLE.map((row) => row.digit)).toEqual([
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+  ]);
 });

@@ -23,18 +23,28 @@ function summarize(row: {
   return {
     attemptCount: row.attempt_count,
     userCount: row.user_count,
-    effectiveness: row.attempt_count > 0 ? row.correct_count / row.attempt_count : 0,
+    effectiveness:
+      row.attempt_count > 0 ? row.correct_count / row.attempt_count : 0,
     avgTimeMs: row.avg_time_taken,
   };
 }
 
 export type LevelPerformance = PerformanceSummary & { levelNumber: number };
-export type CategoryPerformance = PerformanceSummary & { categoryCodename: string };
+export type CategoryPerformance = PerformanceSummary & {
+  categoryCodename: string;
+};
 
-export function summarizeLevelPerformance(rows: LevelPerformanceRow[]): LevelPerformance[] {
+export function summarizeLevelPerformance(
+  rows: LevelPerformanceRow[],
+): LevelPerformance[] {
   return rows.map((r) => ({ levelNumber: r.level_number, ...summarize(r) }));
 }
 
-export function summarizeCategoryPerformance(rows: CategoryPerformanceRow[]): CategoryPerformance[] {
-  return rows.map((r) => ({ categoryCodename: r.category_codename, ...summarize(r) }));
+export function summarizeCategoryPerformance(
+  rows: CategoryPerformanceRow[],
+): CategoryPerformance[] {
+  return rows.map((r) => ({
+    categoryCodename: r.category_codename,
+    ...summarize(r),
+  }));
 }

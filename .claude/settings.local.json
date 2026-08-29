@@ -1,9 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "Bash(gh repo:*)",
-      "Bash(gh api:*)",
-      "Bash(npm run:*)"
-    ]
+    "allow": ["Bash(gh repo:*)", "Bash(gh api:*)", "Bash(npm run:*)"]
   }
 }

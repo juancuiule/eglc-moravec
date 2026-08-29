@@ -65,7 +65,11 @@ describe("watchStoreTransition", () => {
   it("stops calling onEnter after unsubscribing", () => {
     const store = makeFakeStore();
     const onEnter = vi.fn();
-    const unsubscribe = watchStoreTransition(store, (s) => s.value === "b", onEnter);
+    const unsubscribe = watchStoreTransition(
+      store,
+      (s) => s.value === "b",
+      onEnter,
+    );
 
     unsubscribe();
     store.emit({ value: "b" }, { value: "a" });

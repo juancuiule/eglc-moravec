@@ -48,23 +48,47 @@ describe("TRIALS_PER_LEVEL", () => {
 
 describe("isBetterLevelRecord", () => {
   it("accepts anything when there's no existing record", () => {
-    expect(isBetterLevelRecord({ stars: 0, totalTime: 999_999 }, null)).toBe(true);
-    expect(isBetterLevelRecord({ stars: 0, totalTime: 999_999 }, undefined)).toBe(true);
+    expect(isBetterLevelRecord({ stars: 0, totalTime: 999_999 }, null)).toBe(
+      true,
+    );
+    expect(
+      isBetterLevelRecord({ stars: 0, totalTime: 999_999 }, undefined),
+    ).toBe(true);
   });
 
   it("accepts more stars", () => {
-    expect(isBetterLevelRecord({ stars: 2, totalTime: 20000 }, { stars: 1, totalTime: 10000 })).toBe(true);
+    expect(
+      isBetterLevelRecord(
+        { stars: 2, totalTime: 20000 },
+        { stars: 1, totalTime: 10000 },
+      ),
+    ).toBe(true);
   });
 
   it("rejects fewer stars even with a better time", () => {
-    expect(isBetterLevelRecord({ stars: 1, totalTime: 5000 }, { stars: 2, totalTime: 20000 })).toBe(false);
+    expect(
+      isBetterLevelRecord(
+        { stars: 1, totalTime: 5000 },
+        { stars: 2, totalTime: 20000 },
+      ),
+    ).toBe(false);
   });
 
   it("accepts the same stars with a better time", () => {
-    expect(isBetterLevelRecord({ stars: 2, totalTime: 9000 }, { stars: 2, totalTime: 10000 })).toBe(true);
+    expect(
+      isBetterLevelRecord(
+        { stars: 2, totalTime: 9000 },
+        { stars: 2, totalTime: 10000 },
+      ),
+    ).toBe(true);
   });
 
   it("rejects the same stars with a worse time", () => {
-    expect(isBetterLevelRecord({ stars: 2, totalTime: 12000 }, { stars: 2, totalTime: 10000 })).toBe(false);
+    expect(
+      isBetterLevelRecord(
+        { stars: 2, totalTime: 12000 },
+        { stars: 2, totalTime: 10000 },
+      ),
+    ).toBe(false);
   });
 });

@@ -20,7 +20,11 @@ function EffBar({ value }: { value: number }) {
   // Referencing the theme's own CSS variables instead of repeating their
   // hex values here in JS — see AnsweringPanel's timerColor for the same pattern.
   const color =
-    value >= 0.75 ? "var(--color-success)" : value >= 0.5 ? "var(--color-warning)" : "var(--color-danger)";
+    value >= 0.75
+      ? "var(--color-success)"
+      : value >= 0.5
+        ? "var(--color-warning)"
+        : "var(--color-danger)";
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 bg-subtle rounded-full overflow-hidden">
@@ -61,7 +65,13 @@ export function StatsScreen() {
   const hasAnyData = stats.some((s) => s.total > 0);
 
   if (selected !== null) {
-    return <CategoryStatsDetail codename={selected} trials={trials} onBack={() => setSelected(null)} />;
+    return (
+      <CategoryStatsDetail
+        codename={selected}
+        trials={trials}
+        onBack={() => setSelected(null)}
+      />
+    );
   }
 
   function selectTab(next: Tab) {
@@ -86,7 +96,9 @@ export function StatsScreen() {
             aria-pressed={tab === t}
             className={[
               "flex-1 text-sm font-medium py-1.5 rounded-md transition-colors cursor-pointer",
-              tab === t ? "bg-accent text-white" : "text-muted hover:text-foreground",
+              tab === t
+                ? "bg-accent text-white"
+                : "text-muted hover:text-foreground",
             ].join(" ")}
           >
             {t === "level" ? "Level" : "Practice"}
@@ -100,7 +112,9 @@ export function StatsScreen() {
 
       {isError && (
         <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-center text-sm text-danger">Couldn't load stats.</p>
+          <p className="text-center text-sm text-danger">
+            Couldn't load stats.
+          </p>
           <button onClick={() => refetch()} className={`${textLink} underline`}>
             Try again
           </button>
@@ -120,7 +134,10 @@ export function StatsScreen() {
           ) : (
             <>
               No data yet —{" "}
-              <Link href="/practice" className="underline hover:text-foreground">
+              <Link
+                href="/practice"
+                className="underline hover:text-foreground"
+              >
                 practice a category
               </Link>{" "}
               to see your stats.
@@ -174,7 +191,11 @@ export function StatsScreen() {
             // a real <button> for that (keyboard + screen-reader reachable),
             // a plain <div> for the inert "no data yet" rows.
             return row.total > 0 ? (
-              <button key={row.codename} onClick={() => setSelected(row.codename)} className={rowClassName}>
+              <button
+                key={row.codename}
+                onClick={() => setSelected(row.codename)}
+                className={rowClassName}
+              >
                 {content}
               </button>
             ) : (

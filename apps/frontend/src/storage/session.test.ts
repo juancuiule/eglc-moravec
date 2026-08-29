@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { parseSessionCookie, loadSession, saveSession, clearSession, SESSION_COOKIE } from "./session";
+import {
+  parseSessionCookie,
+  loadSession,
+  saveSession,
+  clearSession,
+  SESSION_COOKIE,
+} from "./session";
 
 function clearAllCookies() {
   document.cookie = `${SESSION_COOKIE}=; path=/; max-age=0`;
@@ -17,7 +23,9 @@ describe("parseSessionCookie", () => {
   });
 
   it("parses a URI-encoded JSON session", () => {
-    const raw = encodeURIComponent(JSON.stringify({ token: "t1", email: "a@b.com" }));
+    const raw = encodeURIComponent(
+      JSON.stringify({ token: "t1", email: "a@b.com" }),
+    );
     expect(parseSessionCookie(raw)).toEqual({ token: "t1", email: "a@b.com" });
   });
 });

@@ -1,4 +1,5 @@
-const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const PUBLIC_API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 /**
  * The backend URL as seen from wherever this code is running. In the
@@ -12,4 +13,6 @@ const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000
  * have to set anything extra.
  */
 export const API_URL =
-  typeof window === "undefined" ? (process.env.API_URL ?? PUBLIC_API_URL) : PUBLIC_API_URL;
+  typeof window === "undefined"
+    ? (process.env.API_URL ?? PUBLIC_API_URL)
+    : PUBLIC_API_URL;

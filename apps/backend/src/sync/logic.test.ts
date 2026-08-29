@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
-import { parseTrialResults, evaluateTrialResult, deriveLevelRuns } from "./logic.js";
+import {
+  parseTrialResults,
+  evaluateTrialResult,
+  deriveLevelRuns,
+} from "./logic.js";
 
 const validTrial = {
   id: randomUUID(),
@@ -38,7 +42,9 @@ describe("parseTrialResults", () => {
   });
 
   it("rejects a trial with a wrong-typed field", () => {
-    expect(parseTrialResults({ trials: [{ ...validTrial, timeTaken: "yes" }] })).toBeNull();
+    expect(
+      parseTrialResults({ trials: [{ ...validTrial, timeTaken: "yes" }] }),
+    ).toBeNull();
   });
 
   it("rejects a trial with a missing id", () => {
@@ -87,7 +93,11 @@ describe("parseTrialResults", () => {
   });
 
   it("accepts a Practice trial with runType practice and a null levelNumber", () => {
-    const trial = { ...validTrial, runType: "practice" as const, levelNumber: null };
+    const trial = {
+      ...validTrial,
+      runType: "practice" as const,
+      levelNumber: null,
+    };
     expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
   });
 
@@ -120,7 +130,11 @@ describe("evaluateTrialResult", () => {
   });
 
   it("passes through a null levelNumber for a Practice trial", () => {
-    const trial = { ...validTrial, runType: "practice" as const, levelNumber: null };
+    const trial = {
+      ...validTrial,
+      runType: "practice" as const,
+      levelNumber: null,
+    };
     expect(evaluateTrialResult(trial).levelNumber).toBeNull();
   });
 
@@ -132,7 +146,9 @@ describe("evaluateTrialResult", () => {
   });
 });
 
-function evaluatedTrial(overrides: Partial<ReturnType<typeof evaluateTrialResult>> = {}) {
+function evaluatedTrial(
+  overrides: Partial<ReturnType<typeof evaluateTrialResult>> = {},
+) {
   return {
     id: "11111111-1111-1111-1111-111111111111",
     levelNumber: 4,
@@ -174,7 +190,9 @@ describe("deriveLevelRuns", () => {
   });
 
   it("counts a correct-but-late trial toward stars — timing no longer gates correctness", () => {
-    const trials = Array.from({ length: 20 }, () => evaluatedTrial({ timeExceeded: true }));
+    const trials = Array.from({ length: 20 }, () =>
+      evaluatedTrial({ timeExceeded: true }),
+    );
     const [summary] = deriveLevelRuns(trials);
     expect(summary.stars).toBe(3);
     expect(summary.levelCompleted).toBe(true);
@@ -182,7 +200,9 @@ describe("deriveLevelRuns", () => {
 
   it("groups a mixed batch by run id, scoring each run independently", () => {
     const trials = [
-      ...Array.from({ length: 20 }, () => evaluatedTrial({ runId: "run-1", levelNumber: 1 })), // 20 correct → 3 stars
+      ...Array.from({ length: 20 }, () =>
+        evaluatedTrial({ runId: "run-1", levelNumber: 1 }),
+      ), // 20 correct → 3 stars
       evaluatedTrial({ runId: "run-2", levelNumber: 2, correct: false }), // 0 correct → 0 stars
     ];
 

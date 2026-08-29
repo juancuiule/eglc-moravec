@@ -3,7 +3,12 @@ import { Trial, canShowHint } from "./engine";
 import { Addition } from "../operations/operation";
 
 function makeOp() {
-  return Addition.create({ type: "addition", codename: "1d+1d", lDigits: 1, rDigits: 1 });
+  return Addition.create({
+    type: "addition",
+    codename: "1d+1d",
+    lDigits: 1,
+    rDigits: 1,
+  });
 }
 
 describe("Trial.evaluate", () => {
@@ -115,7 +120,11 @@ describe("Trial.scoreAnswer", () => {
 describe("Trial.scoreTimeout", () => {
   it("marks the trial as wrong, timed out, with a null answer when nothing was typed", () => {
     const op = makeOp();
-    const result = Trial.scoreTimeout({ operation: op, answer: null, hintShown: false });
+    const result = Trial.scoreTimeout({
+      operation: op,
+      answer: null,
+      hintShown: false,
+    });
     expect(result.correct).toBe(false);
     expect(result.timeExceeded).toBe(true);
     expect(result.answer).toBeNull();
@@ -124,7 +133,11 @@ describe("Trial.scoreTimeout", () => {
 
   it("credits a correct answer that was typed but never submitted before time ran out", () => {
     const op = makeOp();
-    const result = Trial.scoreTimeout({ operation: op, answer: op.result(), hintShown: false });
+    const result = Trial.scoreTimeout({
+      operation: op,
+      answer: op.result(),
+      hintShown: false,
+    });
     expect(result.correct).toBe(true);
     expect(result.timeExceeded).toBe(true);
     expect(result.answer).toBe(op.result());
@@ -143,7 +156,11 @@ describe("Trial.scoreTimeout", () => {
 
   it("carries through hintShown", () => {
     const op = makeOp();
-    const result = Trial.scoreTimeout({ operation: op, answer: null, hintShown: true });
+    const result = Trial.scoreTimeout({
+      operation: op,
+      answer: null,
+      hintShown: true,
+    });
     expect(result.hintShown).toBe(true);
   });
 });

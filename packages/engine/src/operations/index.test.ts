@@ -42,7 +42,10 @@ describe("reconstructOperation", () => {
 
   it("round-trips: reconstructing from an operation's own operands() reproduces its result()", () => {
     const original = createOperation("3dx1d");
-    const rebuilt = reconstructOperation(original.categoryCodename(), original.operands());
+    const rebuilt = reconstructOperation(
+      original.categoryCodename(),
+      original.operands(),
+    );
     expect(rebuilt.result()).toBe(original.result());
   });
 

@@ -20,9 +20,12 @@ export default function GlobalError({
       <body className="min-h-dvh bg-base text-foreground font-sans">
         <main className="min-h-dvh flex items-start justify-center p-6 pt-12">
           <div className={`${panel} p-6 gap-4`}>
-            <h1 className="text-xl font-bold tracking-tight">Something went wrong</h1>
+            <h1 className="text-xl font-bold tracking-tight">
+              Something went wrong
+            </h1>
             <p className="text-sm text-muted">
-              The app hit an unexpected error and couldn't recover. Try reloading.
+              The app hit an unexpected error and couldn't recover. Try
+              reloading.
             </p>
             <button className={button({ intent: "primary" })} onClick={reset}>
               Try again

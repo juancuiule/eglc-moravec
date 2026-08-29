@@ -33,19 +33,27 @@ describe("loadConfig", () => {
 
   it("throws in production when HASH_SECRET is blank, not just unset", () => {
     expect(() =>
-      loadConfig({ NODE_ENV: "production", HASH_SECRET: "" } as NodeJS.ProcessEnv),
+      loadConfig({
+        NODE_ENV: "production",
+        HASH_SECRET: "",
+      } as NodeJS.ProcessEnv),
     ).toThrow("HASH_SECRET must be set in production");
   });
 
   it("does not throw in production when HASH_SECRET is a real value", () => {
     expect(() =>
-      loadConfig({ NODE_ENV: "production", HASH_SECRET: "real-secret" } as NodeJS.ProcessEnv),
+      loadConfig({
+        NODE_ENV: "production",
+        HASH_SECRET: "real-secret",
+      } as NodeJS.ProcessEnv),
     ).not.toThrow();
   });
 
   describe("prettyPrintLogs", () => {
     it("is on only when NODE_ENV is exactly 'development'", () => {
-      const config = loadConfig({ NODE_ENV: "development" } as NodeJS.ProcessEnv);
+      const config = loadConfig({
+        NODE_ENV: "development",
+      } as NodeJS.ProcessEnv);
       expect(config.prettyPrintLogs).toBe(true);
     });
 

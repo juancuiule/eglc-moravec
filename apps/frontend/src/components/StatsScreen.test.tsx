@@ -19,7 +19,9 @@ beforeEach(() => {
 });
 
 function renderWithQueryClient() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
     <QueryClientProvider client={client}>
       <StatsScreen />
@@ -29,7 +31,13 @@ function renderWithQueryClient() {
 
 test("a category row with data is a real button, keyboard-reachable and screen-reader visible", async () => {
   const trials: SyncedTrial[] = [
-    { categoryCodename: "1d+1d", correct: true, timeExceeded: false, timeTaken: 1000, runType: "level" },
+    {
+      categoryCodename: "1d+1d",
+      correct: true,
+      timeExceeded: false,
+      timeTaken: 1000,
+      runType: "level",
+    },
   ];
   vi.mocked(Api.fetchTrials).mockResolvedValue(trials);
 
@@ -43,7 +51,13 @@ test("a category row with no data is not rendered as an interactive control", as
   // Seed one category with data so the list renders at all, and check a
   // *different*, data-less category's row isn't an interactive control.
   const trials: SyncedTrial[] = [
-    { categoryCodename: "1d+1d", correct: true, timeExceeded: false, timeTaken: 1000, runType: "level" },
+    {
+      categoryCodename: "1d+1d",
+      correct: true,
+      timeExceeded: false,
+      timeTaken: 1000,
+      runType: "level",
+    },
   ];
   vi.mocked(Api.fetchTrials).mockResolvedValue(trials);
 
@@ -93,14 +107,18 @@ test("the empty state links to a next action, on both tabs", async () => {
   renderWithQueryClient();
 
   expect(
-    (await screen.findByRole("link", { name: "complete some levels" })).getAttribute("href"),
+    (
+      await screen.findByRole("link", { name: "complete some levels" })
+    ).getAttribute("href"),
   ).toBe("/levels");
 
   fireEvent.click(screen.getByRole("button", { name: "Practice" }));
 
-  expect(screen.getByRole("link", { name: "practice a category" }).getAttribute("href")).toBe(
-    "/practice",
-  );
+  expect(
+    screen
+      .getByRole("link", { name: "practice a category" })
+      .getAttribute("href"),
+  ).toBe("/practice");
 });
 
 test("shows an error message when the trial fetch fails, with a retry", async () => {

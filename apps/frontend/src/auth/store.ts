@@ -26,7 +26,6 @@ export type AuthLoggedIn = {
 
 export type AuthState = AuthLoggedOut | AuthAnonymous | AuthLoggedIn;
 
-/** The session token for any session at all — anonymous or logged in — or null while LoggedOut. */
 export function authToken(state: AuthState): string | null {
   return state.type === "logged-out" ? null : state.token;
 }

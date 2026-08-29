@@ -42,8 +42,16 @@ test("also shows the Log in link when anonymous — an anonymous session isn't a
 
 test("links to Play, Practice, Stats, and Tutorials routes", () => {
   render(<HomePage />);
-  expect(screen.getByRole("link", { name: "Play" }).getAttribute("href")).toBe("/levels");
-  expect(screen.getByRole("link", { name: "Practice" }).getAttribute("href")).toBe("/practice");
-  expect(screen.getByRole("link", { name: "Stats" }).getAttribute("href")).toBe("/stats");
-  expect(screen.getByRole("link", { name: "Tutorials" }).getAttribute("href")).toBe("/tutorials");
+  expect(screen.getByRole("link", { name: "Play" }).getAttribute("href")).toBe(
+    "/levels",
+  );
+  expect(
+    screen.getByRole("link", { name: "Practice" }).getAttribute("href"),
+  ).toBe("/practice");
+  expect(screen.getByRole("link", { name: "Stats" }).getAttribute("href")).toBe(
+    "/stats",
+  );
+  expect(
+    screen.getByRole("link", { name: "Tutorials" }).getAttribute("href"),
+  ).toBe("/tutorials");
 });

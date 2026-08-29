@@ -41,13 +41,13 @@ interrupting gameplay.
 
 ## Responsibilities
 
-| Data | Local (TinyBase) | Server | Sync |
-|---|---|---|---|
-| `users`, `otp_codes`, `sessions` | never | source of truth | never |
-| `trial_results` (Level + Practice, discriminated by `runType`) | yes | source of truth | push + pull |
-| `level_runs` | yes | source of truth | push + pull |
-| `LevelStats` | derived on read from local `level_runs` | removed as a stored entity | not synced directly |
-| sync cursor | yes (TinyBase Values) | derived from `sync_log` | — |
+| Data                                                           | Local (TinyBase)                        | Server                     | Sync                |
+| -------------------------------------------------------------- | --------------------------------------- | -------------------------- | ------------------- |
+| `users`, `otp_codes`, `sessions`                               | never                                   | source of truth            | never               |
+| `trial_results` (Level + Practice, discriminated by `runType`) | yes                                     | source of truth            | push + pull         |
+| `level_runs`                                                   | yes                                     | source of truth            | push + pull         |
+| `LevelStats`                                                   | derived on read from local `level_runs` | removed as a stored entity | not synced directly |
+| sync cursor                                                    | yes (TinyBase Values)                   | derived from `sync_log`    | —                   |
 
 `trial_results` is append-only and every row has a client-generated id, so
 there's no CRDT-style merge to design: the only conflict is "does this id
@@ -61,7 +61,7 @@ Applied directly as the new schema shape in `apps/backend/src/db.ts` — no
 anything predating this design.
 
 - `trial_results.id`: `INTEGER PRIMARY KEY AUTOINCREMENT` → `TEXT PRIMARY
-  KEY` (a UUID generated client-side, same pattern `level_runs.id` /
+KEY` (a UUID generated client-side, same pattern `level_runs.id` /
   `runId` already uses). This is what makes push idempotent without the
   server needing to hand back generated ids.
 - `trial_keystrokes.trial_result_id`: `INTEGER` → `TEXT`, to match.
@@ -121,7 +121,7 @@ Server-side, in one transaction:
 2. Re-evaluate each trial's correctness via `engine` (unchanged), insert
    with `INSERT OR IGNORE` on `id`.
 3. Derive `level_runs` from the just-processed trials where `runType ===
-   "level"` (unchanged filter — Practice never produces a `level_run`),
+"level"` (unchanged filter — Practice never produces a `level_run`),
    insert with `INSERT OR IGNORE` on `id`.
 4. For every row that was actually inserted in steps 2-3, append a
    `sync_log` entry.
@@ -143,7 +143,10 @@ and sync" needs — no separate orchestration of two calls.
 identity to the newly-verified one. Add one more re-key:
 
 ```ts
-db.prepare("UPDATE sync_log SET email_hash = ? WHERE email_hash = ?").run(to, from);
+db.prepare("UPDATE sync_log SET email_hash = ? WHERE email_hash = ?").run(
+  to,
+  from,
+);
 ```
 
 This keeps a device's already-stored local cursor numerically valid across

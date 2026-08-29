@@ -9,7 +9,10 @@ import { pushPracticeResults } from "../sync/pushPracticeResults";
  * Sync entry); that's since been reversed, and there's no local fallback
  * anymore either — the backend is the only store of record.
  */
-export function persistStoppedPractice(state: PracticeStopped, authState: AuthState): void {
+export function persistStoppedPractice(
+  state: PracticeStopped,
+  authState: AuthState,
+): void {
   if (authState.type !== "logged-out") {
     pushPracticeResults(authState.token, state.results, state.runId);
   }

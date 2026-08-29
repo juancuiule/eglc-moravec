@@ -55,7 +55,8 @@ describe("createPracticeStore", () => {
     it("timeUp moves to reviewing with correct=false when nothing was typed", () => {
       store.getState().timeUp(null);
       const s = store.getState().state;
-      if (s.type !== "playing" || s.playingState.type !== "reviewing") throw new Error();
+      if (s.type !== "playing" || s.playingState.type !== "reviewing")
+        throw new Error();
       expect(s.playingState.result.correct).toBe(false);
       expect(s.playingState.result.timeExceeded).toBe(true);
       expect(s.playingState.result.answer).toBeNull();
@@ -68,7 +69,8 @@ describe("createPracticeStore", () => {
 
       store.getState().timeUp(correct);
       const s = store.getState().state;
-      if (s.type !== "playing" || s.playingState.type !== "reviewing") throw new Error();
+      if (s.type !== "playing" || s.playingState.type !== "reviewing")
+        throw new Error();
       expect(s.playingState.result.correct).toBe(true);
       expect(s.playingState.result.answer).toBe(correct);
     });

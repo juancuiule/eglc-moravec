@@ -11,7 +11,10 @@ const { cookiesMock, notFoundMock, redirectMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("next/headers", () => ({ cookies: cookiesMock }));
-vi.mock("next/navigation", () => ({ notFound: notFoundMock, redirect: redirectMock }));
+vi.mock("next/navigation", () => ({
+  notFound: notFoundMock,
+  redirect: redirectMock,
+}));
 
 vi.mock("@/api/Api", () => ({
   Api: { fetchLevel: vi.fn(), fetchLevelStats: vi.fn() },
@@ -23,7 +26,9 @@ import { Api } from "@/api/Api";
 function cookieStore(rawSessionCookie?: string) {
   return {
     get: (name: string) =>
-      rawSessionCookie !== undefined ? { name, value: rawSessionCookie } : undefined,
+      rawSessionCookie !== undefined
+        ? { name, value: rawSessionCookie }
+        : undefined,
   };
 }
 
@@ -78,12 +83,19 @@ describe("LevelPage", () => {
       "1": { stars: 1, totalTime: 1000, completedAt: "x" },
     });
 
-    const result = await LevelPage({ params: Promise.resolve({ levelNumber: "2" }) });
-    expect(result.props).toMatchObject({ levelNumber: 2, level: { "1d+1d": 100 } });
+    const result = await LevelPage({
+      params: Promise.resolve({ levelNumber: "2" }),
+    });
+    expect(result.props).toMatchObject({
+      levelNumber: 2,
+      level: { "1d+1d": 100 },
+    });
   });
 
   it("level 1 is always unlocked, even with no session", async () => {
-    const result = await LevelPage({ params: Promise.resolve({ levelNumber: "1" }) });
+    const result = await LevelPage({
+      params: Promise.resolve({ levelNumber: "1" }),
+    });
     expect(result.props).toMatchObject({ levelNumber: 1 });
     expect(redirectMock).not.toHaveBeenCalled();
   });

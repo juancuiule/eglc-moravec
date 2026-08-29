@@ -24,7 +24,14 @@ describe("getOtpRow / reserveOtpSlot", () => {
   it("claims the slot and stores the row on first request", () => {
     const db = openDb(":memory:");
     const now = 1_000_000;
-    const claimed = reserveOtpSlot(db, "hash-1", "123456", now + 300_000, now, MIN_INTERVAL_MS);
+    const claimed = reserveOtpSlot(
+      db,
+      "hash-1",
+      "123456",
+      now + 300_000,
+      now,
+      MIN_INTERVAL_MS,
+    );
 
     expect(claimed).toBe(true);
     expect(getOtpRow(db, "hash-1")).toEqual({
@@ -82,7 +89,14 @@ describe("getOtpRow / reserveOtpSlot", () => {
     incrementOtpAttempts(db, "hash-1");
     incrementOtpAttempts(db, "hash-1");
 
-    reserveOtpSlot(db, "hash-1", "999999", now + 400_000, now + MIN_INTERVAL_MS, MIN_INTERVAL_MS);
+    reserveOtpSlot(
+      db,
+      "hash-1",
+      "999999",
+      now + 400_000,
+      now + MIN_INTERVAL_MS,
+      MIN_INTERVAL_MS,
+    );
 
     expect(getOtpRow(db, "hash-1")?.attempts).toBe(0);
   });
@@ -110,7 +124,13 @@ describe("restoreOtpRow", () => {
 
   it("restores the exact prior row rather than just clearing it", () => {
     const db = openDb(":memory:");
-    const before = { email_hash: "hash-1", code: "111111", expires_at: 111, attempts: 2, requested_at: 5 };
+    const before = {
+      email_hash: "hash-1",
+      code: "111111",
+      expires_at: 111,
+      attempts: 2,
+      requested_at: 5,
+    };
     reserveOtpSlot(db, "hash-1", "111111", 111, 5, MIN_INTERVAL_MS);
     incrementOtpAttempts(db, "hash-1");
     incrementOtpAttempts(db, "hash-1");

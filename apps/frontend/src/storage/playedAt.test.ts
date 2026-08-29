@@ -11,6 +11,8 @@ describe("computePlayedAtTimestamps", () => {
   });
 
   it("works backward through durations, back-to-back, ending at the finish moment", () => {
-    expect(computePlayedAtTimestamps([1000, 2000, 3000], 10_000)).toEqual([5000, 7000, 10_000]);
+    expect(computePlayedAtTimestamps([1000, 2000, 3000], 10_000)).toEqual([
+      5000, 7000, 10_000,
+    ]);
   });
 });

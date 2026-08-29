@@ -28,6 +28,8 @@ export async function sendOtpEmail(
   });
 
   if (!response.ok) {
-    throw new Error(`Resend request failed: ${response.status} ${await response.text()}`);
+    throw new Error(
+      `Resend request failed: ${response.status} ${await response.text()}`,
+    );
   }
 }

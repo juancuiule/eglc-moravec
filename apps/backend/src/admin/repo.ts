@@ -38,7 +38,9 @@ export type CategoryPerformanceRow = {
   avg_time_taken: number | null;
 };
 
-export function getCategoryPerformance(db: DatabaseSync): CategoryPerformanceRow[] {
+export function getCategoryPerformance(
+  db: DatabaseSync,
+): CategoryPerformanceRow[] {
   return db
     .prepare(
       `SELECT

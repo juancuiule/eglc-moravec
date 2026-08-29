@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 export default async function LevelsPage() {
   const cookieStore = await cookies();
   const session = parseSessionCookie(cookieStore.get(SESSION_COOKIE)?.value);
+
   const stats = session
     ? await Api.fetchLevelStats(session.token).catch(() => ({}))
     : {};

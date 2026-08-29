@@ -4,10 +4,7 @@ export function StarsDisplay({ stars }: Props) {
   return (
     <div className="flex justify-center gap-2 text-4xl">
       {[1, 2, 3].map((n) => (
-        <span
-          key={n}
-          className={n <= stars ? "text-warning" : "text-disabled"}
-        >
+        <span key={n} className={n <= stars ? "text-warning" : "text-disabled"}>
           ★
         </span>
       ))}

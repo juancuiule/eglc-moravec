@@ -42,7 +42,10 @@ export function PracticeSummary({ state }: Props) {
         className="flex flex-col gap-2 animate-fade-in"
         style={{ animationDelay: "300ms", animationFillMode: "backwards" }}
       >
-        <button className={button({ intent: "primary" })} onClick={() => start(config)}>
+        <button
+          className={button({ intent: "primary" })}
+          onClick={() => start(config)}
+        >
           Practice again
         </button>
         <button className={button({ intent: "ghost" })} onClick={handleBack}>

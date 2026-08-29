@@ -123,7 +123,9 @@ test("revisiting the same level after finishing it starts a fresh run, not the s
 
   // Revisiting the same level remounts it — this should not resume the
   // stale Finished state from the previous visit.
-  renderWithQueryClient(<LevelPlay levelNumber={1} level={level1} stats={{}} />);
+  renderWithQueryClient(
+    <LevelPlay levelNumber={1} level={level1} stats={{}} />,
+  );
 
   const state = gameStore.getState().state;
   expect(state.type).toBe("playing");

@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { TUTORIAL_TOPICS, TUTORIAL_TITLES, TUTORIAL_SUBTITLES } from "../tutorials/content";
+import {
+  TUTORIAL_TOPICS,
+  TUTORIAL_TITLES,
+  TUTORIAL_SUBTITLES,
+} from "../tutorials/content";
 import { panel, backLink } from "../styles";
 
 export function TutorialsList() {
@@ -21,7 +25,9 @@ export function TutorialsList() {
           >
             <span className="flex flex-col">
               <span className="font-semibold">{TUTORIAL_TITLES[topic]}</span>
-              <span className="text-xs text-muted">{TUTORIAL_SUBTITLES[topic]}</span>
+              <span className="text-xs text-muted">
+                {TUTORIAL_SUBTITLES[topic]}
+              </span>
             </span>
             <span aria-hidden="true" className="text-muted shrink-0">
               →

@@ -19,9 +19,7 @@ export type SquaringCategory = {
 };
 
 export type OperationCategory =
-  | AdditionCategory
-  | MultiplicationCategory
-  | SquaringCategory;
+  AdditionCategory | MultiplicationCategory | SquaringCategory;
 
 const codenameRegex = {
   addition: /^(\d+)d\+(\d+)d$/,
@@ -71,7 +69,9 @@ function matchCodename(
 }
 
 function typeFromCodename(codename: string): OperationCategory["type"] {
-  const entry = Object.entries(codenameRegex).find(([, regex]) => regex.test(codename));
+  const entry = Object.entries(codenameRegex).find(([, regex]) =>
+    regex.test(codename),
+  );
   if (!entry) throw new Error(`Unknown operation for codename: ${codename}`);
   return entry[0] as OperationCategory["type"];
 }

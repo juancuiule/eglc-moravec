@@ -2,7 +2,11 @@ import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { openDb } from "../db.js";
 import { evaluateTrialResult, type TrialResultInput } from "./logic.js";
-import { insertTrialResults, getTrialResultsForUser, mergeAnonymousIdentity } from "./repo.js";
+import {
+  insertTrialResults,
+  getTrialResultsForUser,
+  mergeAnonymousIdentity,
+} from "./repo.js";
 
 const baseTrialInput: TrialResultInput = {
   id: randomUUID(),

@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { Addition, Multiplication, Squaring } from "./operation";
 import { categoryFromCodename } from "./category";
-import type { AdditionCategory, MultiplicationCategory, SquaringCategory } from "./category";
+import type {
+  AdditionCategory,
+  MultiplicationCategory,
+  SquaringCategory,
+} from "./category";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -46,7 +50,12 @@ describe("Addition", () => {
 
   it("throws solveTime for unsupported category", () => {
     // Manually construct an unsupported category
-    const unsupported: AdditionCategory = { type: "addition", codename: "3d+3d" as AdditionCategory["codename"], lDigits: 3, rDigits: 3 };
+    const unsupported: AdditionCategory = {
+      type: "addition",
+      codename: "3d+3d" as AdditionCategory["codename"],
+      lDigits: 3,
+      rDigits: 3,
+    };
     vi.spyOn(Math, "random").mockReturnValue(0);
     expect(() => Addition.create(unsupported).solveTime()).toThrow();
   });

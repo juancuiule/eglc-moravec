@@ -20,7 +20,9 @@ describe("generateSessionToken", () => {
   });
 
   it("is not reused across calls", () => {
-    const tokens = new Set(Array.from({ length: 50 }, () => generateSessionToken()));
+    const tokens = new Set(
+      Array.from({ length: 50 }, () => generateSessionToken()),
+    );
     expect(tokens.size).toBe(50);
   });
 });

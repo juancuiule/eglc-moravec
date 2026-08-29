@@ -49,7 +49,9 @@ export function PracticePlayingScreen({ state }: Props) {
             <button
               disabled={state.hintVisible || isReviewing}
               onClick={requestHint}
-              className={hintButton({ disabled: state.hintVisible || isReviewing })}
+              className={hintButton({
+                disabled: state.hintVisible || isReviewing,
+              })}
             >
               Hint
             </button>

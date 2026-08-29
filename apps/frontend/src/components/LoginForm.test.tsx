@@ -10,7 +10,9 @@ vi.mock("next/navigation", () => ({
 // Regression test for #30: the email input must have a real accessible
 // name (a placeholder alone doesn't count) and the right autocomplete hint.
 test("the email input has an accessible name and autocomplete", () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   render(
     <QueryClientProvider client={client}>
       <LoginForm />

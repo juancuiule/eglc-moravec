@@ -60,7 +60,10 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
       </h1>
 
       {levelCompleted && (
-        <div className="animate-fade-in" style={{ animationDelay: "100ms", animationFillMode: "backwards" }}>
+        <div
+          className="animate-fade-in"
+          style={{ animationDelay: "100ms", animationFillMode: "backwards" }}
+        >
           <StarsDisplay stars={stars} />
         </div>
       )}
@@ -75,7 +78,10 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
         </div>
       )}
 
-      <div className="text-center animate-fade-in" style={{ animationDelay: "300ms", animationFillMode: "backwards" }}>
+      <div
+        className="text-center animate-fade-in"
+        style={{ animationDelay: "300ms", animationFillMode: "backwards" }}
+      >
         <span
           className={
             levelCompleted
@@ -96,7 +102,10 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
         style={{ animationDelay: "400ms", animationFillMode: "backwards" }}
       >
         {levelCompleted && !isLastLevel && (
-          <Link href={`/level/${config.levelNumber + 1}`} className={linkButton({ intent: "success" })}>
+          <Link
+            href={`/level/${config.levelNumber + 1}`}
+            className={linkButton({ intent: "success" })}
+          >
             Play next level (N)
           </Link>
         )}

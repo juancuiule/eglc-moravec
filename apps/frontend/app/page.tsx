@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { useAuth } from "@/auth/store";
 import { panel, linkButton, navLink } from "@/styles";
