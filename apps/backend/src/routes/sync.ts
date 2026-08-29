@@ -1,16 +1,29 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
-import { bearerToken, resolveEmailHash } from "../auth/session.js";
-import { parseTrialResults, evaluateTrialResult, deriveLevelStats } from "../sync/logic.js";
-import { insertTrialResults, getTrialResultsForUser, type TrialResultRow } from "../sync/repo.js";
+import { requireEmailHash } from "../auth/session";
+import {
+  parseTrialResults,
+  evaluateTrialResult,
+  deriveLevelStats,
+} from "../sync/logic";
+import {
+  insertTrialResults,
+  getTrialResultsForUser,
+  type TrialResultRow,
+} from "../sync/repo";
 
-export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void {
-  app.post("/sync/results", async (request: FastifyRequest, reply) => {
-    const emailHash = resolveEmailHash(db, bearerToken(request.headers.authorization));
-    if (emailHash === null) return reply.code(401).send({ error: "unauthenticated" });
+export function registerSyncRoutes(
+  app: FastifyInstance,
+  db: DatabaseSync,
+): void {
+  app.post("/sync/results", async (request, reply) => {
+    const emailHash = requireEmailHash(db, request, reply);
+    if (emailHash === null) return;
 
     const trials = parseTrialResults(request.body);
-    if (trials === null) return reply.code(400).send({ error: "invalid_request" });
+    if (trials === null) {
+      return reply.code(400).send({ error: "invalid_request" });
+    }
 
     const evaluated = trials.map(evaluateTrialResult);
     insertTrialResults(db, emailHash, evaluated);
@@ -18,17 +31,18 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
     return reply.send({ ok: true, stored: trials.length });
   });
 
-  app.get("/sync/level-stats", async (request: FastifyRequest, reply) => {
-    const emailHash = resolveEmailHash(db, bearerToken(request.headers.authorization));
-    if (emailHash === null) return reply.code(401).send({ error: "unauthenticated" });
+  app.get("/sync/level-stats", async (request, reply) => {
+    const emailHash = requireEmailHash(db, request, reply);
+    if (emailHash === null) return;
 
     const rows = getTrialResultsForUser(db, emailHash).filter(
-      (r: TrialResultRow) => r.run_type === "level",
+      (r) => r.run_type === "level",
     );
+
     const stats = deriveLevelStats(
       rows.map((r) => ({
         levelNumber: r.level_number,
-        correct: r.correct === 1,
+        correct: Boolean(r.correct),
         timeTaken: r.time_taken,
         playedAt: r.played_at,
         runId: r.run_id,
@@ -37,27 +51,30 @@ export function registerSyncRoutes(app: FastifyInstance, db: DatabaseSync): void
     const levelStats = Object.fromEntries(
       stats.map((s) => [
         String(s.levelNumber),
-        { stars: s.stars, totalTime: s.totalTime, completedAt: new Date(s.completedAt).toISOString() },
+        {
+          stars: s.stars,
+          totalTime: s.totalTime,
+          completedAt: new Date(s.completedAt).toISOString(),
+        },
       ]),
     );
 
     return reply.send({ levelStats });
   });
 
-  // The frontend keeps no local trial history anymore — the Stats screen's
-  // per-category effectiveness/histogram is computed client-side (see
-  // stats/computeStats.ts) over whatever this returns, every time it loads.
-  app.get("/sync/trials", async (request: FastifyRequest, reply) => {
-    const emailHash = resolveEmailHash(db, bearerToken(request.headers.authorization));
-    if (emailHash === null) return reply.code(401).send({ error: "unauthenticated" });
+  app.get("/sync/trials", async (request, reply) => {
+    const emailHash = requireEmailHash(db, request, reply);
+    if (emailHash === null) return;
 
-    const trials = getTrialResultsForUser(db, emailHash).map((r: TrialResultRow) => ({
-      categoryCodename: r.category_codename,
-      correct: r.correct === 1,
-      timeExceeded: r.time_exceeded === 1,
-      timeTaken: r.time_taken,
-      runType: r.run_type,
-    }));
+    const trials = getTrialResultsForUser(db, emailHash).map(
+      (r: TrialResultRow) => ({
+        categoryCodename: r.category_codename,
+        correct: Boolean(r.correct),
+        timeExceeded: Boolean(r.time_exceeded),
+        timeTaken: r.time_taken,
+        runType: r.run_type,
+      }),
+    );
 
     return reply.send({ trials });
   });
