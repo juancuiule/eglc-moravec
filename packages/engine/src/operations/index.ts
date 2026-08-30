@@ -17,7 +17,6 @@ export function createOperation(codename: string): Operation {
   }
 }
 
-/** Rebuild the exact Operation a trial was, from its categoryCodename and operands() — the inverse of Operation.operands(). */
 export function reconstructOperation(
   categoryCodename: string,
   operands: number[],

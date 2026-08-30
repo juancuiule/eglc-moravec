@@ -50,9 +50,11 @@ export function buildApp(db: DatabaseSync, config: Config): FastifyInstance {
       reply.code(500).send({ error: "internal_error" });
     },
   );
+
   registerHealthRoute(app, db);
   registerAuthRoutes(app, db, config);
   registerSyncRoutes(app, db);
   registerLevelsRoutes(app, db);
+
   return app;
 }

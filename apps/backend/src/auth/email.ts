@@ -1,8 +1,3 @@
-/**
- * Sends the OTP via Resend. Without RESEND_API_KEY configured (local dev,
- * or a deploy that hasn't set it up yet) it logs the code instead of
- * failing, so `pnpm dev` works with zero external setup.
- */
 export async function sendOtpEmail(
   to: string,
   code: string,

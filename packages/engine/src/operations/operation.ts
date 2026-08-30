@@ -15,7 +15,6 @@ export abstract class Operation {
   abstract result(): number;
   abstract humanReadable(): string;
   abstract categoryCodename(): string;
-  /** Raw operand values, serializable, enough (with categoryCodename) to reconstruct this Operation. */
   abstract operands(): number[];
   hint(): Hint {
     return new NoHint();
