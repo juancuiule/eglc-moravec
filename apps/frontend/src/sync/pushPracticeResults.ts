@@ -1,5 +1,5 @@
-import type { TrialResult } from "engine";
-import { Api, type SyncTrial } from "../api/Api";
+import type { TrialResult, TrialResultInput } from "engine";
+import { Api } from "../api/Api";
 import { computePlayedAtTimestamps } from "../storage/playedAt";
 
 /**
@@ -16,7 +16,7 @@ export function pushPracticeResults(
     Date.now(),
   );
 
-  const payload: SyncTrial[] = results.map((r, i) => ({
+  const payload: TrialResultInput[] = results.map((r, i) => ({
     id: crypto.randomUUID(),
     runType: "practice",
     levelNumber: null,

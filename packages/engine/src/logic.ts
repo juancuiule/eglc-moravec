@@ -1,13 +1,13 @@
 import {
   isBetterLevelRecord,
   LEVEL_COMPLETE_THRESHOLD,
-  reconstructOperation,
   starsForScore,
-  Trial,
-} from "engine";
+} from "./levelScoring";
+import { reconstructOperation } from "./operations/index";
+import { Trial } from "./trial/engine";
 import * as z from "zod";
 
-const TrialResultSchema = z.object({
+export const TrialResultSchema = z.object({
   id: z.uuidv4(),
   runId: z.uuidv4(),
   levelNumber: z.number().nullable(),
@@ -109,7 +109,7 @@ export function deriveLevelRuns(
   });
 }
 
-export type LevelStatsSummary = {
+export type LevelStats = {
   levelNumber: number;
   stars: 0 | 1 | 2 | 3;
   totalTime: number;
@@ -118,8 +118,8 @@ export type LevelStatsSummary = {
 
 export function deriveLevelStats(
   trials: readonly TrialForLevelRun[],
-): LevelStatsSummary[] {
-  const best = new Map<number, LevelStatsSummary>();
+): LevelStats[] {
+  const best = new Map<number, LevelStats>();
   deriveLevelRuns(trials).forEach((run) => {
     const existing = best.get(run.levelNumber);
     const existingRecord = existing

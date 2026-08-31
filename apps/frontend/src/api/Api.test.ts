@@ -130,8 +130,24 @@ test("logout throws on failure", async () => {
   await expect(Api.logout("tok")).rejects.toThrow();
 });
 
-test("syncResults resolves on success", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse({ ok: true, stored: 1 }));
+test("syncResults resolves with the server's evaluated trials on success", async () => {
+  const evaluatedTrial = {
+    id: "trial-1",
+    runType: "level",
+    levelNumber: 1,
+    categoryCodename: "1d+1d",
+    timeTaken: 1200,
+    playedAt: Date.now(),
+    hintShown: false,
+    runId: "run-abc",
+    operands: [2, 3],
+    answer: 5,
+    correct: true,
+    timeExceeded: false,
+  };
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse({ ok: true, trials: [evaluatedTrial] }),
+  );
   await expect(
     Api.syncResults("tok", [
       {
@@ -147,7 +163,7 @@ test("syncResults resolves on success", async () => {
         answer: 5,
       },
     ]),
-  ).resolves.toBeUndefined();
+  ).resolves.toEqual({ ok: true, trials: [evaluatedTrial] });
 });
 
 test("syncResults throws on failure", async () => {

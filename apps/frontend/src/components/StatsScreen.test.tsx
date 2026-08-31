@@ -3,7 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatsScreen } from "./StatsScreen";
 import { authStore } from "@/auth/store";
-import type { SyncedTrial } from "@/api/Api";
+import type { EvaluatedTrialResult } from "engine";
 
 vi.mock("@/api/Api", () => ({
   Api: { fetchTrials: vi.fn() },
@@ -30,12 +30,19 @@ function renderWithQueryClient() {
 }
 
 test("a category row with data is a real button, keyboard-reachable and screen-reader visible", async () => {
-  const trials: SyncedTrial[] = [
+  const trials: EvaluatedTrialResult[] = [
     {
+      id: "11111111-1111-4111-8111-111111111111",
+      runId: "22222222-2222-4222-8222-222222222222",
+      levelNumber: 1,
       categoryCodename: "1d+1d",
+      operands: [1, 1],
+      answer: 2,
       correct: true,
       timeExceeded: false,
       timeTaken: 1000,
+      playedAt: 1_700_000_000_000,
+      hintShown: false,
       runType: "level",
     },
   ];
@@ -50,12 +57,19 @@ test("a category row with data is a real button, keyboard-reachable and screen-r
 test("a category row with no data is not rendered as an interactive control", async () => {
   // Seed one category with data so the list renders at all, and check a
   // *different*, data-less category's row isn't an interactive control.
-  const trials: SyncedTrial[] = [
+  const trials: EvaluatedTrialResult[] = [
     {
+      id: "11111111-1111-4111-8111-111111111111",
+      runId: "22222222-2222-4222-8222-222222222222",
+      levelNumber: 1,
       categoryCodename: "1d+1d",
+      operands: [1, 1],
+      answer: 2,
       correct: true,
       timeExceeded: false,
       timeTaken: 1000,
+      playedAt: 1_700_000_000_000,
+      hintShown: false,
       runType: "level",
     },
   ];
@@ -68,12 +82,19 @@ test("a category row with no data is not rendered as an interactive control", as
 });
 
 test("Level and Practice trials are never merged — a Practice-only trial doesn't show under the Level tab", async () => {
-  const trials: SyncedTrial[] = [
+  const trials: EvaluatedTrialResult[] = [
     {
+      id: "11111111-1111-4111-8111-111111111111",
+      runId: "22222222-2222-4222-8222-222222222222",
+      levelNumber: null,
       categoryCodename: "1d+1d",
+      operands: [1, 1],
+      answer: 2,
       correct: true,
       timeExceeded: false,
       timeTaken: 1000,
+      playedAt: 1_700_000_000_000,
+      hintShown: false,
       runType: "practice",
     },
   ];

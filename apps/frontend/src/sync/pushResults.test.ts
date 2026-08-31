@@ -44,7 +44,7 @@ describe("pushResults", () => {
 
   it("builds the wire payload and calls Api.syncResults", () => {
     const result = makeResult();
-    vi.mocked(Api.syncResults).mockResolvedValue(undefined);
+    vi.mocked(Api.syncResults).mockResolvedValue({ trials: [] });
 
     pushResults("tok", config, [result], "run-abc");
 

@@ -1,5 +1,5 @@
-import { TrialResult } from "engine";
-import { Api, type SyncTrial } from "../api/Api";
+import { TrialResult, type TrialResultInput } from "engine";
+import { Api } from "../api/Api";
 import type { GameConfig } from "../game/index";
 import { computePlayedAtTimestamps } from "../storage/playedAt";
 
@@ -23,7 +23,7 @@ export function pushResults(
     Date.now(),
   );
 
-  const payload: SyncTrial[] = results.map((r, i) => ({
+  const payload: TrialResultInput[] = results.map((r, i) => ({
     id: crypto.randomUUID(),
     runType: "level",
     levelNumber: config.levelNumber,

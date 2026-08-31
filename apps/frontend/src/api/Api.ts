@@ -1,28 +1,11 @@
+import { EvaluatedTrialResult, TrialResultInput } from "engine";
 import { errorFrom, request, requestJson, requestVoid } from "./utils";
 
 export type OtpVerified = { token: string; expiresAt: number };
 
-export type SyncTrial = {
-  id: string;
-  runType: "level" | "practice";
-  levelNumber: number | null;
-  categoryCodename: string;
-  operands: number[];
-  answer: number | null;
-  timeTaken: number;
-  playedAt: number; // epoch ms
-  hintShown: boolean;
-  runId: string;
-};
-
-export type SyncedTrial = {
-  categoryCodename: string;
-  correct: boolean;
-  timeExceeded: boolean;
-  timeTaken: number;
-  runType: "level" | "practice";
-};
-
+// Wire shape only: the backend serializes completedAt to an ISO string
+// (see routes/sync.ts) rather than the epoch-ms number engine's own
+// LevelStats uses internally.
 export type LevelStats = {
   stars: 0 | 1 | 2 | 3;
   totalTime: number; // ms
@@ -65,8 +48,8 @@ export const Api = {
     return requestVoid("/auth/logout", { method: "POST", token });
   },
 
-  syncResults(token: string, trials: SyncTrial[]): Promise<void> {
-    return requestVoid("/sync/results", {
+  syncResults(token: string, trials: TrialResultInput[]) {
+    return requestJson<{ trials: EvaluatedTrialResult[] }>("/sync/results", {
       method: "POST",
       token,
       body: { trials },
@@ -83,8 +66,8 @@ export const Api = {
     return levelStats;
   },
 
-  async fetchTrials(token: string): Promise<SyncedTrial[]> {
-    const { trials } = await requestJson<{ trials: SyncedTrial[] }>(
+  async fetchTrials(token: string) {
+    const { trials } = await requestJson<{ trials: EvaluatedTrialResult[] }>(
       "/sync/trials",
       {
         method: "GET",
@@ -101,7 +84,6 @@ export const Api = {
     return levels;
   },
 
-  /** Null specifically means "no such level" (404) — any other failure still throws. */
   async fetchLevel(
     levelNumber: number,
   ): Promise<Record<string, number> | null> {

@@ -38,7 +38,7 @@ describe("pushPracticeResults", () => {
 
   it("builds the wire payload with runType practice and a null levelNumber", () => {
     const result = makeResult();
-    vi.mocked(Api.syncResults).mockResolvedValue(undefined);
+    vi.mocked(Api.syncResults).mockResolvedValue({ trials: [] });
 
     pushPracticeResults("tok", [result], "practice-run-abc");
 

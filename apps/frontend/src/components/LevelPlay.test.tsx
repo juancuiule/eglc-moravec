@@ -29,7 +29,7 @@ const level2: Level = { "1dx1d": 100 };
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(Api.fetchLevelStats).mockResolvedValue({});
-  vi.mocked(Api.syncResults).mockResolvedValue(undefined);
+  vi.mocked(Api.syncResults).mockResolvedValue({ trials: [] });
   gameStore.getState().reset();
   // persistFinishedLevel's push needs a session token — every real player
   // has one automatically (see AuthBoot), so tests simulate that same

@@ -1,14 +1,16 @@
+import {
+  TrialResultSchema,
+  deriveLevelStats,
+  evaluateTrialResult,
+} from "engine";
 import type { FastifyInstance } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
+import * as z from "zod";
 import { requireEmailHash } from "../auth/session";
+import { parseBody } from "../parser";
 import {
-  parseTrialResults,
-  evaluateTrialResult,
-  deriveLevelStats,
-} from "../sync/logic";
-import {
-  insertTrialResults,
   getTrialResultsForUser,
+  insertTrialResults,
   type TrialResultRow,
 } from "../sync/repo";
 
@@ -20,15 +22,15 @@ export function registerSyncRoutes(
     const emailHash = requireEmailHash(db, request, reply);
     if (emailHash === null) return;
 
-    const trials = parseTrialResults(request.body);
-    if (trials === null) {
-      return reply.code(400).send({ error: "invalid_request" });
-    }
+    const { trials } = parseBody(
+      request.body,
+      z.object({ trials: z.array(TrialResultSchema) }),
+    );
 
     const evaluated = trials.map(evaluateTrialResult);
     insertTrialResults(db, emailHash, evaluated);
 
-    return reply.send({ ok: true, stored: trials.length });
+    return reply.send({ ok: true, trials: evaluated });
   });
 
   app.get("/sync/level-stats", async (request, reply) => {
@@ -52,8 +54,7 @@ export function registerSyncRoutes(
       stats.map((s) => [
         String(s.levelNumber),
         {
-          stars: s.stars,
-          totalTime: s.totalTime,
+          ...s,
           completedAt: new Date(s.completedAt).toISOString(),
         },
       ]),

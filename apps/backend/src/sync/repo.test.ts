@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
+import { evaluateTrialResult, type TrialResultInput } from "engine";
 import { openDb } from "../db.js";
-import { evaluateTrialResult, type TrialResultInput } from "./logic.js";
 import {
   insertTrialResults,
   getTrialResultsForUser,

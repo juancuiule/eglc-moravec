@@ -1,5 +1,5 @@
+import type { EvaluatedTrialResult } from "engine";
 import type { DatabaseSync } from "node:sqlite";
-import type { EvaluatedTrialResult } from "./logic.js";
 
 export function insertTrialResults(
   db: DatabaseSync,

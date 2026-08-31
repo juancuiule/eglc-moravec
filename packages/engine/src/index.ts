@@ -28,6 +28,15 @@ export {
 } from "./trial/engine";
 
 export {
+  TrialResultSchema,
+  evaluateTrialResult,
+  deriveLevelStats,
+  type LevelStats,
+  type TrialResultInput,
+  type EvaluatedTrialResult,
+} from "./logic";
+
+export {
   isBetterLevelRecord,
   LEVEL_COMPLETE_THRESHOLD,
   starsForScore,

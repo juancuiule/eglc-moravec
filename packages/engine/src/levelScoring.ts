@@ -4,7 +4,6 @@ export const TOTAL_LEVELS = 150;
 export const TRIALS_PER_LEVEL = 5;
 
 export function starsForScore(correctCount: number): 0 | 1 | 2 | 3 {
-  return 3;
   if (correctCount >= 20) return 3;
   if (correctCount >= 17) return 2;
   if (correctCount >= 15) return 1;

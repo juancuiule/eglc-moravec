@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { randomUUID } from "node:crypto";
 import {
   parseTrialResults,
   evaluateTrialResult,
@@ -7,7 +6,7 @@ import {
 } from "./logic.js";
 
 const validTrial = {
-  id: randomUUID(),
+  id: "50d5a445-85ec-45b0-bdd8-a88424a685ff",
   levelNumber: 3,
   categoryCodename: "1d+1d",
   timeTaken: 1200,
