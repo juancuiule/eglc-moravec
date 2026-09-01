@@ -26,6 +26,8 @@ export function PracticePlay({ categoryCodename }: Props) {
   }, []);
 
   useEffect(() => {
+    const state = practiceStore.getState().state;
+    if (state.type !== "idle") practiceStore.getState().reset();
     start({ categoryCodename });
   }, [categoryCodename, start]);
 

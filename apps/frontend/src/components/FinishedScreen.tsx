@@ -15,7 +15,7 @@ type Props = { state: Finished; isNewRecord: boolean };
 export function FinishedScreen({ state, isNewRecord }: Props) {
   const router = useRouter();
   const reset = useGame((s) => s.reset);
-  const replay = useGame((s) => s.replay);
+  const start = useGame((s) => s.start);
 
   const { correctCount, levelCompleted, stars, results, config } = state;
   const totalAttempts = results.length;
@@ -23,6 +23,10 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
 
   function playNext() {
     router.push(`/level/${config.levelNumber + 1}`);
+  }
+
+  function replay() {
+    start(config);
   }
 
   function backToMenu() {

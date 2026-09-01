@@ -20,7 +20,7 @@ type Props = {
 
 export function LevelPlay({ levelNumber, level, stats }: Props) {
   const gameState = useGame((s) => s.state);
-  const load = useGame((s) => s.load);
+  const start = useGame((s) => s.start);
   const [isNewRecord, setIsNewRecord] = useState(false);
 
   useEffect(() => {
@@ -42,9 +42,9 @@ export function LevelPlay({ levelNumber, level, stats }: Props) {
 
   useEffect(() => {
     const state = gameStore.getState().state;
-    if (state.type !== "loading") gameStore.getState().reset();
-    load({ levelNumber, level, totalTrials: TRIALS_PER_LEVEL });
-  }, [levelNumber, level, load]);
+    if (state.type !== "idle") gameStore.getState().reset();
+    start({ levelNumber, level, totalTrials: TRIALS_PER_LEVEL });
+  }, [levelNumber, level, start]);
 
   const { type } = gameState;
 

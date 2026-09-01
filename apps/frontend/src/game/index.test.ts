@@ -1,17 +1,31 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TRIALS_PER_LEVEL } from "engine";
-import { createGameStore } from "./index";
-import type { Level } from "../level";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Addition, TRIALS_PER_LEVEL, type TrialResult } from "engine";
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Level's own policy: pickNext (dedup), isComplete (cutoff),
+// buildTerminalState (scoring), initialHintsRemaining ──────────────────
 
-// A fixed fixture, not the real catalog's level 1 — tests shouldn't depend
-// on production Level content (which now lives in the backend).
+vi.mock("../level", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../level")>();
+  return { ...actual, createRandomOperation: vi.fn() };
+});
+
+import { createRandomOperation, type Level } from "../level";
+import {
+  createGameStore,
+  HINTS_PER_LEVEL,
+  policy,
+  type GameConfig,
+} from "./index";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 const level1: Level = { "1d+1d": 50, "1dx1d": 50 };
 
 function makeConfig(
   overrides: Partial<{ levelNumber: number; totalTrials: number }> = {},
-) {
+): GameConfig {
   return {
     levelNumber: overrides.levelNumber ?? 1,
     level: level1,
@@ -19,327 +33,141 @@ function makeConfig(
   };
 }
 
-// ─── Constants ─────────────────────────────────────────────────────────────────
+const additionCategory = {
+  type: "addition" as const,
+  codename: "1d+1d" as const,
+  lDigits: 1,
+  rDigits: 1,
+};
 
-describe("constants", () => {
-  it("TRIALS_PER_LEVEL is 20", () => {
-    expect(TRIALS_PER_LEVEL).toBe(20);
+function op(left: number, right: number) {
+  return new Addition(left, right, additionCategory);
+}
+
+function evaluatedResult(overrides: Partial<TrialResult> = {}): TrialResult {
+  return {
+    operation: op(1, 1),
+    answer: 2,
+    correct: true,
+    timeExceeded: false,
+    timeTaken: 1000,
+    hintShown: false,
+    ...overrides,
+  };
+}
+
+describe("policy.initialHintsRemaining", () => {
+  it("is HINTS_PER_LEVEL (3)", () => {
+    expect(policy.initialHintsRemaining(makeConfig())).toBe(HINTS_PER_LEVEL);
   });
 });
 
-// ─── Game store ────────────────────────────────────────────────────────────────
+describe("policy.isComplete", () => {
+  it("is false while results are fewer than totalTrials", () => {
+    const config = makeConfig({ totalTrials: 20 });
+    const results = Array.from({ length: 19 }, () => evaluatedResult());
+    expect(policy.isComplete(results, config)).toBe(false);
+  });
+
+  it("is true once results reach totalTrials", () => {
+    const config = makeConfig({ totalTrials: 20 });
+    const results = Array.from({ length: 20 }, () => evaluatedResult());
+    expect(policy.isComplete(results, config)).toBe(true);
+  });
+});
+
+describe("policy.buildTerminalState", () => {
+  it("computes correctCount, levelCompleted, and stars from the results batch", () => {
+    const results = [
+      ...Array.from({ length: 15 }, () => evaluatedResult({ correct: true })),
+      ...Array.from({ length: 5 }, () => evaluatedResult({ correct: false })),
+    ];
+    const finished = policy.buildTerminalState(
+      results,
+      makeConfig(),
+      "run-abc",
+    );
+    expect(finished.type).toBe("finished");
+    expect(finished.correctCount).toBe(15);
+    expect(finished.levelCompleted).toBe(true); // >= 15 threshold
+    expect(finished.stars).toBe(1);
+    expect(finished.runId).toBe("run-abc");
+  });
+
+  it("levelCompleted is false below the 15-correct threshold", () => {
+    const results = [
+      ...Array.from({ length: 14 }, () => evaluatedResult({ correct: true })),
+      ...Array.from({ length: 6 }, () => evaluatedResult({ correct: false })),
+    ];
+    const finished = policy.buildTerminalState(
+      results,
+      makeConfig(),
+      "run-abc",
+    );
+    expect(finished.levelCompleted).toBe(false);
+    expect(finished.stars).toBe(0);
+  });
+});
+
+describe("policy.pickNext", () => {
+  it("skips an already-seen operation when a fresh one is available", () => {
+    const seen = op(1, 1);
+    const fresh = op(2, 2);
+    vi.mocked(createRandomOperation)
+      .mockReturnValueOnce(seen) // collides with what's already seen — skipped
+      .mockReturnValueOnce(fresh); // not seen — returned
+
+    const { operation, pickState } = policy.pickNext(
+      makeConfig(),
+      new Set([seen.humanReadable()]),
+    );
+
+    expect(operation.humanReadable()).toBe(fresh.humanReadable());
+    expect(pickState.has(fresh.humanReadable())).toBe(true);
+  });
+
+  it("falls back to a repeat after 50 attempts if nothing fresh turns up", () => {
+    const onlyOption = op(1, 1);
+    vi.mocked(createRandomOperation).mockReturnValue(onlyOption);
+
+    const { operation } = policy.pickNext(
+      makeConfig(),
+      new Set([onlyOption.humanReadable()]),
+    );
+
+    // Doesn't hang or throw — gives up dedup and returns the only option.
+    expect(operation.humanReadable()).toBe(onlyOption.humanReadable());
+    expect(createRandomOperation).toHaveBeenCalledTimes(51); // 50 in the loop + 1 fallback call
+  });
+});
+
+// ─── Wiring smoke test — the shared machine itself is covered by
+// trialSession/index.test.ts; this just proves createGameStore() plugs
+// Level's policy into it correctly ───────────────────────────────────
 
 describe("createGameStore", () => {
-  let store: ReturnType<typeof createGameStore>;
-
   beforeEach(() => {
-    store = createGameStore();
+    vi.mocked(createRandomOperation).mockImplementation(() => op(1, 1));
     vi.spyOn(Date, "now").mockReturnValue(1_000_000);
   });
 
-  it("starts in loading state", () => {
-    expect(store.getState().state.type).toBe("loading");
-  });
+  it("plays a Level from start to finished, then starts fresh with a new runId", () => {
+    const store = createGameStore();
+    store.getState().start(makeConfig({ totalTrials: 1 }));
 
-  it("transitions to playing after load()", () => {
-    store.getState().load(makeConfig());
-    const s = store.getState().state;
-    expect(s.type).toBe("playing");
-  });
-
-  it("ignores load() while already playing", () => {
-    store.getState().load(makeConfig());
-    const before = store.getState().state;
-    store.getState().load(makeConfig({ levelNumber: 2 }));
-    expect(store.getState().state).toBe(before);
-  });
-
-  it("load() generates a valid v4 runId, without relying on crypto.randomUUID (unavailable outside secure contexts)", () => {
-    store.getState().load(makeConfig());
-    const s = store.getState().state;
-    if (s.type !== "playing") throw new Error("not playing");
-    expect(s.runId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-    );
-  });
-
-  it("replay generates a fresh runId, distinct from the finished run's", () => {
-    store.getState().load(makeConfig({ totalTrials: 1 }));
     const playing = store.getState().state;
-    if (playing.type !== "playing") throw new Error("not playing");
+    if (playing.type !== "playing") throw new Error();
     store.getState().submitAnswer(playing.currentOperation.result());
     store.getState().advance();
 
     const finished = store.getState().state;
-    if (finished.type !== "finished") throw new Error("not finished");
+    if (finished.type !== "finished") throw new Error();
+    expect(finished.correctCount).toBe(1);
 
-    store.getState().replay();
+    store.getState().start(finished.config);
     const replayed = store.getState().state;
-    if (replayed.type !== "playing") throw new Error("not playing");
+    if (replayed.type !== "playing") throw new Error();
     expect(replayed.runId).not.toBe(finished.runId);
-  });
-
-  describe("while playing", () => {
-    beforeEach(() => {
-      store.getState().load(makeConfig());
-    });
-
-    it("submitAnswer moves to reviewing", () => {
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error("not playing");
-      const correct = s.currentOperation.result();
-      store.getState().submitAnswer(correct);
-      const next = store.getState().state;
-      expect(next.type).toBe("playing");
-      if (next.type !== "playing") return;
-      expect(next.playingState.type).toBe("reviewing");
-    });
-
-    it("timeUp moves to reviewing with correct=false and timeExceeded=true when nothing was typed", () => {
-      store.getState().timeUp(null);
-      const s = store.getState().state;
-      if (s.type !== "playing" || s.playingState.type !== "reviewing")
-        throw new Error("unexpected");
-      expect(s.playingState.result.correct).toBe(false);
-      expect(s.playingState.result.timeExceeded).toBe(true);
-      expect(s.playingState.result.answer).toBeNull();
-    });
-
-    it("timeUp credits a correct answer that was typed but never submitted", () => {
-      const s0 = store.getState().state;
-      if (s0.type !== "playing") throw new Error();
-      const correct = s0.currentOperation.result();
-
-      store.getState().timeUp(correct);
-      const s = store.getState().state;
-      if (s.type !== "playing" || s.playingState.type !== "reviewing")
-        throw new Error("unexpected");
-      expect(s.playingState.result.correct).toBe(true);
-      expect(s.playingState.result.timeExceeded).toBe(true);
-      expect(s.playingState.result.answer).toBe(correct);
-    });
-
-    it("submitAnswer records timeExceeded=true when answer is late", () => {
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error("not playing");
-      const solveTime = s.currentOperation.solveTime();
-      // answer submitted 1ms after solveTime
-      vi.spyOn(Date, "now").mockReturnValue(1_000_000 + solveTime + 1);
-      store.getState().submitAnswer(s.currentOperation.result());
-      const next = store.getState().state;
-      if (next.type !== "playing" || next.playingState.type !== "reviewing")
-        throw new Error();
-      expect(next.playingState.result.correct).toBe(true);
-      expect(next.playingState.result.timeExceeded).toBe(true);
-    });
-
-    it("advance after wrong answer records the result", () => {
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error();
-      store.getState().submitAnswer(s.currentOperation.result() + 99);
-      store.getState().advance();
-      const next = store.getState().state;
-      if (next.type !== "playing") throw new Error();
-      expect(next.results.length).toBe(1);
-    });
-
-    it("advance after correct-and-fast records the result", () => {
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error();
-      store.getState().submitAnswer(s.currentOperation.result());
-      store.getState().advance();
-      const next = store.getState().state;
-      if (next.type !== "playing") throw new Error();
-      expect(next.results.length).toBe(1);
-    });
-
-    it("requestHint sets hintVisible and decrements hintsRemaining", () => {
-      // 2dx1d, not 1dx1d — Multiplication.hint() returns NoHint when both
-      // operands are single-digit, so this needs a category guaranteed to
-      // actually have one.
-      const multStore = createGameStore();
-      multStore.getState().load({
-        levelNumber: 1,
-        level: { "2dx1d": 100 },
-        totalTrials: TRIALS_PER_LEVEL,
-      });
-      const s = multStore.getState().state;
-      if (s.type !== "playing") throw new Error();
-      expect(s.hintsRemaining).toBe(3);
-      multStore.getState().requestHint();
-      const after = multStore.getState().state;
-      if (after.type !== "playing") throw new Error();
-      expect(after.hintVisible).toBe(true);
-      expect(after.hintsRemaining).toBe(2);
-    });
-
-    it("requestHint is idempotent — second call doesn't decrement again", () => {
-      const multStore = createGameStore();
-      multStore.getState().load({
-        levelNumber: 1,
-        level: { "2dx1d": 100 },
-        totalTrials: TRIALS_PER_LEVEL,
-      });
-      multStore.getState().requestHint();
-      multStore.getState().requestHint();
-      const s = multStore.getState().state;
-      if (s.type !== "playing") throw new Error();
-      expect(s.hintsRemaining).toBe(2); // only decremented once
-    });
-
-    it("hintVisible resets to false after advance", () => {
-      store.getState().load({
-        levelNumber: 1,
-        level: { "2dx1d": 100 },
-        totalTrials: TRIALS_PER_LEVEL,
-      });
-      store.getState().requestHint();
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error();
-      store.getState().submitAnswer(s.currentOperation.result() + 99);
-      store.getState().advance();
-      const after = store.getState().state;
-      if (after.type !== "playing") throw new Error();
-      expect(after.hintVisible).toBe(false);
-    });
-
-    it("hintShown is recorded in TrialResult", () => {
-      const multStore = createGameStore();
-      multStore.getState().load({
-        levelNumber: 1,
-        level: { "2dx1d": 100 },
-        totalTrials: TRIALS_PER_LEVEL,
-      });
-      multStore.getState().requestHint();
-      const s = multStore.getState().state;
-      if (s.type !== "playing") throw new Error();
-      multStore.getState().submitAnswer(s.currentOperation.result());
-      const reviewing = multStore.getState().state;
-      if (
-        reviewing.type !== "playing" ||
-        reviewing.playingState.type !== "reviewing"
-      )
-        throw new Error();
-      expect(reviewing.playingState.result.hintShown).toBe(true);
-    });
-
-    it("advance after correct-but-late still records the result and advances (no retry-the-slot)", () => {
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error();
-      const solveTime = s.currentOperation.solveTime();
-      vi.spyOn(Date, "now").mockReturnValue(1_000_000 + solveTime + 1);
-      store.getState().submitAnswer(s.currentOperation.result());
-      store.getState().advance();
-      const next = store.getState().state;
-      if (next.type !== "playing") throw new Error();
-      expect(next.results.length).toBe(1);
-    });
-
-    it("advance after a correct-but-late timeUp also records the result and advances", () => {
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error();
-      store.getState().timeUp(s.currentOperation.result());
-      store.getState().advance();
-      const next = store.getState().state;
-      if (next.type !== "playing") throw new Error();
-      expect(next.results.length).toBe(1);
-    });
-  });
-
-  describe("finishing a game", () => {
-    function playTrials(n: number, correct: boolean, late = false) {
-      for (let i = 0; i < n; i++) {
-        const s = store.getState().state;
-        if (s.type !== "playing") throw new Error("not playing at trial " + i);
-        if (s.playingState.type !== "answering")
-          throw new Error("not answering at trial " + i);
-        // Relative to this trial's own startedAt, not a fixed epoch — solve
-        // times vary across operation types (this level mixes addition and
-        // multiplication), so a fixed offset drifts out of sync after a few
-        // consecutive late trials.
-        const { startedAt } = s.playingState;
-        const solveTime = s.currentOperation.solveTime();
-        vi.spyOn(Date, "now").mockReturnValue(
-          late ? startedAt + solveTime + 1 : startedAt,
-        );
-        if (correct) {
-          store.getState().submitAnswer(s.currentOperation.result());
-        } else {
-          store.getState().submitAnswer(s.currentOperation.result() + 99);
-        }
-        // Advance from reviewing
-        const after = store.getState().state;
-        if (
-          after.type === "playing" &&
-          after.playingState.type === "reviewing"
-        ) {
-          store.getState().advance();
-        }
-      }
-    }
-
-    it("transitions to finished after 20 counting trials", () => {
-      store.getState().load(makeConfig());
-      playTrials(20, true);
-      expect(store.getState().state.type).toBe("finished");
-    });
-
-    it("computes correctCount correctly", () => {
-      store.getState().load(makeConfig());
-      playTrials(15, true); // 15 correct
-      playTrials(5, false); // 5 wrong
-      const s = store.getState().state;
-      expect(s.type).toBe("finished");
-      if (s.type !== "finished") return;
-      expect(s.correctCount).toBe(15);
-      expect(s.levelCompleted).toBe(true);
-      expect(s.stars).toBe(1);
-    });
-
-    it("levelCompleted=false when correctCount < 15", () => {
-      store.getState().load(makeConfig());
-      playTrials(14, true);
-      playTrials(6, false);
-      const s = store.getState().state;
-      if (s.type !== "finished") throw new Error();
-      expect(s.levelCompleted).toBe(false);
-      expect(s.stars).toBe(0);
-    });
-
-    it("correct-but-late trials count toward correctCount, same as any other correct trial", () => {
-      store.getState().load(makeConfig());
-      playTrials(10, true, true); // 10 correct-but-late — still count
-      playTrials(10, false, false); // 10 wrong (completes the 20 trials)
-      const s = store.getState().state;
-      if (s.type !== "finished")
-        throw new Error("expected finished, got " + s.type);
-      expect(s.correctCount).toBe(10);
-    });
-
-    it("every outcome consumes a slot — the player always sees exactly 20 trials", () => {
-      store.getState().load(makeConfig());
-      playTrials(5, true, true); // 5 correct-but-late — still consumes a slot, still counts as correct
-      playTrials(15, true, false); // 15 correct-and-fast
-      const s = store.getState().state;
-      if (s.type !== "finished")
-        throw new Error("expected finished, got " + s.type);
-      expect(s.results.length).toBe(20);
-      expect(s.correctCount).toBe(20);
-    });
-
-    it("replay() restarts from finished", () => {
-      store.getState().load(makeConfig());
-      playTrials(20, false);
-      expect(store.getState().state.type).toBe("finished");
-      store.getState().replay();
-      expect(store.getState().state.type).toBe("playing");
-    });
-
-    it("reset() returns to loading", () => {
-      store.getState().load(makeConfig());
-      playTrials(20, false);
-      store.getState().reset();
-      expect(store.getState().state.type).toBe("loading");
-    });
+    expect(replayed.hintsRemaining).toBe(HINTS_PER_LEVEL);
   });
 });
