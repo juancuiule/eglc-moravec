@@ -4,11 +4,7 @@ vi.mock("../api/Api", () => ({ Api: { syncResults: vi.fn() } }));
 
 import { Addition, TrialResult } from "engine";
 import { Api } from "../api/Api";
-import type { GameConfig } from "../game/index";
-import { computePlayedAtTimestamps } from "../storage/playedAt";
 import { pushResults } from "./pushResults";
-
-const NOW = new Date("2026-01-01T00:00:00.000Z").getTime();
 
 function makeResult(): TrialResult {
   const op = Addition.create({
@@ -27,49 +23,32 @@ function makeResult(): TrialResult {
   };
 }
 
-const config: GameConfig = {
-  levelNumber: 3,
-  level: { "1d+1d": 100 },
-  totalTrials: 20,
-};
-
 describe("pushResults", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(Date, "now").mockReturnValue(NOW);
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-4111-8111-111111111111",
-    );
   });
 
-  it("builds the wire payload and calls Api.syncResults", () => {
-    const result = makeResult();
+  it("passes a level policy through to Api.syncResults", () => {
     vi.mocked(Api.syncResults).mockResolvedValue({ trials: [] });
 
-    pushResults("tok", config, [result], "run-abc");
+    pushResults("tok", 3, [makeResult()], "run-abc");
 
-    const [playedAt] = computePlayedAtTimestamps([result.timeTaken], NOW);
-    expect(Api.syncResults).toHaveBeenCalledWith("tok", [
-      {
-        id: "11111111-1111-4111-8111-111111111111",
-        runType: "level",
-        levelNumber: 3,
-        categoryCodename: "1d+1d",
-        operands: result.operation.operands(),
-        answer: result.answer,
-        timeTaken: 1200,
-        playedAt,
-        hintShown: false,
-        runId: "run-abc",
-      },
-    ]);
+    expect(Api.syncResults).toHaveBeenCalledTimes(1);
+    const [token, payload] = vi.mocked(Api.syncResults).mock.calls[0];
+    expect(token).toBe("tok");
+    expect(payload).toHaveLength(1);
+    expect(payload[0]).toMatchObject({
+      runType: "level",
+      levelNumber: 3,
+      runId: "run-abc",
+    });
   });
 
   it("is fire-and-forget — a rejected call never throws", () => {
     vi.mocked(Api.syncResults).mockRejectedValue(new Error("network down"));
 
     expect(() =>
-      pushResults("tok", config, [makeResult()], "run-abc"),
+      pushResults("tok", 3, [makeResult()], "run-abc"),
     ).not.toThrow();
   });
 });

@@ -5,11 +5,8 @@ vi.mock("../api/Api", () => ({ Api: { syncResults: vi.fn() } }));
 import { pushPracticeResults } from "./pushPracticeResults";
 import { Api } from "../api/Api";
 import { Addition, type TrialResult } from "engine";
-import { computePlayedAtTimestamps } from "../storage/playedAt";
 
-const NOW = new Date("2026-01-01T00:00:00.000Z").getTime();
-
-function makeResult(overrides: Partial<TrialResult> = {}): TrialResult {
+function makeResult(): TrialResult {
   const op = Addition.create({
     type: "addition",
     codename: "1d+1d",
@@ -23,40 +20,28 @@ function makeResult(overrides: Partial<TrialResult> = {}): TrialResult {
     timeExceeded: false,
     timeTaken: 800,
     hintShown: false,
-    ...overrides,
   };
 }
 
 describe("pushPracticeResults", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(Date, "now").mockReturnValue(NOW);
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-4111-8111-111111111111",
-    );
   });
 
-  it("builds the wire payload with runType practice and a null levelNumber", () => {
-    const result = makeResult();
+  it("passes a practice policy (null levelNumber) through to Api.syncResults", () => {
     vi.mocked(Api.syncResults).mockResolvedValue({ trials: [] });
 
-    pushPracticeResults("tok", [result], "practice-run-abc");
+    pushPracticeResults("tok", [makeResult()], "practice-run-abc");
 
-    const [playedAt] = computePlayedAtTimestamps([result.timeTaken], NOW);
-    expect(Api.syncResults).toHaveBeenCalledWith("tok", [
-      {
-        id: "11111111-1111-4111-8111-111111111111",
-        runType: "practice",
-        levelNumber: null,
-        categoryCodename: "1d+1d",
-        operands: result.operation.operands(),
-        answer: result.answer,
-        timeTaken: 800,
-        playedAt,
-        hintShown: false,
-        runId: "practice-run-abc",
-      },
-    ]);
+    expect(Api.syncResults).toHaveBeenCalledTimes(1);
+    const [token, payload] = vi.mocked(Api.syncResults).mock.calls[0];
+    expect(token).toBe("tok");
+    expect(payload).toHaveLength(1);
+    expect(payload[0]).toMatchObject({
+      runType: "practice",
+      levelNumber: null,
+      runId: "practice-run-abc",
+    });
   });
 
   it("is fire-and-forget — a rejected call never throws", () => {

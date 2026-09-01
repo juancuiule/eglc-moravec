@@ -4,7 +4,8 @@ import {
   starsForScore,
 } from "./levelScoring";
 import { reconstructOperation } from "./operations/index";
-import { Trial } from "./trial/engine";
+import { computePlayedAtTimestamps } from "./playedAt";
+import { Trial, type TrialResult } from "./trial/engine";
 import * as z from "zod";
 
 export const TrialResultSchema = z.object({
@@ -33,6 +34,37 @@ export function parseTrialResults(body: unknown): TrialResultInput[] | null {
   })
     ? trials
     : null;
+}
+
+export type TrialResultPolicy = {
+  runType: "level" | "practice";
+  levelNumber: number | null;
+  runId: string;
+};
+
+export function toTrialResultInputs(
+  results: TrialResult[],
+  policy: TrialResultPolicy,
+  now: number,
+  generateId: () => string = () => crypto.randomUUID(),
+): TrialResultInput[] {
+  const playedAtTimestamps = computePlayedAtTimestamps(
+    results.map((r) => r.timeTaken),
+    now,
+  );
+
+  return results.map((r, i) => ({
+    id: generateId(),
+    runType: policy.runType,
+    levelNumber: policy.levelNumber,
+    categoryCodename: r.operation.categoryCodename(),
+    operands: r.operation.operands(),
+    answer: r.answer,
+    timeTaken: r.timeTaken,
+    playedAt: playedAtTimestamps[i],
+    hintShown: r.hintShown,
+    runId: policy.runId,
+  }));
 }
 
 export type EvaluatedTrialResult = TrialResultInput & {

@@ -98,7 +98,7 @@ describe("persistFinishedLevel", () => {
 
     expect(pushResults).toHaveBeenCalledWith(
       "tok123",
-      state.config,
+      state.config.levelNumber,
       state.results,
       state.runId,
     );
@@ -110,7 +110,7 @@ describe("persistFinishedLevel", () => {
 
     expect(pushResults).toHaveBeenCalledWith(
       "anon-tok",
-      state.config,
+      state.config.levelNumber,
       state.results,
       state.runId,
     );

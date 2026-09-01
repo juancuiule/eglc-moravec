@@ -30,9 +30,11 @@ export {
 export {
   TrialResultSchema,
   evaluateTrialResult,
+  toTrialResultInputs,
   deriveLevelStats,
   type LevelStats,
   type TrialResultInput,
+  type TrialResultPolicy,
   type EvaluatedTrialResult,
 } from "./logic";
 

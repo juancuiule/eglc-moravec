@@ -1,6 +1,5 @@
-import type { TrialResult, TrialResultInput } from "engine";
+import { toTrialResultInputs, type TrialResult } from "engine";
 import { Api } from "../api/Api";
-import { computePlayedAtTimestamps } from "../storage/playedAt";
 
 /**
  * Fire-and-forget Sync push for a stopped Practice session — mirrors
@@ -11,23 +10,11 @@ export function pushPracticeResults(
   results: TrialResult[],
   runId: string,
 ): void {
-  const playedAtTimestamps = computePlayedAtTimestamps(
-    results.map((r) => r.timeTaken),
+  const payload = toTrialResultInputs(
+    results,
+    { runType: "practice", levelNumber: null, runId },
     Date.now(),
   );
-
-  const payload: TrialResultInput[] = results.map((r, i) => ({
-    id: crypto.randomUUID(),
-    runType: "practice",
-    levelNumber: null,
-    categoryCodename: r.operation.categoryCodename(),
-    operands: r.operation.operands(),
-    answer: r.answer,
-    timeTaken: r.timeTaken,
-    playedAt: playedAtTimestamps[i],
-    hintShown: r.hintShown,
-    runId,
-  }));
 
   void Api.syncResults(token, payload).catch(() => {
     // best-effort; a failed sync never blocks or interrupts play

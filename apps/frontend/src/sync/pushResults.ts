@@ -1,7 +1,5 @@
-import { TrialResult, type TrialResultInput } from "engine";
+import { toTrialResultInputs, type TrialResult } from "engine";
 import { Api } from "../api/Api";
-import type { GameConfig } from "../game/index";
-import { computePlayedAtTimestamps } from "../storage/playedAt";
 
 /**
  * Fire-and-forget Sync push for a finished Level, calling Api.syncResults
@@ -14,27 +12,15 @@ import { computePlayedAtTimestamps } from "../storage/playedAt";
  */
 export function pushResults(
   token: string,
-  config: GameConfig,
+  levelNumber: number,
   results: TrialResult[],
   runId: string,
 ): void {
-  const playedAtTimestamps = computePlayedAtTimestamps(
-    results.map((r) => r.timeTaken),
+  const payload = toTrialResultInputs(
+    results,
+    { runType: "level", levelNumber, runId },
     Date.now(),
   );
-
-  const payload: TrialResultInput[] = results.map((r, i) => ({
-    id: crypto.randomUUID(),
-    runType: "level",
-    levelNumber: config.levelNumber,
-    categoryCodename: r.operation.categoryCodename(),
-    operands: r.operation.operands(),
-    answer: r.answer,
-    timeTaken: r.timeTaken,
-    playedAt: playedAtTimestamps[i],
-    hintShown: r.hintShown,
-    runId,
-  }));
 
   void Api.syncResults(token, payload).catch(() => {
     // best-effort; a failed sync never blocks or interrupts play

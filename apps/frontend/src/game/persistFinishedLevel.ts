@@ -29,7 +29,7 @@ export function persistFinishedLevel(
   const isNewRecord = isBetterLevelRecord({ stars, totalTime }, previousRecord);
 
   if (authState.type !== "logged-out") {
-    pushResults(authState.token, config, results, state.runId);
+    pushResults(authState.token, config.levelNumber, results, state.runId);
   }
 
   return isNewRecord;
