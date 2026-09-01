@@ -1,7 +1,7 @@
-export const LEVEL_COMPLETE_THRESHOLD = 3;
+export const LEVEL_COMPLETE_THRESHOLD = 15;
 
 export const TOTAL_LEVELS = 150;
-export const TRIALS_PER_LEVEL = 5;
+export const TRIALS_PER_LEVEL = 20;
 
 export function starsForScore(correctCount: number): 0 | 1 | 2 | 3 {
   if (correctCount >= 20) return 3;
