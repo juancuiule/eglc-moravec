@@ -135,3 +135,38 @@ test("revisiting the same level after finishing it starts a fresh run, not the s
     expect(state.trialId).toBe(0);
   }
 });
+
+test("a same-mount Replay's New record badge reflects the just-finished run, not a stale stats prop", () => {
+  vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+
+  function finishAllCorrect() {
+    for (let i = 0; i < TRIALS_PER_LEVEL; i++) {
+      const state = gameStore.getState().state;
+      if (state.type !== "playing") throw new Error("not playing");
+      act(() => {
+        gameStore.getState().submitAnswer(state.currentOperation.result());
+        gameStore.getState().advance();
+      });
+    }
+  }
+
+  const { getByText, queryByText } = renderWithQueryClient(
+    <LevelPlay stats={{}} levelNumber={1} level={level1} />,
+  );
+
+  finishAllCorrect();
+  const firstFinished = gameStore.getState().state;
+  if (firstFinished.type !== "finished") throw new Error();
+  expect(getByText("New record!")).toBeDefined();
+
+  // Same-mount Replay — stats={{}} never changes, so if isNewRecord were
+  // still compared against the original page-load prop, this would show
+  // "New record!" again despite tying the run it should be compared to.
+  act(() => {
+    gameStore.getState().start(firstFinished.config);
+  });
+  finishAllCorrect();
+
+  expect(gameStore.getState().state.type).toBe("finished");
+  expect(queryByText("New record!")).toBeNull();
+});

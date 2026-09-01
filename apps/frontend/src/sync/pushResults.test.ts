@@ -51,4 +51,20 @@ describe("pushResults", () => {
       pushResults("tok", 3, [makeResult()], "run-abc"),
     ).not.toThrow();
   });
+
+  it("returns a promise that resolves even when the underlying push fails", async () => {
+    vi.mocked(Api.syncResults).mockRejectedValue(new Error("network down"));
+
+    await expect(
+      pushResults("tok", 3, [makeResult()], "run-abc"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("returns a promise that resolves once the push succeeds — a caller can chain off it", async () => {
+    vi.mocked(Api.syncResults).mockResolvedValue({ trials: [] });
+
+    await expect(
+      pushResults("tok", 3, [makeResult()], "run-abc"),
+    ).resolves.toBeUndefined();
+  });
 });

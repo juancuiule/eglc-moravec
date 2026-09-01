@@ -9,20 +9,28 @@ import { Api } from "../api/Api";
  * backend is the only store of record), so `id`/`playedAt` are derived
  * here instead. Never awaited by the caller — a slow or failed request
  * must never delay or interrupt play.
+ *
+ * Returns a promise (always resolving, push failures are swallowed here as
+ * before) so a caller that wants to chain something onto "the push has
+ * actually landed" — see persistFinishedLevel.ts — can, without forcing
+ * every other caller to await it.
  */
 export function pushResults(
   token: string,
   levelNumber: number,
   results: TrialResult[],
   runId: string,
-): void {
+): Promise<void> {
   const payload = toTrialResultInputs(
     results,
     { runType: "level", levelNumber, runId },
     Date.now(),
   );
 
-  void Api.syncResults(token, payload).catch(() => {
-    // best-effort; a failed sync never blocks or interrupts play
-  });
+  return Api.syncResults(token, payload).then(
+    () => undefined,
+    () => {
+      // best-effort; a failed sync never blocks or interrupts play
+    },
+  );
 }

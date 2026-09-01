@@ -1,8 +1,14 @@
 import { isBetterLevelRecord } from "engine";
-import type { LevelStats } from "../api/Api";
+import { Api, type LevelStats } from "../api/Api";
 import type { AuthState } from "../auth/store";
 import { pushResults } from "../sync/pushResults";
 import type { Finished } from "./index";
+
+export type PersistFinishedLevelResult = {
+  isNewRecord: boolean;
+  record: LevelStats;
+  refreshed: Promise<LevelStats>;
+};
 
 /**
  * Syncs a finished Level to the backend for any session at all — anonymous
@@ -12,25 +18,40 @@ import type { Finished } from "./index";
  * fallback (there's no local trial history anymore; the backend is the
  * only store of record), so a run finished during that window is lost.
  *
- * Returns whether this run beat `previousRecord` — FinishedScreen uses this
- * to decide whether to celebrate. There's no local LevelStats cache to read
- * or update anymore (see storage/levelStats.ts's removal — stats are
- * server-derived, fetched fresh, never persisted client-side), so the
- * caller passes in whatever record it already fetched for this level.
+ * Returns two things:
+ * - `isNewRecord`/`record`: an immediate, local comparison against
+ *   `previousRecord` — for this render's badge, and as the caller's
+ *   ratchet value for a same-mount Replay. Never blocks.
+ * - `refreshed`: resolves to the server-confirmed record once the push
+ *   has actually landed and a fresh fetch confirms it — covers a record
+ *   set on another device mid-session, which the local comparison alone
+ *   can't see. Fire-and-forget, same as the push itself: callers should
+ *   never await this before rendering, only use it to correct state
+ *   later. When logged out (nothing was pushed), resolves to `record`
+ *   unchanged rather than rejecting.
  */
 export function persistFinishedLevel(
   state: Finished,
   authState: AuthState,
   previousRecord: LevelStats | undefined,
-): boolean {
+): PersistFinishedLevelResult {
   const { config, results, stars } = state;
   const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
 
   const isNewRecord = isBetterLevelRecord({ stars, totalTime }, previousRecord);
+  const thisRun: LevelStats = {
+    stars,
+    totalTime,
+    completedAt: new Date().toISOString(),
+  };
+  const record = isNewRecord ? thisRun : (previousRecord ?? thisRun);
 
-  if (authState.type !== "logged-out") {
-    pushResults(authState.token, config.levelNumber, results, state.runId);
-  }
+  const refreshed =
+    authState.type !== "logged-out"
+      ? pushResults(authState.token, config.levelNumber, results, state.runId)
+          .then(() => Api.fetchLevelStats(authState.token))
+          .then((levelStats) => levelStats[String(config.levelNumber)])
+      : Promise.resolve(record);
 
-  return isNewRecord;
+  return { isNewRecord, record, refreshed };
 }

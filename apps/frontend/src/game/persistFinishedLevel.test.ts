@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../sync/pushResults", () => ({
-  pushResults: vi.fn(),
+  pushResults: vi.fn(() => Promise.resolve()),
+}));
+vi.mock("../api/Api", () => ({
+  Api: { fetchLevelStats: vi.fn() },
 }));
 
 import { persistFinishedLevel } from "./persistFinishedLevel";
 import { pushResults } from "../sync/pushResults";
+import { Api } from "../api/Api";
 import { Addition, type TrialResult } from "engine";
 import type { Level } from "../level";
 import type { Finished } from "./index";
@@ -56,40 +60,101 @@ const loggedIn: AuthState = {
 describe("persistFinishedLevel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(pushResults).mockResolvedValue(undefined);
+    vi.mocked(Api.fetchLevelStats).mockResolvedValue({});
   });
 
-  it("returns true when there's no previous record for the level", () => {
-    expect(persistFinishedLevel(makeFinished(), loggedOut, undefined)).toBe(
-      true,
-    );
+  it("isNewRecord is true when there's no previous record for the level", () => {
+    expect(
+      persistFinishedLevel(makeFinished(), loggedOut, undefined).isNewRecord,
+    ).toBe(true);
   });
 
-  it("returns true when this run beats the previous record (more stars)", () => {
+  it("isNewRecord is true when this run beats the previous record (more stars)", () => {
     const previousRecord: LevelStats = {
       stars: 1,
       totalTime: 5000,
       completedAt: "x",
     };
     expect(
-      persistFinishedLevel(makeFinished(), loggedOut, previousRecord),
+      persistFinishedLevel(makeFinished(), loggedOut, previousRecord)
+        .isNewRecord,
     ).toBe(true); // this run: 2 stars
   });
 
-  it("returns false when this run does not beat the previous record", () => {
+  it("isNewRecord is false when this run does not beat the previous record", () => {
     const previousRecord: LevelStats = {
       stars: 3,
       totalTime: 5000,
       completedAt: "x",
     };
     expect(
-      persistFinishedLevel(makeFinished(), loggedOut, previousRecord),
+      persistFinishedLevel(makeFinished(), loggedOut, previousRecord)
+        .isNewRecord,
     ).toBe(false); // this run: 2 stars
+  });
+
+  it("record carries this run's stars/totalTime when it's a new record", () => {
+    const { record } = persistFinishedLevel(
+      makeFinished(),
+      loggedOut,
+      undefined,
+    );
+    expect(record.stars).toBe(2);
+    expect(record.totalTime).toBe(2500); // 1000 + 1500
+  });
+
+  it("record stays the previous record unchanged when this run doesn't beat it", () => {
+    const previousRecord: LevelStats = {
+      stars: 3,
+      totalTime: 5000,
+      completedAt: "x",
+    };
+    const { record } = persistFinishedLevel(
+      makeFinished(),
+      loggedOut,
+      previousRecord,
+    );
+    expect(record).toBe(previousRecord);
+  });
+
+  it("ratchets across two calls — the second call's isNewRecord reflects the first call's own result", () => {
+    const first = persistFinishedLevel(makeFinished(), loggedOut, undefined);
+    expect(first.isNewRecord).toBe(true); // 2 stars, no previous record
+
+    // A second, better run (3 stars) — compared against the FIRST call's
+    // own returned record, not the original (undefined) previousRecord.
+    const secondFinished: Finished = { ...makeFinished(), stars: 3 };
+    const second = persistFinishedLevel(
+      secondFinished,
+      loggedOut,
+      first.record,
+    );
+    expect(second.isNewRecord).toBe(true);
+
+    // A third run, same as the first (2 stars) — now loses against the
+    // ratcheted best (3 stars), proving the ratchet actually took hold.
+    const third = persistFinishedLevel(
+      makeFinished(),
+      loggedOut,
+      second.record,
+    );
+    expect(third.isNewRecord).toBe(false);
   });
 
   it("does not sync to the backend when logged out", () => {
     persistFinishedLevel(makeFinished(), loggedOut, undefined);
 
     expect(pushResults).not.toHaveBeenCalled();
+  });
+
+  it("refreshed resolves to the unchanged record when logged out — nothing was pushed", async () => {
+    const { record, refreshed } = persistFinishedLevel(
+      makeFinished(),
+      loggedOut,
+      undefined,
+    );
+    await expect(refreshed).resolves.toBe(record);
   });
 
   it("syncs results when logged in", () => {
@@ -114,5 +179,32 @@ describe("persistFinishedLevel", () => {
       state.results,
       state.runId,
     );
+  });
+
+  it("refreshed resolves to the server-confirmed record once the push lands and a fetch confirms it", async () => {
+    const state = makeFinished();
+    const serverRecord: LevelStats = {
+      stars: 3,
+      totalTime: 2000,
+      completedAt: "2026-01-01T00:00:00.000Z",
+    };
+    vi.mocked(Api.fetchLevelStats).mockResolvedValue({
+      [String(state.config.levelNumber)]: serverRecord,
+    });
+
+    const { refreshed } = persistFinishedLevel(state, loggedIn, undefined);
+    await expect(refreshed).resolves.toEqual(serverRecord);
+    expect(Api.fetchLevelStats).toHaveBeenCalledWith("tok123");
+  });
+
+  it("refreshed rejects when the follow-up fetch fails", async () => {
+    vi.mocked(Api.fetchLevelStats).mockRejectedValue(new Error("network down"));
+
+    const { refreshed } = persistFinishedLevel(
+      makeFinished(),
+      loggedIn,
+      undefined,
+    );
+    await expect(refreshed).rejects.toThrow("network down");
   });
 });
