@@ -15,7 +15,7 @@ export async function sendOtpEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Moravec <login@moravec.app>",
+      from: "Moravec <login@elgatoylacaja.com>",
       to,
       subject: "Your Moravec login code",
       text: `Your code is ${code}. It expires in 5 minutes.`,
