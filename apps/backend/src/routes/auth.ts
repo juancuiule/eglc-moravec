@@ -1,13 +1,13 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
-import { generateOtp, generateSessionToken } from "../auth/crypto";
-import { sendOtpEmail } from "../auth/email";
+import { generateOtp, generateSessionToken } from "../auth/crypto.js";
+import { sendOtpEmail } from "../auth/email.js";
 import {
   hashDeviceId,
   hashEmail,
   isOtpValid,
   normalizeEmail,
-} from "../auth/logic";
+} from "../auth/logic.js";
 import {
   createSession,
   deleteOtpRow,
@@ -18,15 +18,15 @@ import {
   reserveOtpSlot,
   restoreOtpRow,
   upsertUser,
-} from "../auth/repo";
+} from "../auth/repo.js";
 import {
   bearerToken,
   requireEmailHash,
   resolveEmailHash,
-} from "../auth/session";
+} from "../auth/session.js";
 import type { Config } from "../config";
-import { parseBody } from "../parser";
-import { mergeAnonymousIdentity } from "../sync/repo";
+import { parseBody } from "../parser.js";
+import { mergeAnonymousIdentity } from "../sync/repo.js";
 
 import * as z from "zod";
 

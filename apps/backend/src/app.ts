@@ -2,10 +2,10 @@ import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
 import type { Config } from "./config";
-import { registerAuthRoutes } from "./routes/auth";
-import { registerHealthRoute } from "./routes/health";
-import { registerLevelsRoutes } from "./routes/levels";
-import { registerSyncRoutes } from "./routes/sync";
+import { registerAuthRoutes } from "./routes/auth.js";
+import { registerHealthRoute } from "./routes/health.js";
+import { registerLevelsRoutes } from "./routes/levels.js";
+import { registerSyncRoutes } from "./routes/sync.js";
 
 export function buildApp(db: DatabaseSync, config: Config): FastifyInstance {
   const app = Fastify({

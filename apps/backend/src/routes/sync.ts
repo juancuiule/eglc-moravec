@@ -6,13 +6,13 @@ import {
 import type { FastifyInstance } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
 import * as z from "zod";
-import { requireEmailHash } from "../auth/session";
-import { parseBody } from "../parser";
+import { requireEmailHash } from "../auth/session.js";
+import { parseBody } from "../parser.js";
 import {
   getTrialResultsForUser,
   insertTrialResults,
   type TrialResultRow,
-} from "../sync/repo";
+} from "../sync/repo.js";
 
 export function registerSyncRoutes(
   app: FastifyInstance,
