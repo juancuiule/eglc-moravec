@@ -1,5 +1,6 @@
 "use client";
 
+import { canShowHint } from "engine";
 import type { Playing } from "../game/index";
 import { useGame } from "../game/store";
 import { hintButton } from "../styles";
@@ -15,10 +16,11 @@ export function AnsweringView({ state }: Props) {
 
   const isReviewing = state.playingState.type === "reviewing";
   const hintDisabled =
-    !state.currentOperation.hint().hasHint() ||
-    state.hintVisible ||
-    (state.hintsRemaining === 0 && !state.hintVisible) ||
-    isReviewing;
+    !canShowHint(
+      state.hintVisible,
+      state.currentOperation.hint().hasHint(),
+      state.hintsRemaining,
+    ) || isReviewing;
 
   return (
     <AnsweringPanel

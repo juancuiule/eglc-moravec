@@ -1,5 +1,6 @@
 "use client";
 
+import { canShowHint } from "engine";
 import type { PracticePlaying } from "../practice/index";
 import { usePractice } from "../practice/store";
 import { AnsweringPanel } from "./AnsweringPanel";
@@ -16,6 +17,9 @@ export function PracticePlayingScreen({ state }: Props) {
 
   const isReviewing = state.playingState.type === "reviewing";
   const hint = state.currentOperation.hint();
+  const hintDisabled =
+    !canShowHint(state.hintVisible, hint.hasHint(), state.hintsRemaining) ||
+    isReviewing;
   const correctCount = state.results.filter((r) => r.correct).length;
   const totalDone = state.results.length;
 
@@ -47,10 +51,10 @@ export function PracticePlayingScreen({ state }: Props) {
         <div className="flex items-center gap-2">
           {hint.hasHint() && (
             <button
-              disabled={state.hintVisible || isReviewing}
+              disabled={hintDisabled}
               onClick={requestHint}
               className={hintButton({
-                disabled: state.hintVisible || isReviewing,
+                disabled: hintDisabled,
               })}
             >
               Hint
