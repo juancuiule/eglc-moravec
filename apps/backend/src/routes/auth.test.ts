@@ -11,6 +11,7 @@ import { getTrialResultsForUser } from "../sync/repo.js";
 
 const TEST_SECRET = "test-secret";
 const EMAIL = "player@example.com";
+const DEVICE_ID = randomUUID();
 
 function setup(env: NodeJS.ProcessEnv = {}): {
   db: DatabaseSync;
@@ -43,7 +44,7 @@ const trial = {
   operands: [4, 5],
   answer: 9,
   hintShown: false,
-  runId: "run-1",
+  runId: randomUUID(),
   runType: "level" as const,
 };
 
@@ -266,7 +267,7 @@ describe("POST /auth/device", () => {
     const res = await app.inject({
       method: "POST",
       url: "/auth/device",
-      payload: { deviceId: "device-1" },
+      payload: { deviceId: DEVICE_ID },
     });
     expect(res.statusCode).toBe(200);
     expect(typeof res.json().token).toBe("string");
@@ -287,12 +288,12 @@ describe("POST /auth/device", () => {
     const res1 = await app.inject({
       method: "POST",
       url: "/auth/device",
-      payload: { deviceId: "device-1" },
+      payload: { deviceId: DEVICE_ID },
     });
     const res2 = await app.inject({
       method: "POST",
       url: "/auth/device",
-      payload: { deviceId: "device-1" },
+      payload: { deviceId: DEVICE_ID },
     });
     const token1 = res1.json().token as string;
     const token2 = res2.json().token as string;
@@ -308,10 +309,12 @@ describe("POST /auth/device", () => {
       method: "POST",
       url: "/sync/results",
       headers: { authorization: `Bearer ${token2}` },
-      payload: { trials: [{ ...trial, id: randomUUID(), runId: "run-2" }] },
+      payload: {
+        trials: [{ ...trial, id: randomUUID(), runId: randomUUID() }],
+      },
     });
 
-    const deviceEmailHash = hashDeviceId("device-1", TEST_SECRET);
+    const deviceEmailHash = hashDeviceId(DEVICE_ID, TEST_SECRET);
     expect(getTrialResultsForUser(db, deviceEmailHash)).toHaveLength(2);
   });
 });
@@ -323,7 +326,7 @@ describe("anonymous → email upgrade merge", () => {
     const deviceRes = await app.inject({
       method: "POST",
       url: "/auth/device",
-      payload: { deviceId: "device-1" },
+      payload: { deviceId: DEVICE_ID },
     });
     const anonToken = deviceRes.json().token as string;
 

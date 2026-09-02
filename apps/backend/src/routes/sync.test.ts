@@ -11,6 +11,9 @@ import { hashEmail } from "../auth/logic.js";
 
 const TEST_SECRET = "test-secret";
 const EMAIL = "player@example.com";
+const RUN_ID = randomUUID();
+const PRACTICE_RUN_ID = randomUUID();
+const OTHER_DEVICE_ID = randomUUID();
 
 function setup(): { db: DatabaseSync; app: FastifyInstance } {
   const db = openDb(":memory:");
@@ -46,7 +49,7 @@ const trial = {
   operands: [12, 5], // 12 * 5 = 60
   answer: 60,
   hintShown: true,
-  runId: "run-xyz",
+  runId: RUN_ID,
   runType: "level" as const,
 };
 
@@ -63,7 +66,10 @@ describe("POST /sync/results", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ ok: true, stored: 1 });
+    expect(res.json()).toEqual({
+      ok: true,
+      trials: [{ ...trial, correct: true, timeExceeded: false }],
+    });
 
     const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(rows).toHaveLength(1);
@@ -76,7 +82,7 @@ describe("POST /sync/results", () => {
       time_taken: 3400,
       played_at: 1_700_000_000_000,
       hint_shown: 1,
-      run_id: "run-xyz",
+      run_id: RUN_ID,
       run_type: "level",
     });
     expect(JSON.parse(rows[0].operands)).toEqual([12, 5]);
@@ -159,7 +165,10 @@ describe("POST /sync/results", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ ok: true, stored: 1 });
+    expect(res.json()).toEqual({
+      ok: true,
+      trials: [{ ...mismatchedTrial, correct: false, timeExceeded: false }],
+    });
 
     const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(rows[0]).toMatchObject({
@@ -329,7 +338,7 @@ const practiceTrial = {
   operands: [3, 4],
   answer: 12,
   hintShown: false,
-  runId: "practice-run-1",
+  runId: PRACTICE_RUN_ID,
   runType: "practice" as const,
 };
 
@@ -351,7 +360,7 @@ describe("POST /sync/results with Practice trials", () => {
     expect(rows[0]).toMatchObject({
       level_number: 0,
       run_type: "practice",
-      run_id: "practice-run-1",
+      run_id: PRACTICE_RUN_ID,
       category_codename: "1dx1d",
     });
   });
@@ -472,7 +481,7 @@ describe("GET /sync/trials", () => {
     const otherRes = await app.inject({
       method: "POST",
       url: "/auth/device",
-      payload: { deviceId: "d2" },
+      payload: { deviceId: OTHER_DEVICE_ID },
     });
     const otherToken = otherRes.json().token as string;
 

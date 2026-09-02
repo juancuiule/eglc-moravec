@@ -74,7 +74,7 @@ describe("global error handler", () => {
       operands: [1, 2],
       answer: 3,
       hintShown: false,
-      runId: "run-1",
+      runId: randomUUID(),
       runType: "level" as const,
     };
 
