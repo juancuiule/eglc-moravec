@@ -62,7 +62,7 @@ export function PracticePlayingScreen({ state }: Props) {
           )}
           <button
             onClick={stop}
-            className="text-muted hover:text-foreground transition-colors text-xs font-medium cursor-pointer"
+            className="text-muted hover:text-foreground transition-colors text-xs font-medium cursor-pointer touch-manipulation px-2 py-1.5"
           >
             Stop
           </button>

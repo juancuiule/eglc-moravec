@@ -206,7 +206,7 @@ export function AnsweringPanel({
                 onClick={() => handleButton(key)}
                 aria-label={KEY_LABELS[key]}
                 className={[
-                  "h-14 rounded-xl font-semibold text-xl cursor-pointer select-none",
+                  "h-14 rounded-xl font-semibold text-xl cursor-pointer select-none touch-manipulation",
                   "transition-all duration-100",
                   isAction
                     ? "bg-subtle text-muted hover:bg-subtle-accent"
@@ -221,7 +221,7 @@ export function AnsweringPanel({
         </div>
 
         <button
-          className="cursor-pointer bg-teal text-white w-full rounded-xl py-3 font-semibold text-lg hover:opacity-90 active:scale-96 disabled:opacity-30 disabled:cursor-not-allowed transition-[opacity,scale] duration-150"
+          className="cursor-pointer touch-manipulation bg-teal text-white w-full rounded-xl py-3 font-semibold text-lg hover:opacity-90 active:scale-96 disabled:opacity-30 disabled:cursor-not-allowed transition-[opacity,scale] duration-150"
           disabled={!answer}
           onClick={doSubmit}
         >

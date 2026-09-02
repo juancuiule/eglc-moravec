@@ -128,13 +128,13 @@ export function TutorialDetail({ topic }: Props) {
             <div className="flex gap-4 mt-1">
               <button
                 onClick={() => setRevealed((r) => !r)}
-                className="text-xs text-accent-text hover:underline cursor-pointer"
+                className="text-xs text-accent-text hover:underline cursor-pointer touch-manipulation px-1 py-2"
               >
                 {revealed ? "Hide answer" : "Show answer"}
               </button>
               <button
                 onClick={() => newExample()}
-                className="text-xs text-muted hover:text-foreground cursor-pointer"
+                className="text-xs text-muted hover:text-foreground cursor-pointer touch-manipulation px-1 py-2"
               >
                 New example
               </button>
