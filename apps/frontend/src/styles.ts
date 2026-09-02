@@ -19,7 +19,7 @@ export const panel =
 export const panelMaxWidth = "max-w-[480px]";
 
 /** The four button treatments used across the app. Callers add their own layout classes (block, flex-1, text-center, …). */
-export const button = cva("cursor-pointer rounded-lg", {
+export const button = cva("cursor-pointer rounded-lg touch-manipulation", {
   variants: {
     intent: {
       primary:
@@ -49,16 +49,22 @@ export function linkButton(options: Parameters<typeof button>[0]) {
   return `${button(options)} text-center block`;
 }
 
-/** The "←" back-arrow affordance — used as both a <Link> and a plain onClick button. */
+/**
+ * The "←" back-arrow affordance — used as both a <Link> and a plain onClick
+ * button. Visually just the glyph, but every occurrence sits alone in its
+ * header row (next to a non-interactive heading), so the `after` pseudo-element
+ * gives it a real 44×44px touch target with no risk of overlapping another
+ * control or shifting layout (it's taken out of flow via `absolute`).
+ */
 export const backLink =
-  "text-muted hover:text-foreground transition-colors text-lg leading-none";
+  "relative inline-flex items-center justify-center text-muted hover:text-foreground transition-colors text-lg leading-none touch-manipulation after:absolute after:top-1/2 after:left-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']";
 
 export const textLink =
   "text-muted text-sm hover:text-foreground transition-colors";
 
 /** The in-trial "Hint" button — same disabled/enabled treatment in Level play and Practice. */
 export const hintButton = cva(
-  "text-xs font-medium px-2 py-1 rounded-lg transition-all",
+  "text-xs font-medium px-2 py-1.5 rounded-lg transition-all touch-manipulation",
   {
     variants: {
       disabled: {
