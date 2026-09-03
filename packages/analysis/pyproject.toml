@@ -1,0 +1,22 @@
+[project]
+name = "moravec-analysis"
+version = "0.1.0"
+description = "Reproduces the Moravec paper's arithmetic-cognition analyses against the app's own trial data"
+readme = "README.md"
+authors = [
+    { name = "Juan Ignacio Cuiule", email = "juanchicuiu@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "ipykernel>=7.3.0",
+    "jupyterlab>=4.6.3",
+    "matplotlib>=3.11.1",
+    "numpy>=2.4.6",
+    "pandas>=3.0.5",
+    "scipy>=1.17.1",
+    "statsmodels>=0.15.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
