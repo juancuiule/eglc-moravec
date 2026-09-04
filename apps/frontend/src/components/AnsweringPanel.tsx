@@ -233,8 +233,8 @@ export function AnsweringPanel({
             className={[
               "absolute inset-0 rounded-xl flex flex-col items-center justify-center gap-1 font-semibold",
               result.correct
-                ? "bg-success-bg/95 text-success border border-success-solid"
-                : "bg-danger-bg/95 text-danger border border-danger-border",
+                ? "bg-success-bg text-success border border-success-solid"
+                : "bg-danger-bg text-danger border border-danger-border",
             ].join(" ")}
           >
             <span className="text-3xl">
