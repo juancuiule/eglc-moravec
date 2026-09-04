@@ -10,9 +10,12 @@ export default function HomePage() {
   return (
     <div className={`${panel} p-6 gap-6`}>
       <div className="flex items-center justify-between flex-wrap gap-y-2">
-        <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">
-          Moravec
-        </h1>
+        <div className="flex items-center gap-2">
+          <img src="/moravec.svg" alt="" className="h-8 w-auto" />
+          <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">
+            Moravec
+          </h1>
+        </div>
         <div className="flex items-center flex-wrap justify-end gap-1">
           {authState.type === "logged-in" ? (
             <>

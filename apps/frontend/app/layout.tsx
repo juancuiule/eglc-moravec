@@ -14,6 +14,9 @@ const overpassMono = Overpass_Mono({
 
 export const metadata: Metadata = {
   title: "EGLC Moravec",
+  icons: {
+    icon: "/moravec.svg",
+  },
 };
 
 // viewportFit: "cover" lets content draw under the notch/home indicator on
