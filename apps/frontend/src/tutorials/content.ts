@@ -24,58 +24,22 @@ export const TUTORIAL_TOPICS: TutorialTopic[] = [
   "squaring4d",
 ];
 
-export const TUTORIAL_TITLES: Record<TutorialTopic, string> = {
-  addition: "Addition",
-  multiplication: "Multiplication",
-  squaring2d: "Squaring (2 digits)",
-  squaring3d: "Squaring (3 digits)",
-  squaring4d: "Squaring (4 digits)",
-  majorSystem: "Major System",
-};
-
-/** One-line description shown under the title in the Tutorials list. */
-export const TUTORIAL_SUBTITLES: Record<TutorialTopic, string> = {
-  addition: "Learn to add numbers quickly",
-  multiplication: "Master mental multiplication",
-  squaring2d: "Square 2-digit numbers",
-  squaring3d: "Handle 3-digit squares",
-  squaring4d: "Master 4-digit squares",
-  majorSystem: "Learn the Major System step by step",
-};
-
-// The technique, in plain language — for multiplication and 2-digit
-// squaring this is a description of the exact decomposition the in-game
-// Hint reveals (see engine's MultiplicationHint/SquaringHint). Addition has
-// no Hint at all (Operation's default NoHint), which is itself worth saying.
-export const TUTORIAL_EXPLANATIONS: Record<TutorialTopic, string> = {
-  addition:
-    "Add left to right instead of right to left: add the tens of the second number to the first, then add the remaining units. There's no decomposition trick beyond that — the in-game Hint button won't do anything here.",
-  multiplication:
-    "Multiply left to right too: multiply the tens of the larger operand by the other one, then the units, and add the two results. This is exactly the Hint you'll see in-game if you get stuck.",
-  squaring2d:
-    "Use x² = (x−a)(x+a) + a², choosing a so that x−a and x+a land on numbers you can multiply easily — usually the nearest multiple of ten. This is the same Hint shown in-game.",
-  squaring3d:
-    "Same identity, but round to the nearest hundred instead of ten — a is now a two-digit number. Since a² isn't trivial anymore, apply the same trick to a itself, this time rounding it to the nearest ten.",
-  squaring4d:
-    "Round to the nearest thousand this time. The correction a is now three digits, so squaring it recurses one level deeper — and holding onto its square while you finish the rest of the calculation is exactly where the Major System earns its keep.",
-  majorSystem:
-    "Each digit maps to one or more consonant sounds. String together the consonants for a number's digits, in order, then fill in any vowels you like to spell a real word — vowels carry no value. A memorable word is far easier to hold onto than a bare string of digits. The mapping below is tuned to Spanish consonant sounds, so the example words only work in Spanish — the same reason the game's own \"rhymed-order\" finding is Spanish-specific.",
-};
+// Titles, subtitles, explanations, per-example notes, and the "live
+// example" note all moved to messages/{locale}/tutorials.json (see
+// TutorialsList/TutorialDetail) — they're translatable prose, not data.
+// What's left here is locale-invariant: ids, arithmetic notation, and the
+// Major System's Spanish-phonetic table (kept identical in both locales —
+// see tutorials.json's majorSystem explanation for why).
 
 export type WorkedExample = {
   /** Each line of the derivation, first line is the problem itself. */
   steps: string[];
-  /** A short aside shown after the steps — why this example is harder, or a detail worth calling out. */
-  note?: string;
 };
 
 export const TUTORIAL_EXAMPLES: Record<TutorialTopic, WorkedExample[]> = {
   addition: [
     { steps: ["56 + 21", "= (56 + 20) + 1", "= 76 + 1", "= 77"] },
-    {
-      steps: ["44 + 38", "= (44 + 30) + 8", "= 74 + 8", "= 82"],
-      note: "This one's trickier — the units add up to more than 10.",
-    },
+    { steps: ["44 + 38", "= (44 + 30) + 8", "= 74 + 8", "= 82"] },
   ],
   multiplication: [
     { steps: ["27 × 4", "= (20×4) + (7×4)", "= 80 + 28", "= 108"] },
@@ -101,11 +65,13 @@ export const TUTORIAL_EXAMPLES: Record<TutorialTopic, WorkedExample[]> = {
         "16² = (16+4)(16−4) + 4² = 20×12 + 16 = 256",
         "= 467,600 + 256 = 467,856",
       ],
-      note: "a rounds to the nearest hundred either way — up here, down in the first example.",
     },
   ],
   squaring4d: [
     {
+      // The bracketed word is a Spanish Major System mnemonic by design
+      // (see tutorials.json's majorSystem explanation) — kept identical
+      // in both locales, not translated.
       steps: [
         "6382² = (6382+382)(6382−382) + 382²",
         "= 6764 × 6000 + 382²",
@@ -113,7 +79,6 @@ export const TUTORIAL_EXAMPLES: Record<TutorialTopic, WorkedExample[]> = {
         "382² = (382−2)(382+2) + 2² = 380 × 384 + 4 = 145,924",
         "40,584,000 + 145,924 = 40,729,924",
       ],
-      note: '"lógica" is a real Spanish word — the whole point of the Major System is picking a word that means something, not just any consonant string.',
     },
   ],
   majorSystem: [{ steps: ['"lupa" → L, P → 5, 9 → 59'] }],

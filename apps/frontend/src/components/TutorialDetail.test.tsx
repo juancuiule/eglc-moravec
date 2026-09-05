@@ -1,6 +1,7 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { expect, test } from "vitest";
 import { TutorialDetail } from "./TutorialDetail";
+import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
 test("multiplication has a category selector and a live hint", () => {
   render(<TutorialDetail topic="multiplication" />);
