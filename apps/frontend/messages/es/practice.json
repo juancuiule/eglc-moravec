@@ -1,1 +1,18 @@
-{}
+{
+  "heading": "Practicar",
+  "description": "Elegí una categoría para practicar sin límite. Sin aprobar ni reprobar — solo repeticiones.",
+  "correctOfTotal": "{correct} / {total} correctas",
+  "hint": "Pista",
+  "stop": "Parar",
+  "tooSlow": "Muy lento — ¡seguí así!",
+  "clear": "Borrar todo",
+  "deleteLastDigit": "Borrar el último dígito",
+  "submit": "Enviar",
+  "correct": "Correcto",
+  "timeUp": "Se acabó el tiempo",
+  "wrong": "Incorrecto",
+  "sessionDone": "Sesión terminada",
+  "sessionResult": "{correct} de {total} correctas",
+  "practiceAgain": "Practicar de nuevo",
+  "loading": "Cargando práctica…"
+}

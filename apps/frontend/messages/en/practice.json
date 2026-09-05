@@ -1,1 +1,18 @@
-{}
+{
+  "heading": "Practice",
+  "description": "Pick a category to practice indefinitely. No pass/fail — just reps.",
+  "correctOfTotal": "{correct} / {total} correct",
+  "hint": "Hint",
+  "stop": "Stop",
+  "tooSlow": "Too slow — keep going!",
+  "clear": "Clear",
+  "deleteLastDigit": "Delete last digit",
+  "submit": "Submit",
+  "correct": "Correct",
+  "timeUp": "Time's up",
+  "wrong": "Wrong",
+  "sessionDone": "Session done",
+  "sessionResult": "{correct} of {total} correct",
+  "practiceAgain": "Practice again",
+  "loading": "Loading practice…"
+}

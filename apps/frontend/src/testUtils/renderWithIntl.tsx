@@ -20,5 +20,13 @@ export function IntlTestProvider({ children }: { children: ReactNode }) {
 }
 
 export function renderWithIntl(ui: ReactElement, options?: RenderOptions) {
-  return render(<IntlTestProvider>{ui}</IntlTestProvider>, options);
+  const result = render(<IntlTestProvider>{ui}</IntlTestProvider>, options);
+  return {
+    ...result,
+    // RTL's own `rerender` swaps in whatever element it's given as the new
+    // root, which would otherwise drop the provider on a bare `rerender(<X />)`
+    // call — re-wrap so callers don't have to remember to.
+    rerender: (nextUi: ReactElement) =>
+      result.rerender(<IntlTestProvider>{nextUi}</IntlTestProvider>),
+  };
 }
