@@ -1,0 +1,21 @@
+{
+  "title": "Statistics",
+  "tabLevel": "Level",
+  "tabPractice": "Practice",
+  "loading": "Loading stats…",
+  "loadError": "Couldn't load stats.",
+  "tryAgain": "Try again",
+  "noDataYet": "No data yet",
+  "noDataLevel": "No data yet — <link>complete some levels</link> to see your stats.",
+  "noDataPractice": "No data yet — <link>practice a category</link> to see your stats.",
+  "columnCategory": "Category",
+  "columnEffectiveness": "Effectiveness",
+  "columnAvgTime": "Avg time",
+  "correctOfTotal": "{correct} / {total} correct",
+  "detail": {
+    "backLabel": "Back to statistics",
+    "correctTotal": "{correct} correct · {total} total trials",
+    "noCorrectTrials": "No correct trials yet — <link>practice this category</link>.",
+    "responseTimeDistribution": "Response time distribution"
+  }
+}

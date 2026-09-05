@@ -1,19 +1,19 @@
 import Link from "next/link";
-import {
-  TUTORIAL_TOPICS,
-  TUTORIAL_TITLES,
-  TUTORIAL_SUBTITLES,
-} from "../tutorials/content";
+import { useTranslations } from "next-intl";
+import { TUTORIAL_TOPICS } from "../tutorials/content";
 import { panel, backLink } from "../styles";
 
 export function TutorialsList() {
+  const t = useTranslations("Tutorials");
+  const tCommon = useTranslations("Common");
+
   return (
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
-        <Link href="/" className={backLink} aria-label="Back to menu">
+        <Link href="/" className={backLink} aria-label={tCommon("backToMenu")}>
           ←
         </Link>
-        <h1 className="text-xl font-bold tracking-tight">Tutorials</h1>
+        <h1 className="text-xl font-bold tracking-tight">{t("listTitle")}</h1>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -24,9 +24,11 @@ export function TutorialsList() {
             className="flex items-center justify-between gap-3 rounded-xl px-4 py-3 bg-base border border-subtle hover:border-accent transition-all"
           >
             <span className="flex flex-col">
-              <span className="font-semibold">{TUTORIAL_TITLES[topic]}</span>
+              <span className="font-semibold">
+                {t(`topics.${topic}.title`)}
+              </span>
               <span className="text-xs text-muted">
-                {TUTORIAL_SUBTITLES[topic]}
+                {t(`topics.${topic}.subtitle`)}
               </span>
             </span>
             <span aria-hidden="true" className="text-muted shrink-0">

@@ -1,0 +1,62 @@
+{
+  "listTitle": "Tutoriales",
+  "backToTutorials": "Volver a tutoriales",
+  "topics": {
+    "addition": {
+      "title": "Suma",
+      "subtitle": "Aprendé a sumar rápido",
+      "explanation": "Sumá de izquierda a derecha en vez de derecha a izquierda: sumá las decenas del segundo número al primero, y después sumá las unidades que quedan. No hay ningún truco de descomposición más allá de eso — el botón de Pista no va a hacer nada acá."
+    },
+    "multiplication": {
+      "title": "Multiplicación",
+      "subtitle": "Dominá la multiplicación mental",
+      "explanation": "Multiplicá también de izquierda a derecha: multiplicá las decenas del operando más grande por el otro número, después las unidades, y sumá los dos resultados. Es exactamente la Pista que vas a ver en el juego si te trabás."
+    },
+    "squaring2d": {
+      "title": "Elevar al cuadrado (2 dígitos)",
+      "subtitle": "Elevá al cuadrado números de 2 dígitos",
+      "explanation": "Usá x² = (x−a)(x+a) + a², eligiendo a para que x−a y x+a caigan en números fáciles de multiplicar — generalmente el múltiplo de diez más cercano. Es la misma Pista que se muestra en el juego."
+    },
+    "squaring3d": {
+      "title": "Elevar al cuadrado (3 dígitos)",
+      "subtitle": "Manejá cuadrados de 3 dígitos",
+      "explanation": "Misma identidad, pero redondeando a la centena más cercana en vez de a la decena — a ahora es un número de dos dígitos. Como a² ya no es trivial, aplicá el mismo truco a a, esta vez redondeando a la decena más cercana."
+    },
+    "squaring4d": {
+      "title": "Elevar al cuadrado (4 dígitos)",
+      "subtitle": "Dominá cuadrados de 4 dígitos",
+      "explanation": "Esta vez redondeá al millar más cercano. La corrección a ahora tiene tres dígitos, así que elevarla al cuadrado te lleva un nivel más de recursión — y ahí es donde el Sistema Mayor se gana el lugar, reteniendo ese cuadrado mientras terminás el resto de la cuenta."
+    },
+    "majorSystem": {
+      "title": "Sistema Mayor",
+      "subtitle": "Aprendé el Sistema Mayor paso a paso",
+      "explanation": "Cada dígito se asocia a uno o más sonidos consonánticos. Encadená las consonantes de los dígitos de un número, en orden, y completá con las vocales que quieras para armar una palabra real — las vocales no valen. Una palabra memorable es mucho más fácil de retener que una tira de dígitos sueltos. La tabla de abajo usa la asociación fonética en español, la misma razón por la que el hallazgo de \"orden con rima\" del juego es específico del español."
+    }
+  },
+  "examples": {
+    "addition": {
+      "1": {
+        "note": "Este es más complicado — las unidades suman más de 10."
+      }
+    },
+    "squaring3d": {
+      "1": {
+        "note": "a redondea a la centena más cercana en ambos casos — para arriba acá, para abajo en el primer ejemplo."
+      }
+    },
+    "squaring4d": {
+      "0": {
+        "note": "\"lógica\" es una palabra real en español — la gracia del Sistema Mayor es elegir una palabra que signifique algo, no cualquier tira de consonantes."
+      }
+    }
+  },
+  "liveNote": {
+    "squaring3d": "El ejemplo interactivo de abajo muestra una versión más simple, de un solo paso — redondeando a la decena más cercana en vez de a la centena — que funciona para cualquier cantidad de dígitos pero da factores menos redondos que la técnica completa de arriba.",
+    "squaring4d": "El ejemplo interactivo de abajo muestra una versión más simple, de un solo paso — redondeando a la decena más cercana en vez de al millar — que funciona para cualquier cantidad de dígitos pero se salta el paso del Sistema Mayor."
+  },
+  "videoTitle": "Tutorial de {title}",
+  "showAnswer": "Mostrar respuesta",
+  "hideAnswer": "Ocultar respuesta",
+  "newExample": "Nuevo ejemplo",
+  "practiceCta": "Practicar {category}"
+}

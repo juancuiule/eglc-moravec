@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { expect, test } from "vitest";
 import { LevelsList } from "./LevelsList";
 import type { LevelStats } from "@/api/Api";
+import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
 test("level 1 is unlocked and links to play; level 2 is locked (level 1 has no stars), not a link", async () => {
   render(<LevelsList stats={{}} levelKeys={[1, 2, 3]} />);

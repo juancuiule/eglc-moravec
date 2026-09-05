@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { test, vi, expect } from "vitest";
 import { FinishedScreen } from "./FinishedScreen";
 import type { Finished } from "../game/index";
+import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),

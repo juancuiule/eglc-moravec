@@ -1,0 +1,62 @@
+{
+  "listTitle": "Tutorials",
+  "backToTutorials": "Back to tutorials",
+  "topics": {
+    "addition": {
+      "title": "Addition",
+      "subtitle": "Learn to add numbers quickly",
+      "explanation": "Add left to right instead of right to left: add the tens of the second number to the first, then add the remaining units. There's no decomposition trick beyond that — the in-game Hint button won't do anything here."
+    },
+    "multiplication": {
+      "title": "Multiplication",
+      "subtitle": "Master mental multiplication",
+      "explanation": "Multiply left to right too: multiply the tens of the larger operand by the other one, then the units, and add the two results. This is exactly the Hint you'll see in-game if you get stuck."
+    },
+    "squaring2d": {
+      "title": "Squaring (2 digits)",
+      "subtitle": "Square 2-digit numbers",
+      "explanation": "Use x² = (x−a)(x+a) + a², choosing a so that x−a and x+a land on numbers you can multiply easily — usually the nearest multiple of ten. This is the same Hint shown in-game."
+    },
+    "squaring3d": {
+      "title": "Squaring (3 digits)",
+      "subtitle": "Handle 3-digit squares",
+      "explanation": "Same identity, but round to the nearest hundred instead of ten — a is now a two-digit number. Since a² isn't trivial anymore, apply the same trick to a itself, this time rounding it to the nearest ten."
+    },
+    "squaring4d": {
+      "title": "Squaring (4 digits)",
+      "subtitle": "Master 4-digit squares",
+      "explanation": "Round to the nearest thousand this time. The correction a is now three digits, so squaring it recurses one level deeper — and holding onto its square while you finish the rest of the calculation is exactly where the Major System earns its keep."
+    },
+    "majorSystem": {
+      "title": "Major System",
+      "subtitle": "Learn the Major System step by step",
+      "explanation": "Each digit maps to one or more consonant sounds. String together the consonants for a number's digits, in order, then fill in any vowels you like to spell a real word — vowels carry no value. A memorable word is far easier to hold onto than a bare string of digits. The mapping below is tuned to Spanish consonant sounds, so the example words only work in Spanish — the same reason the game's own \"rhymed-order\" finding is Spanish-specific."
+    }
+  },
+  "examples": {
+    "addition": {
+      "1": {
+        "note": "This one's trickier — the units add up to more than 10."
+      }
+    },
+    "squaring3d": {
+      "1": {
+        "note": "a rounds to the nearest hundred either way — up here, down in the first example."
+      }
+    },
+    "squaring4d": {
+      "0": {
+        "note": "\"lógica\" is a real Spanish word — the whole point of the Major System is picking a word that means something, not just any consonant string."
+      }
+    }
+  },
+  "liveNote": {
+    "squaring3d": "The live example below shows a simpler one-step version — round to the nearest ten instead of a hundred — which works for any digit count but produces less round factors than the full technique above.",
+    "squaring4d": "The live example below shows a simpler one-step version — round to the nearest ten instead of a thousand — which works for any digit count but skips the Major System step."
+  },
+  "videoTitle": "{title} tutorial",
+  "showAnswer": "Show answer",
+  "hideAnswer": "Hide answer",
+  "newExample": "New example",
+  "practiceCta": "Practice {category}"
+}

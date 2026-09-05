@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { Api } from "../api/Api";
 import { authToken, useAuth } from "../auth/store";
@@ -41,6 +42,8 @@ function EffBar({ value }: { value: number }) {
 }
 
 export function StatsScreen() {
+  const t = useTranslations("Stats");
+  const tCommon = useTranslations("Common");
   const [tab, setTab] = useState<Tab>("level");
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -82,67 +85,66 @@ export function StatsScreen() {
   return (
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
-        <Link href="/" className={backLink} aria-label="Back to menu">
+        <Link href="/" className={backLink} aria-label={tCommon("backToMenu")}>
           ←
         </Link>
-        <h1 className="text-xl font-bold tracking-tight">Statistics</h1>
+        <h1 className="text-xl font-bold tracking-tight">{t("title")}</h1>
       </div>
 
       <div className="flex gap-1 bg-base rounded-lg p-1">
-        {(["level", "practice"] as const).map((t) => (
+        {(["level", "practice"] as const).map((tabOption) => (
           <button
-            key={t}
-            onClick={() => selectTab(t)}
-            aria-pressed={tab === t}
+            key={tabOption}
+            onClick={() => selectTab(tabOption)}
+            aria-pressed={tab === tabOption}
             className={[
               "flex-1 text-sm font-medium py-1.5 rounded-md transition-colors cursor-pointer",
-              tab === t
+              tab === tabOption
                 ? "bg-accent text-white"
                 : "text-muted hover:text-foreground",
             ].join(" ")}
           >
-            {t === "level" ? "Level" : "Practice"}
+            {tabOption === "level" ? t("tabLevel") : t("tabPractice")}
           </button>
         ))}
       </div>
 
       {isLoading && (
-        <p className="text-center text-sm text-muted py-8">Loading stats…</p>
+        <p className="text-center text-sm text-muted py-8">{t("loading")}</p>
       )}
 
       {isError && (
         <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-center text-sm text-danger">
-            Couldn't load stats.
-          </p>
+          <p className="text-center text-sm text-danger">{t("loadError")}</p>
           <button onClick={() => refetch()} className={`${textLink} underline`}>
-            Try again
+            {t("tryAgain")}
           </button>
         </div>
       )}
 
       {!isLoading && !isError && !hasAnyData && (
         <p className="text-center text-muted-2 py-8">
-          {tab === "level" ? (
-            <>
-              No data yet —{" "}
-              <Link href="/levels" className="underline hover:text-foreground">
-                complete some levels
-              </Link>{" "}
-              to see your stats.
-            </>
-          ) : (
-            <>
-              No data yet —{" "}
-              <Link
-                href="/practice"
-                className="underline hover:text-foreground"
-              >
-                practice a category
-              </Link>{" "}
-              to see your stats.
-            </>
-          )}
+          {tab === "level"
+            ? t.rich("noDataLevel", {
+                link: (chunks) => (
+                  <Link
+                    href="/levels"
+                    className="underline hover:text-foreground"
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              })
+            : t.rich("noDataPractice", {
+                link: (chunks) => (
+                  <Link
+                    href="/practice"
+                    className="underline hover:text-foreground"
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              })}
         </p>
       )}
 
@@ -150,9 +152,9 @@ export function StatsScreen() {
         <div className="flex flex-col gap-1">
           {/* Header */}
           <div className="grid grid-cols-[6rem_1fr_4rem] gap-2 px-2 pb-1 text-xs text-muted-2 font-medium uppercase tracking-wider">
-            <span>Category</span>
-            <span>Effectiveness</span>
-            <span className="text-right">Avg time</span>
+            <span>{t("columnCategory")}</span>
+            <span>{t("columnEffectiveness")}</span>
+            <span className="text-right">{t("columnAvgTime")}</span>
           </div>
 
           {stats.map((row) => {
@@ -169,14 +171,17 @@ export function StatsScreen() {
 
                 {row.total === 0 ? (
                   <span className="text-xs text-disabled col-span-2">
-                    No data yet
+                    {t("noDataYet")}
                   </span>
                 ) : (
                   <>
                     <div className="flex flex-col gap-0.5">
                       <EffBar value={row.effectiveness} />
                       <span className="text-2xs text-muted-2">
-                        {row.correctCount} / {row.total} correct
+                        {t("correctOfTotal", {
+                          correct: row.correctCount,
+                          total: row.total,
+                        })}
                       </span>
                     </div>
                     <span className="text-xs text-right text-muted">

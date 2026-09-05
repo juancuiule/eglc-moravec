@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { TOTAL_LEVELS } from "engine";
+import { useTranslations } from "next-intl";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
 import { button, linkButton, panel } from "../styles";
@@ -13,6 +14,8 @@ import { StarsDisplay } from "./StarsDisplay";
 type Props = { state: Finished; isNewRecord: boolean };
 
 export function FinishedScreen({ state, isNewRecord }: Props) {
+  const t = useTranslations("Levels");
+  const tCommon = useTranslations("Common");
   const router = useRouter();
   const reset = useGame((s) => s.reset);
   const start = useGame((s) => s.start);
@@ -60,7 +63,7 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
   return (
     <div className={["p-6 gap-6", panel].join(" ")}>
       <h1 className="text-2xl font-bold tracking-tight text-center animate-fade-in">
-        {levelCompleted ? "Level Complete!" : "Not quite…"}
+        {levelCompleted ? t("levelComplete") : t("notQuite")}
       </h1>
 
       {levelCompleted && (
@@ -78,7 +81,7 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
           style={{ animationDelay: "200ms", animationFillMode: "backwards" }}
         >
           <span aria-hidden="true">🎉</span>
-          New record!
+          {t("newRecord")}
         </div>
       )}
 
@@ -86,16 +89,23 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
         className="text-center animate-fade-in"
         style={{ animationDelay: "300ms", animationFillMode: "backwards" }}
       >
-        <span
-          className={
-            levelCompleted
-              ? "text-teal font-bold text-lg"
-              : "text-danger font-bold text-lg"
-          }
-        >
-          {correctCount}
+        <span className="text-muted text-lg">
+          {t.rich("score", {
+            correct: correctCount,
+            total: totalAttempts,
+            colored: (chunks) => (
+              <span
+                className={
+                  levelCompleted
+                    ? "text-teal font-bold text-lg"
+                    : "text-danger font-bold text-lg"
+                }
+              >
+                {chunks}
+              </span>
+            ),
+          })}
         </span>
-        <span className="text-muted text-lg"> / {totalAttempts} correct</span>
         <p className="font-mono text-accent-text text-xs mt-1">
           {formatDuration(totalTime)}
         </p>
@@ -110,14 +120,14 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
             href={`/level/${config.levelNumber + 1}`}
             className={linkButton({ intent: "success" })}
           >
-            Play next level (N)
+            {t("playNextLevel")}
           </Link>
         )}
         <button className={button({ intent: "primary" })} onClick={replay}>
-          {levelCompleted ? "Replay (R)" : "Try again (R)"}
+          {levelCompleted ? t("replay") : t("tryAgain")}
         </button>
         <button className={button({ intent: "ghost" })} onClick={backToMenu}>
-          Back to menu (M)
+          {tCommon("backToMenu")} (M)
         </button>
       </div>
     </div>

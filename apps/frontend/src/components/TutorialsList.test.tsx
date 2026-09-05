@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { expect, test } from "vitest";
 import { TutorialsList } from "./TutorialsList";
+import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
 test("links to all six tutorial topics, each with its subtitle", () => {
   render(<TutorialsList />);

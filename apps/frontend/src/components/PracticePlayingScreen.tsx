@@ -1,6 +1,7 @@
 "use client";
 
 import { canShowHint } from "engine";
+import { useTranslations } from "next-intl";
 import type { PracticePlaying } from "../practice/index";
 import { usePractice } from "../practice/store";
 import { AnsweringPanel } from "./AnsweringPanel";
@@ -9,6 +10,7 @@ import { hintButton } from "../styles";
 type Props = { state: PracticePlaying };
 
 export function PracticePlayingScreen({ state }: Props) {
+  const t = useTranslations("Practice");
   const submitAnswer = usePractice((s) => s.submitAnswer);
   const timeUp = usePractice((s) => s.timeUp);
   const advance = usePractice((s) => s.advance);
@@ -39,12 +41,12 @@ export function PracticePlayingScreen({ state }: Props) {
       }
       extraFeedback={(result) =>
         result.timeExceeded && result.correct ? (
-          <span className="text-sm opacity-70">Too slow — keep going!</span>
+          <span className="text-sm opacity-70">{t("tooSlow")}</span>
         ) : null
       }
       headerLeft={
         <span>
-          {correctCount} / {totalDone} correct
+          {t("correctOfTotal", { correct: correctCount, total: totalDone })}
         </span>
       }
       headerRight={
@@ -57,14 +59,14 @@ export function PracticePlayingScreen({ state }: Props) {
                 disabled: hintDisabled,
               })}
             >
-              Hint
+              {t("hint")}
             </button>
           )}
           <button
             onClick={stop}
             className="text-muted hover:text-foreground transition-colors text-xs font-medium cursor-pointer touch-manipulation px-2 py-1.5"
           >
-            Stop
+            {t("stop")}
           </button>
         </div>
       }
