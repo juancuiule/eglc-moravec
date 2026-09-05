@@ -1,1 +1,21 @@
-{}
+{
+  "title": "Estadísticas",
+  "tabLevel": "Nivel",
+  "tabPractice": "Práctica",
+  "loading": "Cargando estadísticas…",
+  "loadError": "No se pudieron cargar las estadísticas.",
+  "tryAgain": "Intentar de nuevo",
+  "noDataYet": "Todavía no hay datos",
+  "noDataLevel": "Todavía no hay datos — <link>completá algunos niveles</link> para ver tus estadísticas.",
+  "noDataPractice": "Todavía no hay datos — <link>practicá una categoría</link> para ver tus estadísticas.",
+  "columnCategory": "Categoría",
+  "columnEffectiveness": "Efectividad",
+  "columnAvgTime": "Tiempo prom.",
+  "correctOfTotal": "{correct} de {total} correctas",
+  "detail": {
+    "backLabel": "Volver a estadísticas",
+    "correctTotal": "{correct} correctas · {total} intentos totales",
+    "noCorrectTrials": "Todavía no hay intentos correctos — <link>practicá esta categoría</link>.",
+    "responseTimeDistribution": "Distribución del tiempo de respuesta"
+  }
+}

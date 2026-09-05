@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { computeHistogram, type StatsTrial } from "../stats/computeStats";
 import { panel, backLink } from "../styles";
 
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
+  const t = useTranslations("Stats.detail");
   const buckets = useMemo(
     () => computeHistogram(trials, codename),
     [trials, codename],
@@ -26,7 +28,7 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
         <button
           onClick={onBack}
           className={backLink}
-          aria-label="Back to statistics"
+          aria-label={t("backLabel")}
         >
           ←
         </button>
@@ -36,24 +38,29 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
       </div>
 
       <p className="text-sm text-muted">
-        {correctCount} correct · {categoryTrials.length} total trials
+        {t("correctTotal", {
+          correct: correctCount,
+          total: categoryTrials.length,
+        })}
       </p>
 
       {buckets.length === 0 ? (
         <p className="text-center text-muted-2 py-8">
-          No correct trials yet —{" "}
-          <Link
-            href={`/practice/${encodeURIComponent(codename)}`}
-            className="underline hover:text-foreground"
-          >
-            practice this category
-          </Link>
-          .
+          {t.rich("noCorrectTrials", {
+            link: (chunks) => (
+              <Link
+                href={`/practice/${encodeURIComponent(codename)}`}
+                className="underline hover:text-foreground"
+              >
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
           <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">
-            Response time distribution
+            {t("responseTimeDistribution")}
           </p>
           {buckets.map((bucket) => (
             <div key={bucket.label} className="flex items-center gap-3">
