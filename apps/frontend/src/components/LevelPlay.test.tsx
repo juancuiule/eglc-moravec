@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { LevelPlay } from "./LevelPlay";
+import { IntlTestProvider } from "@/testUtils/renderWithIntl";
 
 import type { Level } from "@/level";
 
@@ -42,13 +43,17 @@ function renderWithQueryClient(ui: React.ReactElement) {
     defaultOptions: { queries: { retry: false } },
   });
   const result = render(
-    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+    <IntlTestProvider>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </IntlTestProvider>,
   );
   return {
     ...result,
     rerenderWithQueryClient: (nextUi: React.ReactElement) =>
       result.rerender(
-        <QueryClientProvider client={client}>{nextUi}</QueryClientProvider>,
+        <IntlTestProvider>
+          <QueryClientProvider client={client}>{nextUi}</QueryClientProvider>
+        </IntlTestProvider>,
       ),
   };
 }

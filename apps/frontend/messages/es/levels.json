@@ -1,1 +1,17 @@
-{}
+{
+  "heading": "Niveles",
+  "completedCount": "{completed} / {total} completos",
+  "level": "Nivel {number}",
+  "play": "Jugar",
+  "trial": "Intento {current} / {total}",
+  "hintTooltip": "Mostrar pista",
+  "hint": "Pista {remaining}/3",
+  "levelComplete": "¡Nivel completado!",
+  "notQuite": "Casi…",
+  "newRecord": "¡Nuevo récord!",
+  "score": "<colored>{correct}</colored> / {total} correctas",
+  "playNextLevel": "Jugar el próximo nivel (N)",
+  "replay": "Repetir (R)",
+  "tryAgain": "Intentá de nuevo (R)",
+  "loading": "Cargando nivel…"
+}

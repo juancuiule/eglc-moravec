@@ -3,6 +3,7 @@ import { formatDuration } from "@/formatTime";
 import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
 import { backLink, panel } from "@/styles";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 function RowStars({
   stars,
@@ -36,6 +37,8 @@ export function LevelsList(props: {
   levelKeys: number[];
 }) {
   const { stats, levelKeys } = props;
+  const t = useTranslations("Levels");
+  const tCommon = useTranslations("Common");
 
   const completedCount = stats
     ? Object.keys(stats).filter((k) => (stats[k]?.stars ?? 0) > 0).length
@@ -44,15 +47,18 @@ export function LevelsList(props: {
   return (
     <div className={`${panel} p-6 gap-3`}>
       <div className="flex items-center gap-3">
-        <Link href="/" className={backLink} aria-label="Back to menu">
+        <Link href="/" className={backLink} aria-label={tCommon("backToMenu")}>
           ←
         </Link>
-        <h1 className="text-xl font-bold tracking-tight">Levels</h1>
+        <h1 className="text-xl font-bold tracking-tight">{t("heading")}</h1>
       </div>
 
       {completedCount > 0 && levelKeys && (
         <p className="text-center text-xs text-muted">
-          {completedCount} / {levelKeys.length} completed
+          {t("completedCount", {
+            completed: completedCount,
+            total: levelKeys.length,
+          })}
         </p>
       )}
 
@@ -69,7 +75,9 @@ export function LevelsList(props: {
                   key={n}
                   className="flex items-center justify-between px-6 py-3 border-b border-subtle text-disabled"
                 >
-                  <span className="font-semibold">Level {n}</span>
+                  <span className="font-semibold">
+                    {t("level", { number: n })}
+                  </span>
                   <span>🔒</span>
                 </div>
               );
@@ -83,11 +91,13 @@ export function LevelsList(props: {
                   className="flex flex-col items-center gap-1 px-6 py-3 bg-accent text-white"
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className="font-bold">Level {n}</span>
+                    <span className="font-bold">
+                      {t("level", { number: n })}
+                    </span>
                     <RowStars stars={0} light />
                   </div>
                   <span className="text-sm font-semibold tracking-wide">
-                    Play
+                    {t("play")}
                   </span>
                 </Link>
               );
@@ -100,7 +110,7 @@ export function LevelsList(props: {
                 className="flex items-center justify-between gap-2 px-6 py-3 border-b border-subtle hover:bg-base transition-color *:flex-1 *:flex"
               >
                 <span className="font-semibold text-muted justify-start">
-                  Level {n}
+                  {t("level", { number: n })}
                 </span>
                 <span className="text-teal font-mono text-xs justify-center">
                   {formatDuration(levelStats.totalTime)}
