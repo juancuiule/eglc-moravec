@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { test, vi, expect } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LoginForm } from "./LoginForm";
+import { IntlTestProvider } from "@/testUtils/renderWithIntl";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -14,9 +15,11 @@ test("the email input has an accessible name and autocomplete", () => {
     defaultOptions: { queries: { retry: false } },
   });
   render(
-    <QueryClientProvider client={client}>
-      <LoginForm />
-    </QueryClientProvider>,
+    <IntlTestProvider>
+      <QueryClientProvider client={client}>
+        <LoginForm />
+      </QueryClientProvider>
+    </IntlTestProvider>,
   );
 
   const input = screen.getByLabelText("Email");
