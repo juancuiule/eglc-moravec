@@ -1,7 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import HomePage from "./page";
 import { authStore } from "@/auth/store";
+import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
+
+// The home page header now renders LocaleSwitcher, which calls useRouter()
+// to refresh after a locale change — needs a router context to render at all.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
 
 // Minimal localStorage mock, matching the convention used elsewhere in this
 // codebase — the auth store reads it at module/mount time.

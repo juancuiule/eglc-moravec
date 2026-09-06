@@ -1,0 +1,17 @@
+{
+  "heading": "Levels",
+  "completedCount": "{completed} / {total} completed",
+  "level": "Level {number}",
+  "play": "Play",
+  "trial": "Trial {current} / {total}",
+  "hintTooltip": "Show hint",
+  "hint": "Hint {remaining}/3",
+  "levelComplete": "Level Complete!",
+  "notQuite": "Not quite…",
+  "newRecord": "New record!",
+  "score": "<colored>{correct}</colored> / {total} correct",
+  "playNextLevel": "Play next level (N)",
+  "replay": "Replay (R)",
+  "tryAgain": "Try again (R)",
+  "loading": "Loading level…"
+}

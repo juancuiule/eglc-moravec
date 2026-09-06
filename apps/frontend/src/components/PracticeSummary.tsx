@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { PracticeStopped } from "../practice/index";
 import { usePractice } from "../practice/store";
 import { panel, button } from "../styles";
@@ -8,6 +9,8 @@ import { panel, button } from "../styles";
 type Props = { state: PracticeStopped };
 
 export function PracticeSummary({ state }: Props) {
+  const t = useTranslations("Practice");
+  const tCommon = useTranslations("Common");
   const router = useRouter();
   const start = usePractice((s) => s.start);
   const reset = usePractice((s) => s.reset);
@@ -25,7 +28,7 @@ export function PracticeSummary({ state }: Props) {
   return (
     <div className={`${panel} p-6 gap-6`}>
       <h1 className="text-2xl font-bold tracking-tight text-center animate-fade-in">
-        Session done
+        {t("sessionDone")}
       </h1>
 
       <div
@@ -34,7 +37,7 @@ export function PracticeSummary({ state }: Props) {
       >
         <span className="text-5xl font-bold text-accent">{pct}%</span>
         <p className="text-muted text-sm mt-1">
-          {correctCount} of {total} correct
+          {t("sessionResult", { correct: correctCount, total })}
         </p>
       </div>
 
@@ -46,10 +49,10 @@ export function PracticeSummary({ state }: Props) {
           className={button({ intent: "primary" })}
           onClick={() => start(config)}
         >
-          Practice again
+          {t("practiceAgain")}
         </button>
         <button className={button({ intent: "ghost" })} onClick={handleBack}>
-          Back to menu
+          {tCommon("backToMenu")}
         </button>
       </div>
     </div>

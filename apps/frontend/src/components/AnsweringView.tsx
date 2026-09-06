@@ -1,6 +1,7 @@
 "use client";
 
 import { canShowHint } from "engine";
+import { useTranslations } from "next-intl";
 import type { Playing } from "../game/index";
 import { useGame } from "../game/store";
 import { hintButton } from "../styles";
@@ -9,6 +10,7 @@ import { AnsweringPanel } from "./AnsweringPanel";
 type Props = { state: Playing };
 
 export function AnsweringView({ state }: Props) {
+  const t = useTranslations("Levels");
   const submitAnswer = useGame((s) => s.submitAnswer);
   const timeUp = useGame((s) => s.timeUp);
   const advance = useGame((s) => s.advance);
@@ -33,12 +35,15 @@ export function AnsweringView({ state }: Props) {
       onAdvance={advance}
       beforeOperation={
         <h1 className="text-center text-xs text-muted font-mono tracking-wider">
-          Level {state.config.levelNumber}
+          {t("level", { number: state.config.levelNumber })}
         </h1>
       }
       headerLeft={
         <span>
-          Trial {state.results.length + 1} / {state.config.totalTrials}
+          {t("trial", {
+            current: state.results.length + 1,
+            total: state.config.totalTrials,
+          })}
         </span>
       }
       headerRight={
@@ -46,9 +51,9 @@ export function AnsweringView({ state }: Props) {
           disabled={hintDisabled}
           onClick={requestHint}
           className={hintButton({ disabled: hintDisabled })}
-          title="Show hint"
+          title={t("hintTooltip")}
         >
-          Hint {state.hintsRemaining}/3
+          {t("hint", { remaining: state.hintsRemaining })}
         </button>
       }
     />

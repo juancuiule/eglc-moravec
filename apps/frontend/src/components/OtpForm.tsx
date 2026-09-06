@@ -4,6 +4,7 @@ import { Api } from "@/api/Api";
 import { useAuth } from "@/auth/store";
 import { backLink, button, panel } from "@/styles";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,6 +16,8 @@ export function OtpForm({
   email: string;
   code?: string;
 }) {
+  const t = useTranslations("Auth.otp");
+  const tCommon = useTranslations("Common");
   const router = useRouter();
   const authState = useAuth((s) => s.state);
   const login = useAuth((s) => s.login);
@@ -39,12 +42,12 @@ export function OtpForm({
   return (
     <div className={`${panel} p-8 gap-4`}>
       <div className="flex items-center gap-3">
-        <Link href="/" className={backLink} aria-label="Back to menu">
+        <Link href="/" className={backLink} aria-label={tCommon("backToMenu")}>
           ←
         </Link>
-        <h1 className="text-xl font-bold tracking-tight">Enter your code</h1>
+        <h1 className="text-xl font-bold tracking-tight">{t("title")}</h1>
       </div>
-      <p className="text-sm text-muted">We sent a 6-digit code to {email}.</p>
+      <p className="text-sm text-muted">{t("description", { email })}</p>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
@@ -55,7 +58,7 @@ export function OtpForm({
         }}
       >
         <label htmlFor="otp-code" className="sr-only">
-          6-digit code
+          {t("codeLabel")}
         </label>
         <input
           id="otp-code"
@@ -77,7 +80,7 @@ export function OtpForm({
           className={`${button({ intent: "primary" })} disabled:opacity-30 disabled:cursor-not-allowed`}
           disabled={isDisabled}
         >
-          {verifyCode.isPending ? "Verifying…" : "Verify"}
+          {verifyCode.isPending ? t("verifying") : t("verify")}
         </button>
       </form>
     </div>

@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
+import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
 // Regression test for #35: the empty state must offer a next action,
 // not just describe the gap in prose.

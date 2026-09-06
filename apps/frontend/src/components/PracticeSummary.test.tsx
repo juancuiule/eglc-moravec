@@ -1,7 +1,8 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { PracticeSummary } from "./PracticeSummary";
 import type { PracticeStopped } from "../practice/index";
+import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({

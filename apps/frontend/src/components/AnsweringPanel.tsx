@@ -1,6 +1,7 @@
 "use client";
 
 import type { Answering, Operation, TrialResult } from "engine";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { panel } from "../styles";
 import { HintCard } from "./HintCard";
@@ -18,7 +19,6 @@ type Props = {
   headerLeft: ReactNode;
   headerRight: ReactNode;
   beforeOperation?: ReactNode;
-  extraFeedback?: (result: TrialResult) => ReactNode;
 };
 
 function parsedAnswer(raw: string): number | null {
@@ -33,11 +33,6 @@ const ROWS = [
   ["C", "0", "⌫"],
 ];
 
-const KEY_LABELS: Record<string, string> = {
-  C: "Clear",
-  "⌫": "Delete last digit",
-};
-
 export function AnsweringPanel({
   operation,
   playingState,
@@ -49,8 +44,12 @@ export function AnsweringPanel({
   headerLeft,
   headerRight,
   beforeOperation,
-  extraFeedback,
 }: Props) {
+  const t = useTranslations("Practice");
+  const KEY_LABELS: Record<string, string> = {
+    C: t("clear"),
+    "⌫": t("deleteLastDigit"),
+  };
   const solveTime = operation.solveTime();
   const hint = operation.hint();
 
@@ -225,7 +224,7 @@ export function AnsweringPanel({
           disabled={!answer}
           onClick={doSubmit}
         >
-          Submit
+          {t("submit")}
         </button>
 
         {isReviewing && result && (
@@ -239,17 +238,16 @@ export function AnsweringPanel({
           >
             <span className="text-3xl">
               {result.correct
-                ? "Correct"
+                ? t("correct")
                 : result.answer === null
-                  ? "Time's up"
-                  : "Wrong"}
+                  ? t("timeUp")
+                  : t("wrong")}
             </span>
             {!result.correct && (
               <span className="text-sm opacity-70">
                 = {result.operation.result()}
               </span>
             )}
-            {extraFeedback?.(result)}
           </div>
         )}
       </div>

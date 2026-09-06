@@ -1,0 +1,6 @@
+{
+  "title": "Something went wrong",
+  "routeDescription": "This screen hit an unexpected error. You can try again, or head back to the menu.",
+  "globalDescription": "The app hit an unexpected error and couldn't recover. Try reloading.",
+  "tryAgain": "Try again"
+}

@@ -2,13 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { createOperation, type Operation } from "engine";
 import { CATEGORY_LABELS } from "../categoryLabels";
 import {
-  TUTORIAL_TITLES,
-  TUTORIAL_EXPLANATIONS,
   TUTORIAL_EXAMPLES,
-  TUTORIAL_LIVE_NOTE,
   MAJOR_SYSTEM_TABLE,
   categoriesForTopic,
   videoIdFor,
@@ -21,6 +19,7 @@ import { panel, backLink, linkButton } from "../styles";
 type Props = { topic: TutorialTopic };
 
 export function TutorialDetail({ topic }: Props) {
+  const t = useTranslations("Tutorials");
   const categories = useMemo(() => categoriesForTopic(topic), [topic]);
   // The most complex category in the topic actually has digits to decompose —
   // "1d × 1d" has nothing to break down and makes for a trivial-looking hint.
@@ -40,26 +39,37 @@ export function TutorialDetail({ topic }: Props) {
 
   const hint = operation?.hint();
 
+  // Raw lookups (not t(...)) for the per-topic/per-example notes and the
+  // live-example note — both are genuinely optional per topic, and calling
+  // t() on a key that isn't present in messages/{locale}/tutorials.json
+  // would render the missing-key fallback text instead of nothing.
+  const exampleNotes = t.raw("examples") as Record<
+    string,
+    Record<string, { note?: string }> | undefined
+  >;
+  const liveNotes = t.raw("liveNote") as Record<string, string | undefined>;
+  const liveNote = liveNotes[topic];
+
+  const title = t(`topics.${topic}.title`);
+
   return (
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
         <Link
           href="/tutorials"
           className={backLink}
-          aria-label="Back to tutorials"
+          aria-label={t("backToTutorials")}
         >
           ←
         </Link>
-        <h1 className="text-xl font-bold tracking-tight">
-          {TUTORIAL_TITLES[topic]}
-        </h1>
+        <h1 className="text-xl font-bold tracking-tight">{title}</h1>
       </div>
 
-      <p className="text-sm text-muted">{TUTORIAL_EXPLANATIONS[topic]}</p>
+      <p className="text-sm text-muted">{t(`topics.${topic}.explanation`)}</p>
 
       <YouTubeEmbed
         videoId={videoIdFor(topic)}
-        title={`${TUTORIAL_TITLES[topic]} tutorial`}
+        title={t("videoTitle", { title })}
       />
 
       {topic === "majorSystem" && (
@@ -74,21 +84,20 @@ export function TutorialDetail({ topic }: Props) {
       )}
 
       <div className="flex flex-col gap-3">
-        {TUTORIAL_EXAMPLES[topic].map((example, i) => (
-          <div key={i} className="flex flex-col gap-1">
-            <HintCard steps={example.steps} />
-            {example.note && (
-              <p className="text-xs text-muted-2 px-1">{example.note}</p>
-            )}
-          </div>
-        ))}
+        {TUTORIAL_EXAMPLES[topic].map((example, i) => {
+          const note = exampleNotes[topic]?.[String(i)]?.note;
+          return (
+            <div key={i} className="flex flex-col gap-1">
+              <HintCard steps={example.steps} />
+              {note && <p className="text-xs text-muted-2 px-1">{note}</p>}
+            </div>
+          );
+        })}
       </div>
 
       {categories.length > 0 && (
         <>
-          {TUTORIAL_LIVE_NOTE[topic] && (
-            <p className="text-xs text-muted-2">{TUTORIAL_LIVE_NOTE[topic]}</p>
-          )}
+          {liveNote && <p className="text-xs text-muted-2">{liveNote}</p>}
 
           {categories.length > 1 && (
             <div className="flex flex-wrap gap-2">
@@ -130,13 +139,13 @@ export function TutorialDetail({ topic }: Props) {
                 onClick={() => setRevealed((r) => !r)}
                 className="text-xs text-accent-text hover:underline cursor-pointer touch-manipulation px-1 py-2"
               >
-                {revealed ? "Hide answer" : "Show answer"}
+                {revealed ? t("hideAnswer") : t("showAnswer")}
               </button>
               <button
                 onClick={() => newExample()}
                 className="text-xs text-muted hover:text-foreground cursor-pointer touch-manipulation px-1 py-2"
               >
-                New example
+                {t("newExample")}
               </button>
             </div>
           </div>
@@ -145,7 +154,9 @@ export function TutorialDetail({ topic }: Props) {
             href={`/practice/${encodeURIComponent(codename!)}`}
             className={linkButton({ intent: "primary" })}
           >
-            Practice {CATEGORY_LABELS[codename!] ?? codename}
+            {t("practiceCta", {
+              category: CATEGORY_LABELS[codename!] ?? codename!,
+            })}
           </Link>
         </>
       )}

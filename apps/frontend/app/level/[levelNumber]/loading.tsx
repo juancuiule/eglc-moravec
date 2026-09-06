@@ -1,9 +1,7 @@
-import { panel } from "@/styles";
+import { getTranslations } from "next-intl/server";
+import { LoadingPanel } from "@/components/LoadingPanel";
 
-export default function Loading() {
-  return (
-    <div className={`${panel} p-6 items-center justify-center min-h-60`}>
-      <p className="text-sm text-muted">Loading level…</p>
-    </div>
-  );
+export default async function Loading() {
+  const t = await getTranslations("Levels");
+  return <LoadingPanel label={t("loading")} />;
 }

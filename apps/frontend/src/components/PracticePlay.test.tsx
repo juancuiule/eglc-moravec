@@ -1,7 +1,8 @@
-import { act, render } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { PracticePlay } from "./PracticePlay";
 import { practiceStore } from "@/practice/store";
+import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
 const router = { replace: vi.fn(), push: vi.fn() };
 vi.mock("next/navigation", () => ({

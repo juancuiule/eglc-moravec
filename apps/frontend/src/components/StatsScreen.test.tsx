@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatsScreen } from "./StatsScreen";
 import { authStore } from "@/auth/store";
+import { IntlTestProvider } from "@/testUtils/renderWithIntl";
 import type { EvaluatedTrialResult } from "engine";
 
 vi.mock("@/api/Api", () => ({
@@ -23,9 +24,11 @@ function renderWithQueryClient() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>
-      <StatsScreen />
-    </QueryClientProvider>,
+    <IntlTestProvider>
+      <QueryClientProvider client={client}>
+        <StatsScreen />
+      </QueryClientProvider>
+    </IntlTestProvider>,
   );
 }
 

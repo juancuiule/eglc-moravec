@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import { Addition, categoryFromCodename, type AdditionCategory } from "engine";
 import { AnsweringPanel } from "./AnsweringPanel";
 import type { Answering } from "engine";
+import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
 const category = categoryFromCodename("1d+1d") as AdditionCategory;
 const operation = new Addition(2, 3, category);

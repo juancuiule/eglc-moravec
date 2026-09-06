@@ -1,9 +1,12 @@
 "use client";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/auth/store";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { panel, linkButton, navLink } from "@/styles";
 
 export default function HomePage() {
+  const t = useTranslations("Home");
   const authState = useAuth((s) => s.state);
   const logout = useAuth((s) => s.logout);
 
@@ -17,18 +20,19 @@ export default function HomePage() {
           </h1>
         </div>
         <div className="flex items-center flex-wrap justify-end gap-1">
+          <LocaleSwitcher />
           {authState.type === "logged-in" ? (
             <>
               <span className="text-xs text-accent-text font-mono break-all">
                 {authState.email}
               </span>
               <button onClick={logout} className={navLink}>
-                Log out
+                {t("logOut")}
               </button>
             </>
           ) : (
             <Link href="/login" className={navLink}>
-              Log in
+              {t("logIn")}
             </Link>
           )}
         </div>
@@ -36,24 +40,24 @@ export default function HomePage() {
 
       <div className="flex flex-col gap-2">
         <Link href="/levels" className={linkButton({ intent: "success" })}>
-          Play
+          {t("play")}
         </Link>
         <div className="flex gap-2">
           <Link
             href="/practice"
             className={`${linkButton({ intent: "primary" })} flex-1`}
           >
-            Practice
+            {t("practice")}
           </Link>
           <Link
             href="/stats"
             className={`${linkButton({ intent: "primary" })} flex-1`}
           >
-            Stats
+            {t("stats")}
           </Link>
         </div>
         <Link href="/tutorials" className={linkButton({ intent: "outline" })}>
-          Tutorials
+          {t("tutorials")}
         </Link>
       </div>
     </div>

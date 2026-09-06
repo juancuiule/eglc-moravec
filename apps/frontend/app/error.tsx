@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { panel, button, linkButton } from "@/styles";
 
 export default function Error({
@@ -11,23 +12,23 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("Errors");
+  const tCommon = useTranslations("Common");
+
   useEffect(() => {
     console.error(error);
   }, [error]);
 
   return (
     <div className={`${panel} p-6 gap-4`}>
-      <h1 className="text-xl font-bold tracking-tight">Something went wrong</h1>
-      <p className="text-sm text-muted">
-        This screen hit an unexpected error. You can try again, or head back to
-        the menu.
-      </p>
+      <h1 className="text-xl font-bold tracking-tight">{t("title")}</h1>
+      <p className="text-sm text-muted">{t("routeDescription")}</p>
       <div className="flex flex-col gap-2">
         <button className={button({ intent: "primary" })} onClick={reset}>
-          Try again
+          {t("tryAgain")}
         </button>
         <Link href="/" className={linkButton({ intent: "ghost" })}>
-          Back to menu
+          {tCommon("backToMenu")}
         </Link>
       </div>
     </div>
