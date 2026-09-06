@@ -11,13 +11,20 @@ export function isLocale(value: string | undefined | null): value is Locale {
 }
 
 /** Picks a supported locale from a raw `Accept-Language` header, used only
- * on a player's very first request before any locale cookie exists. */
+ * on a player's very first request before any locale cookie exists. Ranked
+ * by each entry's `q` weight (default 1), not by header list order — a
+ * browser can list its preferences in any order. */
 export function localeFromAcceptLanguage(
   header: string | undefined | null,
 ): Locale {
   if (!header) return defaultLocale;
-  const preferred = header
+  const ranked = header
     .split(",")
-    .map((part) => part.split(";")[0]?.trim().slice(0, 2).toLowerCase());
-  return preferred.find(isLocale) ?? defaultLocale;
+    .map((part) => {
+      const [tag, ...params] = part.split(";").map((s) => s.trim());
+      const q = params.find((p) => p.startsWith("q="))?.slice("q=".length);
+      return { tag: tag?.slice(0, 2).toLowerCase(), q: q ? Number(q) : 1 };
+    })
+    .sort((a, b) => b.q - a.q);
+  return ranked.map((entry) => entry.tag).find(isLocale) ?? defaultLocale;
 }
