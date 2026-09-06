@@ -19,7 +19,6 @@ type Props = {
   headerLeft: ReactNode;
   headerRight: ReactNode;
   beforeOperation?: ReactNode;
-  extraFeedback?: (result: TrialResult) => ReactNode;
 };
 
 function parsedAnswer(raw: string): number | null {
@@ -45,7 +44,6 @@ export function AnsweringPanel({
   headerLeft,
   headerRight,
   beforeOperation,
-  extraFeedback,
 }: Props) {
   const t = useTranslations("Practice");
   const KEY_LABELS: Record<string, string> = {
@@ -250,7 +248,6 @@ export function AnsweringPanel({
                 = {result.operation.result()}
               </span>
             )}
-            {extraFeedback?.(result)}
           </div>
         )}
       </div>

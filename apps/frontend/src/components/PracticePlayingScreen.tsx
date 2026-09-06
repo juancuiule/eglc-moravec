@@ -39,11 +39,6 @@ export function PracticePlayingScreen({ state }: Props) {
           {state.config.categoryCodename}
         </div>
       }
-      extraFeedback={(result) =>
-        result.timeExceeded && result.correct ? (
-          <span className="text-sm opacity-70">{t("tooSlow")}</span>
-        ) : null
-      }
       headerLeft={
         <span>
           {t("correctOfTotal", { correct: correctCount, total: totalDone })}

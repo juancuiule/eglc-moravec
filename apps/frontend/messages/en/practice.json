@@ -4,7 +4,6 @@
   "correctOfTotal": "{correct} / {total} correct",
   "hint": "Hint",
   "stop": "Stop",
-  "tooSlow": "Too slow — keep going!",
   "clear": "Clear",
   "deleteLastDigit": "Delete last digit",
   "submit": "Submit",
