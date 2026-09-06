@@ -98,14 +98,6 @@ export const MAJOR_SYSTEM_TABLE: { digit: number; letters: string }[] = [
   { digit: 9, letters: "P, B, V" },
 ];
 
-/** Shown above the live interactive example, only where it teaches a simpler shortcut than the curated walkthrough above it. */
-export const TUTORIAL_LIVE_NOTE: Partial<Record<TutorialTopic, string>> = {
-  squaring3d:
-    "The live example below shows a simpler one-step version — round to the nearest ten instead of a hundred — which works for any digit count but produces less round factors than the full technique above.",
-  squaring4d:
-    "The live example below shows a simpler one-step version — round to the nearest ten instead of a thousand — which works for any digit count but skips the Major System step.",
-};
-
 export function isTutorialTopic(value: string): value is TutorialTopic {
   return (TUTORIAL_TOPICS as string[]).includes(value);
 }
