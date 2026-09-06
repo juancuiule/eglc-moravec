@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { setLocale } from "@/i18n/setLocale";
@@ -16,6 +16,7 @@ import { navLink } from "@/styles";
  * both locales.
  */
 export function LocaleSwitcher() {
+  const t = useTranslations("Common");
   const locale = useLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -32,7 +33,7 @@ export function LocaleSwitcher() {
     <div
       className="flex items-center gap-0.5 text-xs font-medium"
       role="group"
-      aria-label="Language"
+      aria-label={t("language")}
     >
       {locales.map((code) => (
         <button
