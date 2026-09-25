@@ -26,9 +26,9 @@ export function AnsweringView({ state }: Props) {
 
   return (
     <AnsweringPanel
+      key={state.trialId}
       operation={state.currentOperation}
       playingState={state.playingState}
-      trialId={state.trialId}
       hintVisible={state.hintVisible}
       onSubmitAnswer={submitAnswer}
       onTimeUp={timeUp}

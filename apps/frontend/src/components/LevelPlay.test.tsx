@@ -1,8 +1,19 @@
 import { authStore } from "@/auth/store";
 import { gameStore } from "@/game/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
+
+const { isBetterLevelRecordMock } = vi.hoisted(() => ({
+  isBetterLevelRecordMock: vi.fn(),
+}));
+
+vi.mock("engine", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("engine")>();
+  isBetterLevelRecordMock.mockImplementation(actual.isBetterLevelRecord);
+  return { ...actual, isBetterLevelRecord: isBetterLevelRecordMock };
+});
+
 import { LevelPlay } from "./LevelPlay";
 import { IntlTestProvider } from "@/testUtils/renderWithIntl";
 
@@ -19,7 +30,7 @@ vi.mock("@/api/Api", () => ({
   Api: { fetchLevelStats: vi.fn(), syncResults: vi.fn() },
 }));
 
-import { Api } from "@/api/Api";
+import { Api, type LevelStats } from "@/api/Api";
 import { TRIALS_PER_LEVEL } from "engine";
 
 // Fixtures, not the real catalog's levels — tests shouldn't depend on
@@ -139,6 +150,48 @@ test("revisiting the same level after finishing it starts a fresh run, not the s
     expect(state.results).toEqual([]);
     expect(state.trialId).toBe(0);
   }
+});
+
+test("a missing refreshed level stat leaves the current record unchanged without comparing undefined", async () => {
+  renderWithQueryClient(
+    <LevelPlay stats={{}} levelNumber={1} level={level1} />,
+  );
+
+  finishCurrentRun();
+
+  await waitFor(() => expect(Api.fetchLevelStats).toHaveBeenCalledOnce());
+  expect(
+    isBetterLevelRecordMock.mock.calls.filter(([candidate]) => !candidate),
+  ).toHaveLength(0);
+  expect(isBetterLevelRecordMock.mock.calls[0]?.[0]).toMatchObject({
+    stars: 0,
+  });
+});
+
+test("an existing refreshed level stat still corrects the current record", async () => {
+  const fresh: LevelStats = {
+    stars: 3,
+    totalTime: 1234,
+    completedAt: "2026-01-01T00:00:00.000Z",
+  };
+  vi.mocked(Api.fetchLevelStats).mockResolvedValue({ "1": fresh });
+  renderWithQueryClient(
+    <LevelPlay stats={{}} levelNumber={1} level={level1} />,
+  );
+
+  finishCurrentRun();
+
+  await waitFor(() =>
+    expect(
+      isBetterLevelRecordMock.mock.calls.some(
+        ([candidate]) => candidate === fresh,
+      ),
+    ).toBe(true),
+  );
+  const correctionCall = isBetterLevelRecordMock.mock.calls.find(
+    ([candidate]) => candidate === fresh,
+  );
+  expect(correctionCall?.[1]).toMatchObject({ stars: 0 });
 });
 
 test("a same-mount Replay's New record badge reflects the just-finished run, not a stale stats prop", () => {

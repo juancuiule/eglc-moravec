@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { useLayoutEffect, useRef } from "react";
 import { expect, test } from "vitest";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 import {
@@ -44,6 +45,40 @@ function queryHintButton() {
     name: "Hint",
   }) as HTMLButtonElement | null;
 }
+
+test("the entered answer is cleared in the commit that displays the next operation", () => {
+  const committedAnswers: (string | null)[] = [];
+
+  function CommitProbe({ state }: { state: PracticePlaying }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+      committedAnswers.push(
+        ref.current?.querySelector(".text-3xl.font-mono")?.textContent ?? null,
+      );
+    });
+    return (
+      <div ref={ref}>
+        <PracticePlayingScreen state={state} />
+      </div>
+    );
+  }
+
+  const { rerender } = render(<CommitProbe state={buildPlaying()} />);
+  fireEvent.click(screen.getByRole("button", { name: "5" }));
+  fireEvent.click(screen.getByRole("button", { name: "3" }));
+
+  rerender(
+    <CommitProbe
+      state={buildPlaying({
+        currentOperation: noHintOperation,
+        trialId: 1,
+        playingState: { type: "answering", startedAt: Date.now() },
+      })}
+    />,
+  );
+
+  expect(committedAnswers.at(-1)).toBe("0");
+});
 
 test("hint button is enabled when the operation has a hint, is hidden, and not reviewing", () => {
   render(<PracticePlayingScreen state={buildPlaying()} />);

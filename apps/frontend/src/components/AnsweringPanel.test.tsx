@@ -18,7 +18,6 @@ function renderPanel() {
     <AnsweringPanel
       operation={operation}
       playingState={answeringState}
-      trialId={0}
       hintVisible={false}
       onSubmitAnswer={onSubmitAnswer}
       onTimeUp={vi.fn()}

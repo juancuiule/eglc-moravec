@@ -8,7 +8,7 @@ export class SquaringHint implements Hint {
   constructor(private x: number) {}
 
   hasHint(): boolean {
-    return true;
+    return this.x >= 10;
   }
 
   getSteps(): string[] {
@@ -23,9 +23,7 @@ function nearestA(x: number): number {
 }
 
 function buildSteps(x: number): string[] {
-  if (x < 10) {
-    return [`${x}² = ${x * x}`];
-  }
+  if (x < 10) return [];
 
   const a = nearestA(x);
   const lo = x - a; // multiple of 10

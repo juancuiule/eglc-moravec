@@ -57,7 +57,7 @@ export function LevelPlay({ levelNumber, level, stats }: Props) {
         // before rendering.
         refreshed
           .then((fresh) => {
-            if (cancelled) return; // levelNumber changed, or unmounted
+            if (cancelled || !fresh) return; // levelNumber changed, unmounted, or no server record
             setPreviousRecord((current) =>
               isBetterLevelRecord(fresh, current) ? fresh : current,
             );

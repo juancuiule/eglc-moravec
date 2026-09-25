@@ -64,6 +64,15 @@ describe("SquaringHint", () => {
     expect(steps[1]).toContain("44");
   });
 
+  it("behaves like NoHint for unsupported one-digit squares", () => {
+    for (const x of [1, 5, 9]) {
+      const hint = new SquaringHint(x);
+      expect(hint.hasHint()).toBe(false);
+      expect(hint.getSteps()).toEqual([]);
+      expect(hint.getSteps().join(" ")).not.toContain(String(x * x));
+    }
+  });
+
   it("does not reveal the final answer", () => {
     for (const x of [11, 23, 47, 99, 123]) {
       const steps = new SquaringHint(x).getSteps();

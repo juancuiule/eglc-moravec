@@ -11,7 +11,6 @@ type ReviewingResult = { type: "reviewing"; result: TrialResult };
 type Props = {
   operation: Operation;
   playingState: Answering | ReviewingResult;
-  trialId: number;
   hintVisible: boolean;
   onSubmitAnswer: (answer: number) => void;
   onTimeUp: (answer: number | null) => void;
@@ -36,7 +35,6 @@ const ROWS = [
 export function AnsweringPanel({
   operation,
   playingState,
-  trialId,
   hintVisible,
   onSubmitAnswer,
   onTimeUp,
@@ -57,14 +55,6 @@ export function AnsweringPanel({
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(solveTime);
   const answerRef = useRef("");
-
-  // Reset state on each new trial
-  useEffect(() => {
-    setAnswer("");
-    answerRef.current = "";
-    setPressedKey(null);
-    setRemaining(solveTime);
-  }, [trialId, solveTime]);
 
   // Countdown timer — only active while answering
   const startedAt =
