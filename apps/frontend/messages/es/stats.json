@@ -12,6 +12,9 @@
   "columnEffectiveness": "Efectividad",
   "columnAvgTime": "Tiempo prom.",
   "correctOfTotal": "{correct} de {total} correctas",
+  "activity": "Actividad",
+  "activityDay": "{count, plural, one {# intento el {date}} other {# intentos el {date}}}",
+  "daysThisMonth": "{count, plural, one {# día} other {# días}} entrenados este mes",
   "detail": {
     "backLabel": "Volver a estadísticas",
     "correctTotal": "{correct} correctas · {total} intentos totales",
@@ -21,6 +24,9 @@
     "hardestProblems": "Problemas más difíciles",
     "noMisses": "Sin errores en esta categoría todavía.",
     "wrongOfAttempts": "{errors}/{attempts} mal",
+    "trendTitle": "Tendencia por semana",
+    "trendAccuracy": "Precisión",
+    "trendAvgTime": "Tiempo prom. correcto",
     "confusionsTitle": "Confusiones recurrentes",
     "confusionNeighbor": "Respondiste {given} a {asked} — eso es {neighbor}",
     "confusionPlain": "Respondiste {given} a {asked}"

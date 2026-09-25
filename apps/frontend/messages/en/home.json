@@ -4,5 +4,6 @@
   "play": "Play",
   "practice": "Practice",
   "stats": "Stats",
-  "tutorials": "Tutorials"
+  "tutorials": "Tutorials",
+  "daysTrainedThisMonth": "{count, plural, one {# day trained this month} other {# days trained this month}}"
 }

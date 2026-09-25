@@ -7,11 +7,69 @@ import { useQuery } from "@tanstack/react-query";
 import { Api } from "../api/Api";
 import { authToken, useAuth } from "../auth/store";
 import { computeStats } from "../stats/computeStats";
+import {
+  activityCalendar,
+  daysTrainedThisMonth,
+  type PlayedTrial,
+} from "../stats/activityStats";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
 import { formatSeconds } from "../formatTime";
 import { panel, backLink, textLink } from "../styles";
 
 type Tab = "level" | "practice";
+
+/** GitHub-style trailing-weeks calendar of daily trial counts — teal alpha
+ *  encodes count, muted for empty days, transparent for future days. */
+function ActivityCalendar({ trials }: { trials: PlayedTrial[] }) {
+  const t = useTranslations("Stats");
+  const weeks = useMemo(() => activityCalendar(trials), [trials]);
+  const daysThisMonth = useMemo(() => daysTrainedThisMonth(trials), [trials]);
+  const maxCount = Math.max(1, ...weeks.flat().map((c) => c.count));
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">
+          {t("activity")}
+        </p>
+        <span className="text-2xs text-muted-2">
+          {t("daysThisMonth", { count: daysThisMonth })}
+        </span>
+      </div>
+      <div
+        className="flex justify-center gap-[3px]"
+        role="img"
+        aria-label={t("activity")}
+      >
+        {weeks.map((week, wi) => (
+          <div key={wi} className="flex flex-col gap-[3px]">
+            {week.map((cell) => (
+              <div
+                key={cell.day}
+                className="h-2.5 w-2.5 rounded-sm"
+                title={t("activityDay", {
+                  count: cell.count,
+                  date: cell.day,
+                })}
+                style={{
+                  backgroundColor: cell.future
+                    ? "transparent"
+                    : cell.count === 0
+                      ? "var(--color-subtle-muted)"
+                      : "var(--color-teal)",
+                  opacity:
+                    !cell.future && cell.count > 0
+                      ? 0.35 + 0.65 * (cell.count / maxCount)
+                      : undefined,
+                }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function EffBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
@@ -143,6 +201,10 @@ export function StatsScreen() {
                 ),
               })}
         </p>
+      )}
+
+      {!isLoading && !isError && hasAnyData && (
+        <ActivityCalendar trials={trials} />
       )}
 
       {!isLoading && !isError && hasAnyData && (

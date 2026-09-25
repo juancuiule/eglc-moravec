@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { computeHistogram, type StatsTrial } from "../stats/computeStats";
 import { computeOperationStats, findConfusions } from "../stats/operationStats";
+import { weeklyCategoryTrend, type TrendTrial } from "../stats/activityStats";
+import { formatSeconds } from "../formatTime";
 import { panel, backLink } from "../styles";
 
 type Props = {
   codename: string;
-  trials: StatsTrial[];
+  trials: (StatsTrial & TrendTrial)[];
   onBack: () => void;
 };
 
@@ -110,6 +112,60 @@ function OperationHeatmap({
   );
 }
 
+/** Minimal weekly sparkline — an SVG polyline plus a "first → last" caption.
+ *  The polyline conveys direction; exact values stay out (dense rows carry
+ *  numbers elsewhere). */
+function Spark({
+  label,
+  values,
+  format,
+}: {
+  label: string;
+  values: number[];
+  format: (v: number) => string;
+}) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const span = Math.max(...values) - min || 1;
+  const W = 100;
+  const H = 28;
+  const P = 2;
+  const points = values
+    .map((v, i) => {
+      const x = P + (i / (values.length - 1)) * (W - 2 * P);
+      const y = H - P - ((v - min) / span) * (H - 2 * P);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-2xs text-muted-2 uppercase tracking-wider">
+        {label}
+      </span>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-7"
+        role="img"
+        aria-label={label}
+        preserveAspectRatio="none"
+      >
+        <polyline
+          points={points}
+          fill="none"
+          stroke="var(--color-accent)"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <span className="text-2xs text-muted-2 font-mono">
+        {format(values[0])} → {format(values[values.length - 1])}
+      </span>
+    </div>
+  );
+}
+
 export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
   const t = useTranslations("Stats.detail");
   const buckets = useMemo(
@@ -130,6 +186,10 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
   );
   const confusions = useMemo(
     () => findConfusions(trials, codename).slice(0, 4),
+    [trials, codename],
+  );
+  const trend = useMemo(
+    () => weeklyCategoryTrend(trials, codename),
     [trials, codename],
   );
 
@@ -154,6 +214,28 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
           total: categoryTrials.length,
         })}
       </p>
+
+      {trend.length >= 2 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">
+            {t("trendTitle")}
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <Spark
+              label={t("trendAccuracy")}
+              values={trend.map((w) => w.correctRate)}
+              format={(v) => `${Math.round(v * 100)}%`}
+            />
+            <Spark
+              label={t("trendAvgTime")}
+              values={trend
+                .map((w) => w.avgCorrectTimeMs)
+                .filter((v): v is number => v !== null)}
+              format={formatSeconds}
+            />
+          </div>
+        </div>
+      )}
 
       {buckets.length === 0 ? (
         <p className="text-center text-muted-2 py-8">

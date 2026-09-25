@@ -4,5 +4,6 @@
   "play": "Jugar",
   "practice": "Practicar",
   "stats": "Estadísticas",
-  "tutorials": "Tutoriales"
+  "tutorials": "Tutoriales",
+  "daysTrainedThisMonth": "{count, plural, one {# día entrenado este mes} other {# días entrenados este mes}}"
 }

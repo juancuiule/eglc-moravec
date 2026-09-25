@@ -1,14 +1,29 @@
 "use client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/auth/store";
+import { useQuery } from "@tanstack/react-query";
+import { Api } from "@/api/Api";
+import { authToken, useAuth } from "@/auth/store";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { daysInMonth } from "@/stats/activityStats";
 import { panel, linkButton, navLink } from "@/styles";
 
 export default function HomePage() {
   const t = useTranslations("Home");
   const authState = useAuth((s) => s.state);
   const logout = useAuth((s) => s.logout);
+  const token = useAuth((s) => authToken(s.state));
+
+  // Cheap per-day aggregate — never pull the full trial list just to count.
+  const { data: activity } = useQuery({
+    queryKey: ["activity", token],
+    queryFn: () =>
+      token
+        ? Api.fetchActivity(token, new Date().getTimezoneOffset())
+        : Promise.resolve([]),
+    staleTime: 60_000,
+  });
+  const daysThisMonth = activity ? daysInMonth(activity) : 0;
 
   return (
     <div className={`${panel} p-6 gap-6`}>
@@ -60,6 +75,12 @@ export default function HomePage() {
           {t("tutorials")}
         </Link>
       </div>
+
+      {daysThisMonth > 0 && (
+        <p className="text-center text-xs text-muted-2">
+          {t("daysTrainedThisMonth", { count: daysThisMonth })}
+        </p>
+      )}
     </div>
   );
 }

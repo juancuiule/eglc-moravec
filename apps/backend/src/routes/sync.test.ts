@@ -696,3 +696,84 @@ describe("GET /sync/trials", () => {
     expect(getRes.statusCode).toBe(401);
   });
 });
+
+describe("GET /sync/activity", () => {
+  const at = (iso: string) => new Date(iso).getTime();
+  const dayTrial = (playedAt: number) => ({
+    ...trial,
+    id: randomUUID(),
+    playedAt,
+  });
+
+  it("returns per-day trial counts, UTC-bucketed by default", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        trials: [
+          dayTrial(at("2023-11-14T10:00:00Z")),
+          dayTrial(at("2023-11-14T22:00:00Z")),
+          dayTrial(at("2023-11-15T01:00:00Z")),
+        ],
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/sync/activity",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      days: [
+        { day: "2023-11-14", trials: 2 },
+        { day: "2023-11-15", trials: 1 },
+      ],
+    });
+  });
+
+  it("buckets by the viewer's local day when tzOffsetMinutes is provided", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    // 23:30 UTC = 01:30 next day at UTC+2 (getTimezoneOffset() === -120).
+    await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { trials: [dayTrial(at("2023-11-14T23:30:00Z"))] },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/sync/activity?tzOffsetMinutes=-120",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.json()).toEqual({ days: [{ day: "2023-11-15", trials: 1 }] });
+  });
+
+  it("rejects non-integer or out-of-range tz offsets", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    for (const bad of ["abc", "2000", "1.5"]) {
+      const res = await app.inject({
+        method: "GET",
+        url: `/sync/activity?tzOffsetMinutes=${bad}`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toEqual({ error: "invalid_tz_offset" });
+    }
+  });
+
+  it("rejects an unauthenticated GET", async () => {
+    const { app } = setup();
+    const res = await app.inject({ method: "GET", url: "/sync/activity" });
+    expect(res.statusCode).toBe(401);
+  });
+});

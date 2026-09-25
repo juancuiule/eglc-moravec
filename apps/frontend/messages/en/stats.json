@@ -12,6 +12,9 @@
   "columnEffectiveness": "Effectiveness",
   "columnAvgTime": "Avg time",
   "correctOfTotal": "{correct} / {total} correct",
+  "activity": "Activity",
+  "activityDay": "{count, plural, one {# trial on {date}} other {# trials on {date}}}",
+  "daysThisMonth": "{count, plural, one {# day} other {# days}} trained this month",
   "detail": {
     "backLabel": "Back to statistics",
     "correctTotal": "{correct} correct · {total} total trials",
@@ -21,6 +24,9 @@
     "hardestProblems": "Hardest problems",
     "noMisses": "No misses in this category yet.",
     "wrongOfAttempts": "{errors}/{attempts} wrong",
+    "trendTitle": "Trend by week",
+    "trendAccuracy": "Accuracy",
+    "trendAvgTime": "Avg correct time",
     "confusionsTitle": "Recurring confusions",
     "confusionNeighbor": "You answered {given} to {asked} — that's {neighbor}",
     "confusionPlain": "You answered {given} to {asked}"

@@ -8,6 +8,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { requireEmailHash } from "../auth/session.js";
 import { parseBody } from "../parser.js";
 import {
+  getActivityPerDay,
   getTrialResultsForUser,
   insertTrialResults,
   type TrialResultRow,
@@ -82,5 +83,22 @@ export function registerSyncRoutes(
     );
 
     return reply.send({ trials });
+  });
+
+  app.get("/sync/activity", async (request, reply) => {
+    const emailHash = requireEmailHash(db, request, reply);
+    if (emailHash === null) return;
+
+    // tzOffsetMinutes follows the getTimezoneOffset() convention (minutes to
+    // add to local time to reach UTC — positive west of Greenwich).
+    const { tzOffsetMinutes } = request.query as { tzOffsetMinutes?: string };
+    const parsed = tzOffsetMinutes === undefined ? 0 : Number(tzOffsetMinutes);
+    if (!Number.isInteger(parsed) || Math.abs(parsed) > 14 * 60) {
+      return reply.status(400).send({ error: "invalid_tz_offset" });
+    }
+    const localShiftMs = -parsed * 60_000;
+
+    const days = getActivityPerDay(db, emailHash, localShiftMs);
+    return reply.send({ days });
   });
 }

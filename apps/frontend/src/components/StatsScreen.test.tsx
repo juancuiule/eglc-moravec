@@ -156,3 +156,26 @@ test("shows an error message when the trial fetch fails, with a retry", async ()
 
   expect(await screen.findByText(/No data yet/)).toBeDefined();
 });
+
+test("renders the activity calendar and days-trained caption once trials exist", async () => {
+  vi.mocked(Api.fetchTrials).mockResolvedValue([
+    {
+      id: "11111111-1111-4111-8111-111111111111",
+      runId: "22222222-2222-4222-8222-222222222222",
+      levelNumber: 1,
+      categoryCodename: "1d+1d",
+      operands: [1, 1],
+      answer: 2,
+      correct: true,
+      timeExceeded: false,
+      timeTaken: 1000,
+      playedAt: Date.now(),
+      hintShown: false,
+      runType: "level",
+    },
+  ]);
+  renderWithQueryClient();
+
+  expect(await screen.findByRole("img", { name: "Activity" })).toBeDefined();
+  expect(await screen.findByText("1 day trained this month")).toBeDefined();
+});
