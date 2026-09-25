@@ -140,3 +140,51 @@ export function getSession(
 export function deleteSession(db: DatabaseSync, token: string): void {
   db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
 }
+
+export type OtpVerification = {
+  emailHash: string;
+  anonymousEmailHash: string | null;
+  token: string;
+  expiresAt: number;
+  createdAt: number;
+};
+
+/**
+ * Commits every durable effect of successful OTP verification together.
+ * The caller must not wrap this operation in another transaction.
+ */
+export function completeOtpVerification(
+  db: DatabaseSync,
+  verification: OtpVerification,
+): void {
+  const { emailHash, anonymousEmailHash, token, expiresAt, createdAt } =
+    verification;
+
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    deleteOtpRow(db, emailHash);
+    upsertUser(db, emailHash, createdAt);
+    createSession(db, token, emailHash, expiresAt);
+
+    if (
+      anonymousEmailHash !== null &&
+      anonymousEmailHash !== emailHash &&
+      isAnonymousUser(db, anonymousEmailHash)
+    ) {
+      db.prepare(
+        "UPDATE trial_results SET email_hash = ? WHERE email_hash = ?",
+      ).run(emailHash, anonymousEmailHash);
+      db.prepare("DELETE FROM sessions WHERE email_hash = ?").run(
+        anonymousEmailHash,
+      );
+      db.prepare(
+        "DELETE FROM users WHERE email_hash = ? AND is_anonymous = 1",
+      ).run(anonymousEmailHash);
+    }
+
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}

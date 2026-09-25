@@ -56,14 +56,3 @@ export function getTrialResultsForUser(
     )
     .all(emailHash) as TrialResultRow[];
 }
-
-export function mergeAnonymousIdentity(
-  db: DatabaseSync,
-  from: string,
-  to: string,
-  now: number,
-): void {
-  db.prepare(
-    "UPDATE trial_results SET email_hash = ? WHERE email_hash = ?",
-  ).run(to, from);
-}

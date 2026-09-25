@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
+import { evaluateTrialResult } from "engine";
 import { openDb } from "../db.js";
+import { getTrialResultsForUser, insertTrialResults } from "../sync/repo.js";
 import {
   getOtpRow,
   reserveOtpSlot,
@@ -11,6 +14,7 @@ import {
   createSession,
   getSession,
   deleteSession,
+  completeOtpVerification,
 } from "./repo.js";
 
 const MIN_INTERVAL_MS = 60_000;
@@ -265,5 +269,56 @@ describe("createSession / getSession / deleteSession", () => {
     deleteSession(db, "tok-1");
 
     expect(getSession(db, "tok-1")).toBeUndefined();
+  });
+});
+
+describe("completeOtpVerification", () => {
+  it("rolls back OTP consumption, identity merge, and session changes when a late statement fails", () => {
+    const db = openDb(":memory:");
+    const targetHash = "verified-hash";
+    const anonymousHash = "anonymous-hash";
+    reserveOtpSlot(db, targetHash, "123456", 300_000, 0, MIN_INTERVAL_MS);
+    upsertUser(db, targetHash, 1_000);
+    upsertUser(db, anonymousHash, 2_000, true);
+    createSession(db, "verified-session", targetHash, 999_999);
+    createSession(db, "anonymous-session", anonymousHash, 999_999);
+    insertTrialResults(db, anonymousHash, [
+      evaluateTrialResult({
+        id: randomUUID(),
+        levelNumber: 3,
+        categoryCodename: "1d+1d",
+        timeTaken: 1_200,
+        playedAt: 1_700_000_000_000,
+        operands: [4, 5],
+        answer: 9,
+        hintShown: false,
+        runId: randomUUID(),
+        runType: "level",
+      }),
+    ]);
+    db.exec(`CREATE TRIGGER fail_anonymous_user_delete
+      BEFORE DELETE ON users
+      WHEN OLD.email_hash = '${anonymousHash}'
+      BEGIN
+        SELECT RAISE(ABORT, 'injected user deletion failure');
+      END`);
+
+    expect(() =>
+      completeOtpVerification(db, {
+        emailHash: targetHash,
+        anonymousEmailHash: anonymousHash,
+        token: "new-session",
+        expiresAt: 999_999,
+        createdAt: 3_000,
+      }),
+    ).toThrow("injected user deletion failure");
+
+    expect(getOtpRow(db, targetHash)?.code).toBe("123456");
+    expect(getSession(db, "new-session")).toBeUndefined();
+    expect(getSession(db, "verified-session")?.email_hash).toBe(targetHash);
+    expect(getSession(db, "anonymous-session")?.email_hash).toBe(anonymousHash);
+    expect(getTrialResultsForUser(db, anonymousHash)).toHaveLength(1);
+    expect(getTrialResultsForUser(db, targetHash)).toHaveLength(0);
+    expect(isAnonymousUser(db, anonymousHash)).toBe(true);
   });
 });

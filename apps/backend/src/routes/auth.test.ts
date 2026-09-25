@@ -377,6 +377,12 @@ describe("anonymous → email upgrade merge", () => {
       payload: { deviceId: DEVICE_ID },
     });
     const anonToken = deviceRes.json().token as string;
+    const secondDeviceRes = await app.inject({
+      method: "POST",
+      url: "/auth/device",
+      payload: { deviceId: DEVICE_ID },
+    });
+    const secondAnonToken = secondDeviceRes.json().token as string;
 
     await app.inject({
       method: "POST",
@@ -407,7 +413,9 @@ describe("anonymous → email upgrade merge", () => {
     const realToken = verifyRes.json().token as string;
 
     const realEmailHash = hashEmail(EMAIL, TEST_SECRET);
+    const anonymousEmailHash = hashDeviceId(DEVICE_ID, TEST_SECRET);
     expect(getTrialResultsForUser(db, realEmailHash)).toHaveLength(20);
+    expect(getTrialResultsForUser(db, anonymousEmailHash)).toHaveLength(0);
 
     // The merged trials are what level-stats derives from, so the new
     // account sees the anonymous identity's completed level.
@@ -418,21 +426,129 @@ describe("anonymous → email upgrade merge", () => {
     });
     expect(levelStatsRes.json().levelStats["5"]).toMatchObject({ stars: 3 });
 
-    // The old anonymous session is gone…
-    const anonMeRes = await app.inject({
-      method: "GET",
-      url: "/auth/me",
-      headers: { authorization: `Bearer ${anonToken}` },
-    });
-    expect(anonMeRes.statusCode).toBe(401);
+    // Every session for the upgraded anonymous identity is gone, not just
+    // the bearer presented to verification.
+    for (const oldToken of [anonToken, secondAnonToken]) {
+      const anonMeRes = await app.inject({
+        method: "GET",
+        url: "/auth/me",
+        headers: { authorization: `Bearer ${oldToken}` },
+      });
+      expect(anonMeRes.statusCode).toBe(401);
+    }
 
-    // …the new one works.
+    const anonymousUser = db
+      .prepare("SELECT * FROM users WHERE email_hash = ?")
+      .get(hashDeviceId(DEVICE_ID, TEST_SECRET));
+    expect(anonymousUser).toBeUndefined();
+
+    // The new session works.
     const realMeRes = await app.inject({
       method: "GET",
       url: "/auth/me",
       headers: { authorization: `Bearer ${realToken}` },
     });
     expect(realMeRes.statusCode).toBe(200);
+  });
+
+  it("merges into an existing verified user without losing their trials or sessions", async () => {
+    const { db, app } = setup();
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: EMAIL },
+    });
+    const existingVerify = await app.inject({
+      method: "POST",
+      url: "/auth/otp/verify",
+      payload: { email: EMAIL, code: codeFor(db, EMAIL) },
+    });
+    const existingToken = existingVerify.json().token as string;
+    await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${existingToken}` },
+      payload: { trials: [trial] },
+    });
+
+    const deviceRes = await app.inject({
+      method: "POST",
+      url: "/auth/device",
+      payload: { deviceId: DEVICE_ID },
+    });
+    const anonToken = deviceRes.json().token as string;
+    await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${anonToken}` },
+      payload: {
+        trials: [{ ...trial, id: randomUUID(), runId: randomUUID() }],
+      },
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: EMAIL },
+    });
+    const upgradeRes = await app.inject({
+      method: "POST",
+      url: "/auth/otp/verify",
+      headers: { authorization: `Bearer ${anonToken}` },
+      payload: { email: EMAIL, code: codeFor(db, EMAIL) },
+    });
+
+    expect(upgradeRes.statusCode).toBe(200);
+    expect(
+      getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+    ).toHaveLength(2);
+    const existingSessionRes = await app.inject({
+      method: "GET",
+      url: "/auth/me",
+      headers: { authorization: `Bearer ${existingToken}` },
+    });
+    expect(existingSessionRes.statusCode).toBe(200);
+  });
+
+  it("does not merge or delete an anonymous identity when the bearer cannot resolve", async () => {
+    const { db, app } = setup();
+    const deviceRes = await app.inject({
+      method: "POST",
+      url: "/auth/device",
+      payload: { deviceId: DEVICE_ID },
+    });
+    const anonToken = deviceRes.json().token as string;
+    await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${anonToken}` },
+      payload: { trials: [trial] },
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/auth/otp/request",
+      payload: { email: EMAIL },
+    });
+    const verifyRes = await app.inject({
+      method: "POST",
+      url: "/auth/otp/verify",
+      headers: { authorization: "Bearer no-such-session" },
+      payload: { email: EMAIL, code: codeFor(db, EMAIL) },
+    });
+
+    expect(verifyRes.statusCode).toBe(200);
+    const anonymousHash = hashDeviceId(DEVICE_ID, TEST_SECRET);
+    expect(getTrialResultsForUser(db, anonymousHash)).toHaveLength(1);
+    expect(
+      db.prepare("SELECT * FROM users WHERE email_hash = ?").get(anonymousHash),
+    ).toBeDefined();
+    const anonMeRes = await app.inject({
+      method: "GET",
+      url: "/auth/me",
+      headers: { authorization: `Bearer ${anonToken}` },
+    });
+    expect(anonMeRes.statusCode).toBe(200);
   });
 
   it("does not merge when the bearer token belongs to a different real account, not an anonymous one", async () => {

@@ -2,11 +2,7 @@ import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { evaluateTrialResult, type TrialResultInput } from "engine";
 import { openDb } from "../db.js";
-import {
-  insertTrialResults,
-  getTrialResultsForUser,
-  mergeAnonymousIdentity,
-} from "./repo.js";
+import { insertTrialResults, getTrialResultsForUser } from "./repo.js";
 
 const baseTrialInput: TrialResultInput = {
   id: randomUUID(),
@@ -72,17 +68,5 @@ describe("insertTrialResults / getTrialResultsForUser", () => {
     insertTrialResults(db, "hash-1", [trial]); // e.g. a retried sync after a dropped response
 
     expect(getTrialResultsForUser(db, "hash-1")).toHaveLength(1);
-  });
-});
-
-describe("mergeAnonymousIdentity", () => {
-  it("re-keys trial_results from the anonymous identity to the real one", () => {
-    const db = openDb(":memory:");
-    insertTrialResults(db, "anon-hash", [evaluateTrialResult(baseTrialInput)]);
-
-    mergeAnonymousIdentity(db, "anon-hash", "real-hash", 2000);
-
-    expect(getTrialResultsForUser(db, "anon-hash")).toHaveLength(0);
-    expect(getTrialResultsForUser(db, "real-hash")).toHaveLength(1);
   });
 });

@@ -9,12 +9,11 @@ import {
   normalizeEmail,
 } from "../auth/logic.js";
 import {
+  completeOtpVerification,
   createSession,
-  deleteOtpRow,
   deleteSession,
   getOtpRow,
   incrementOtpAttempts,
-  isAnonymousUser,
   reserveOtpSlot,
   restoreOtpRow,
   upsertUser,
@@ -26,7 +25,6 @@ import {
 } from "../auth/session.js";
 import type { Config } from "../config";
 import { parseBody } from "../parser.js";
-import { mergeAnonymousIdentity } from "../sync/repo.js";
 
 import * as z from "zod";
 
@@ -113,21 +111,15 @@ export function registerAuthRoutes(
     const anonToken = bearerToken(request.headers.authorization);
     const anonEmailHash = resolveEmailHash(db, anonToken);
 
-    deleteOtpRow(db, emailHash);
-    upsertUser(db, emailHash, now);
     const token = generateSessionToken();
     const expiresAt = now + config.sessionTtlMs;
-    createSession(db, token, emailHash, expiresAt);
-
-    if (
-      anonToken !== null &&
-      anonEmailHash !== null &&
-      anonEmailHash !== emailHash &&
-      isAnonymousUser(db, anonEmailHash)
-    ) {
-      mergeAnonymousIdentity(db, anonEmailHash, emailHash, now);
-      deleteSession(db, anonToken);
-    }
+    completeOtpVerification(db, {
+      emailHash,
+      anonymousEmailHash: anonEmailHash,
+      token,
+      expiresAt,
+      createdAt: now,
+    });
 
     return reply.send({ token, expiresAt });
   });
