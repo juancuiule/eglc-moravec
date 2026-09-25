@@ -54,7 +54,7 @@ The domain has a deliberately precise vocabulary: Trial vs. TrialResult, Level r
 
 ### A few decisions worth calling out
 
-- **Server-side re-validation, not blind trust.** `POST /sync/results` recomputes `correct`/`timeExceeded` for every submitted trial from its operands and reported time, using the same `engine` scoring the client used. The server's computed value is what's actually stored and read everywhere. The client's original claim is kept alongside for auditing, never overwritten, never surfacing an error to the player.
+- **Server-side re-validation, not blind trust.** The client submits each Trial's operands, final answer, and total time — not correctness claims. `POST /sync/results` validates that evidence and computes `correct`/`timeExceeded` with the same `engine` scoring used during play; those server-computed values are what the backend stores.
 - **Anonymous-first auth.** A player gets a working, syncing identity the moment the app loads: a salted hash of a device ID, no email required. Passwordless OTP login later upgrades that identity in place, merging its history rather than starting fresh. No plaintext email is ever stored.
 - **Level content lives in the database, not a frontend map.** Changing a Level's operation mix no longer needs a frontend rebuild. `GET /levels/:levelNumber` is the live source of truth, fetched server-side and threaded down as a prop.
 - **Every outcome consumes exactly one Trial slot.** Whether a Trial is correct, wrong, or timed out, a Level is always exactly N Operations, never silently retried. `timeExceeded` is recorded metadata, not a second success condition alongside `correct`.
