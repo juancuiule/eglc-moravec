@@ -259,16 +259,51 @@ describe("createTrialSessionStore", () => {
       expect(store.getState().state.type).toBe("done");
     });
 
-    it("carries through whatever results were recorded so far", () => {
+    it("includes the current scored result exactly once when forced complete during reviewing", () => {
       store.getState().start({ totalTrials: 100 });
-      const s = store.getState().state;
-      if (s.type !== "playing") throw new Error();
-      store.getState().submitAnswer(s.currentOperation.result());
-      store.getState().advance();
+      const playing = store.getState().state;
+      if (playing.type !== "playing") throw new Error();
+      store.getState().submitAnswer(playing.currentOperation.result());
+      const reviewing = store.getState().state;
+      if (
+        reviewing.type !== "playing" ||
+        reviewing.playingState.type !== "reviewing"
+      )
+        throw new Error();
+      const currentResult = reviewing.playingState.result;
+
       store.getState().forceComplete();
+
       const done = store.getState().state;
       if (done.type !== "done") throw new Error();
-      expect(done.results).toHaveLength(1);
+      expect(done.results).toEqual([currentResult]);
+    });
+
+    it("does not add an unscored result when forced complete during answering", () => {
+      store.getState().start({ totalTrials: 100 });
+
+      store.getState().forceComplete();
+
+      const done = store.getState().state;
+      if (done.type !== "done") throw new Error();
+      expect(done.results).toEqual([]);
+    });
+
+    it("does not duplicate a result already recorded by advance", () => {
+      store.getState().start({ totalTrials: 100 });
+      const playing = store.getState().state;
+      if (playing.type !== "playing") throw new Error();
+      store.getState().submitAnswer(playing.currentOperation.result());
+      store.getState().advance();
+      const advanced = store.getState().state;
+      if (advanced.type !== "playing") throw new Error();
+      const recordedResult = advanced.results[0];
+
+      store.getState().forceComplete();
+
+      const done = store.getState().state;
+      if (done.type !== "done") throw new Error();
+      expect(done.results).toEqual([recordedResult]);
     });
 
     it("is a no-op outside playing", () => {

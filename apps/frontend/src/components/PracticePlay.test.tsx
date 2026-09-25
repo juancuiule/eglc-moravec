@@ -1,8 +1,15 @@
-import { act } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { PracticePlay } from "./PracticePlay";
 import { practiceStore } from "@/practice/store";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
+
+const { persistStoppedPractice } = vi.hoisted(() => ({
+  persistStoppedPractice: vi.fn(),
+}));
+vi.mock("@/practice/persistStoppedPractice", () => ({
+  persistStoppedPractice,
+}));
 
 const router = { replace: vi.fn(), push: vi.fn() };
 vi.mock("next/navigation", () => ({
@@ -27,6 +34,7 @@ beforeEach(() => {
   localStorageMock.clear();
   vi.stubGlobal("localStorage", localStorageMock);
   practiceStore.getState().reset();
+  persistStoppedPractice.mockClear();
 });
 
 afterEach(() => {
@@ -43,6 +51,25 @@ test("fresh mount starts a Playing run for the given category", () => {
     expect(state.results).toEqual([]);
     expect(state.trialId).toBe(0);
   }
+});
+
+test("stopping during Reviewing includes the scored trial once in the summary and persistence", () => {
+  render(<PracticePlay categoryCodename="1d+1d" />);
+  const playing = practiceStore.getState().state;
+  if (playing.type !== "playing") throw new Error();
+
+  act(() => {
+    practiceStore.getState().submitAnswer(playing.currentOperation.result());
+    practiceStore.getState().stop();
+  });
+
+  const stopped = practiceStore.getState().state;
+  if (stopped.type !== "stopped") throw new Error();
+  expect(stopped.results).toHaveLength(1);
+  expect(screen.getByText("1 of 1 correct")).toBeDefined();
+  expect(persistStoppedPractice).toHaveBeenCalledTimes(1);
+  expect(persistStoppedPractice.mock.calls[0]?.[0]).toBe(stopped);
+  expect(persistStoppedPractice.mock.calls[0]?.[0].results).toHaveLength(1);
 });
 
 test("switching to a different category mid-play abandons the in-progress run and starts fresh for the new category", () => {

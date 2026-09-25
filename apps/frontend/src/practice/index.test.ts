@@ -78,19 +78,26 @@ describe("createPracticeStore", () => {
     vi.spyOn(Date, "now").mockReturnValue(1_000_000);
   });
 
-  it("starts, plays a trial, and stop() ends the session with results so far — unscored", () => {
+  it("stop() during reviewing ends the session with the current result exactly once", () => {
     const store = createPracticeStore();
     store.getState().start({ categoryCodename: "1d+1d" });
 
     const playing = store.getState().state;
     if (playing.type !== "playing") throw new Error();
     store.getState().submitAnswer(playing.currentOperation.result());
-    store.getState().advance();
+    const reviewing = store.getState().state;
+    if (
+      reviewing.type !== "playing" ||
+      reviewing.playingState.type !== "reviewing"
+    )
+      throw new Error();
+    const currentResult = reviewing.playingState.result;
 
     store.getState().stop();
+
     const stopped = store.getState().state;
     if (stopped.type !== "stopped") throw new Error();
-    expect(stopped.results).toHaveLength(1);
+    expect(stopped.results).toEqual([currentResult]);
     expect(stopped.runId).toBe(playing.runId);
   });
 

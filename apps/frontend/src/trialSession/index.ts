@@ -243,12 +243,12 @@ export function trialSessionActions<
     forceComplete() {
       const { state } = get();
       if (!isPlaying(state)) return;
+      const results =
+        state.playingState.type === "reviewing"
+          ? [...state.results, state.playingState.result]
+          : state.results;
       set({
-        state: policy.buildTerminalState(
-          state.results,
-          state.config,
-          state.runId,
-        ),
+        state: policy.buildTerminalState(results, state.config, state.runId),
       });
     },
 
