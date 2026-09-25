@@ -123,6 +123,54 @@ describe("POST /auth/otp/request", () => {
     vi.unstubAllGlobals();
   });
 
+  it("keeps a newer emailed code when an overlapping older delivery fails", async () => {
+    let now = 1_700_000_000_000;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    let rejectFirst!: (reason?: unknown) => void;
+    const firstDelivery = new Promise((_resolve, reject) => {
+      rejectFirst = reject;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => firstDelivery)
+      .mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    const { db, app } = setup({ RESEND_API_KEY: "fake-key" });
+
+    try {
+      const requestA = app.inject({
+        method: "POST",
+        url: "/auth/otp/request",
+        payload: { email: EMAIL },
+      });
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+      now += 30_000;
+      const responseB = await app.inject({
+        method: "POST",
+        url: "/auth/otp/request",
+        payload: { email: EMAIL },
+      });
+      expect(responseB.statusCode).toBe(200);
+      const codeB = codeFor(db, EMAIL);
+
+      rejectFirst(new Error("first delivery failed late"));
+      const responseA = await requestA;
+      expect(responseA.statusCode).toBe(502);
+      expect(codeFor(db, EMAIL)).toBe(codeB);
+
+      const verifyResponse = await app.inject({
+        method: "POST",
+        url: "/auth/otp/verify",
+        payload: { email: EMAIL, code: codeB },
+      });
+      expect(verifyResponse.statusCode).toBe(200);
+    } finally {
+      nowSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("does not persist the code or arm the rate limit when email delivery fails", async () => {
     vi.stubGlobal(
       "fetch",

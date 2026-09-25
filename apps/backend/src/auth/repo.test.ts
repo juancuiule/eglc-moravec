@@ -117,7 +117,10 @@ describe("restoreOtpRow", () => {
     const db = openDb(":memory:");
     reserveOtpSlot(db, "hash-1", "123456", 300_000, 0, MIN_INTERVAL_MS);
 
-    restoreOtpRow(db, "hash-1", undefined);
+    restoreOtpRow(db, "hash-1", undefined, {
+      code: "123456",
+      requestedAt: 0,
+    });
 
     expect(getOtpRow(db, "hash-1")).toBeUndefined();
   });
@@ -137,9 +140,54 @@ describe("restoreOtpRow", () => {
     // A later, failed reservation attempt overwrote the row in memory...
     reserveOtpSlot(db, "hash-1", "999999", 999, 999_999, MIN_INTERVAL_MS);
 
-    restoreOtpRow(db, "hash-1", before);
+    restoreOtpRow(db, "hash-1", before, {
+      code: "999999",
+      requestedAt: 999_999,
+    });
 
     expect(getOtpRow(db, "hash-1")).toEqual(before);
+  });
+
+  it("does not overwrite a newer reservation when an older delivery fails", () => {
+    const db = openDb(":memory:");
+    const before = {
+      email_hash: "hash-1",
+      code: "111111",
+      expires_at: 111,
+      attempts: 2,
+      requested_at: 5,
+    };
+    reserveOtpSlot(db, "hash-1", "111111", 111, 5, MIN_INTERVAL_MS);
+    incrementOtpAttempts(db, "hash-1");
+    incrementOtpAttempts(db, "hash-1");
+    reserveOtpSlot(db, "hash-1", "222222", 222, 100_000, MIN_INTERVAL_MS);
+    reserveOtpSlot(db, "hash-1", "333333", 333, 200_000, MIN_INTERVAL_MS);
+
+    restoreOtpRow(db, "hash-1", before, {
+      code: "222222",
+      requestedAt: 100_000,
+    });
+
+    expect(getOtpRow(db, "hash-1")).toEqual({
+      email_hash: "hash-1",
+      code: "333333",
+      expires_at: 333,
+      attempts: 0,
+      requested_at: 200_000,
+    });
+  });
+
+  it("uses the code to distinguish reservations with equal timestamps", () => {
+    const db = openDb(":memory:");
+    reserveOtpSlot(db, "hash-1", "222222", 222, 100_000, MIN_INTERVAL_MS);
+    reserveOtpSlot(db, "hash-1", "333333", 333, 100_000, 0);
+
+    restoreOtpRow(db, "hash-1", undefined, {
+      code: "222222",
+      requestedAt: 100_000,
+    });
+
+    expect(getOtpRow(db, "hash-1")?.code).toBe("333333");
   });
 });
 

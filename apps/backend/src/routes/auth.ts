@@ -63,7 +63,7 @@ export function registerAuthRoutes(
     try {
       await sendOtpEmail(normalizeEmail(email), code, config.resendApiKey);
     } catch (err) {
-      restoreOtpRow(db, emailHash, before);
+      restoreOtpRow(db, emailHash, before, { code, requestedAt: now });
       app.log.error(err);
       return reply.code(502).send({ error: "email_delivery_failed" });
     }

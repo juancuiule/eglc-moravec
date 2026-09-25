@@ -40,30 +40,42 @@ export function reserveOtpSlot(
   return result.changes !== 0;
 }
 
+export type OtpReservation = {
+  code: string;
+  requestedAt: number;
+};
+
 /**
  * Undoes a reservation whose email delivery failed, so a real retry isn't
  * locked out by a slot nothing was ever sent for. `before` is whatever
  * reserveOtpSlot's caller read *before* reserving — restoring it exactly
- * (rather than just deleting the row) preserves a still-valid prior code
- * instead of invalidating it as a side effect of the failed attempt.
+ * (rather than just deleting the row) preserves a still-valid prior code.
+ * The reservation identity makes this a no-op if another request has since
+ * replaced the row; code is included because timestamps need not be unique.
  */
 export function restoreOtpRow(
   db: DatabaseSync,
   emailHash: string,
   before: OtpRow | undefined,
+  reservation: OtpReservation,
 ): void {
   if (before === undefined) {
-    db.prepare("DELETE FROM otp_codes WHERE email_hash = ?").run(emailHash);
+    db.prepare(
+      "DELETE FROM otp_codes WHERE email_hash = ? AND code = ? AND requested_at = ?",
+    ).run(emailHash, reservation.code, reservation.requestedAt);
     return;
   }
   db.prepare(
-    `UPDATE otp_codes SET code = ?, expires_at = ?, attempts = ?, requested_at = ? WHERE email_hash = ?`,
+    `UPDATE otp_codes SET code = ?, expires_at = ?, attempts = ?, requested_at = ?
+     WHERE email_hash = ? AND code = ? AND requested_at = ?`,
   ).run(
     before.code,
     before.expires_at,
     before.attempts,
     before.requested_at,
     emailHash,
+    reservation.code,
+    reservation.requestedAt,
   );
 }
 
