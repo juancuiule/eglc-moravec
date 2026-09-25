@@ -21,6 +21,29 @@ export type SquaringCategory = {
 export type OperationCategory =
   AdditionCategory | MultiplicationCategory | SquaringCategory;
 
+export const SUPPORTED_CATEGORY_CODENAMES = [
+  "1d+1d",
+  "2d+2d",
+  "1dx1d",
+  "2dx1d",
+  "3dx1d",
+  "4dx1d",
+  "(2d)^2",
+  "(3d)^2",
+  "(4d)^2",
+] as const;
+
+export type SupportedCategoryCodename =
+  (typeof SUPPORTED_CATEGORY_CODENAMES)[number];
+
+const supportedCategoryCodenames = new Set<string>(
+  SUPPORTED_CATEGORY_CODENAMES,
+);
+
+export function isSupportedCategoryCodename(codename: string): boolean {
+  return supportedCategoryCodenames.has(codename);
+}
+
 const codenameRegex = {
   addition: /^(\d+)d\+(\d+)d$/,
   multiplication: /^(\d+)dx(\d+)d$/,

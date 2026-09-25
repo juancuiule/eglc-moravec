@@ -8,16 +8,18 @@ import {
 import { Addition } from "./operations/operation.js";
 import type { TrialResult } from "./trial/engine.js";
 
+const VALID_RUN_ID = "66041232-7c0a-4bdb-85bf-ade51042c87a";
+
 const validTrial = {
   id: "50d5a445-85ec-45b0-bdd8-a88424a685ff",
   levelNumber: 3,
-  categoryCodename: "1d+1d",
+  categoryCodename: "1d+1d" as const,
   timeTaken: 1200,
   playedAt: 1_700_000_000_000,
   operands: [4, 5],
   answer: 9,
   hintShown: false,
-  runId: "run-abc",
+  runId: VALID_RUN_ID,
   runType: "level" as const,
 };
 
@@ -41,6 +43,16 @@ describe("parseTrialResults", () => {
   it("rejects a trial missing a required field", () => {
     const { timeTaken: _timeTaken, ...incomplete } = validTrial;
     expect(parseTrialResults({ trials: [incomplete] })).toBeNull();
+  });
+
+  it("rejects an unparseable category codename", () => {
+    const trial = { ...validTrial, categoryCodename: "garbage" };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("rejects a parseable but unsupported category codename", () => {
+    const trial = { ...validTrial, categoryCodename: "2dx2d" };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
   it("rejects a trial with a wrong-typed field", () => {
@@ -127,7 +139,7 @@ describe("evaluateTrialResult", () => {
     expect(evaluated.operands).toEqual([4, 5]);
     expect(evaluated.answer).toBe(9);
     expect(evaluated.hintShown).toBe(false);
-    expect(evaluated.runId).toBe("run-abc");
+    expect(evaluated.runId).toBe(VALID_RUN_ID);
     expect(evaluated.runType).toBe("level");
   });
 

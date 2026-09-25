@@ -56,15 +56,10 @@ describe("GET /health", () => {
 });
 
 describe("global error handler", () => {
-  it("returns a generic 500 body for an unhandled throw, not the raw error message", async () => {
+  it("returns a generic 400 body for an invalid sync category, not the raw codename", async () => {
     const db = openDb(":memory:");
     const app = buildApp(db, testConfig);
     const token = await loginAndGetToken(db, app);
-
-    // categoryCodename doesn't match a known category — the zod schema only
-    // checks it's a string, so this passes validation, and
-    // reconstructOperation() then throws a plain Error with the codename in
-    // its message.
     const trial = {
       id: randomUUID(),
       levelNumber: 1,
@@ -85,10 +80,9 @@ describe("global error handler", () => {
       payload: { trials: [trial] },
     });
 
-    expect(response.statusCode).toBe(500);
-    expect(response.json()).toEqual({ error: "internal_error" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: "invalid_request" });
     expect(response.body).not.toContain("garbage");
-    expect(response.body).not.toContain("Unknown operation");
   });
 
   it("returns the response with a generic body for a Fastify-level 4xx, not the raw parser error", async () => {

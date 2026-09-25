@@ -4,6 +4,7 @@ import {
   starsForScore,
 } from "./levelScoring";
 import { reconstructOperation } from "./operations/index";
+import { isSupportedCategoryCodename } from "./operations/category";
 import { computePlayedAtTimestamps } from "./playedAt";
 import { Trial, type TrialResult } from "./trial/engine";
 import * as z from "zod";
@@ -12,7 +13,7 @@ export const TrialResultSchema = z.object({
   id: z.uuidv4(),
   runId: z.uuidv4(),
   levelNumber: z.number().nullable(),
-  categoryCodename: z.string(),
+  categoryCodename: z.string().refine(isSupportedCategoryCodename),
   timeTaken: z.number(),
   playedAt: z.number(),
   operands: z.array(z.number()).max(2).min(1),

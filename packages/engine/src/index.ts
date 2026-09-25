@@ -1,9 +1,12 @@
 export {
   categoryFromCodename,
+  isSupportedCategoryCodename,
+  SUPPORTED_CATEGORY_CODENAMES,
   type AdditionCategory,
   type MultiplicationCategory,
   type OperationCategory,
   type SquaringCategory,
+  type SupportedCategoryCodename,
 } from "./operations/category";
 export { createOperation, reconstructOperation } from "./operations/index";
 export { createRandomOperand, type OperandOptions } from "./operations/operand";

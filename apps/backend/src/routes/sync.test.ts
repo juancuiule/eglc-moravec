@@ -112,6 +112,32 @@ describe("POST /sync/results", () => {
     expect(res.statusCode).toBe(400);
   });
 
+  it.each(["garbage", "2dx2d"])(
+    "rejects unsupported category codename %s without storing the batch",
+    async (categoryCodename) => {
+      const { db, app } = setup();
+      const token = await loginAndGetToken(db, app);
+      const invalidTrial = {
+        ...trial,
+        id: randomUUID(),
+        categoryCodename,
+      };
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/sync/results",
+        headers: { authorization: `Bearer ${token}` },
+        payload: { trials: [trial, invalidTrial] },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toEqual({ error: "invalid_request" });
+      expect(
+        getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+      ).toHaveLength(0);
+    },
+  );
+
   it("retrying the same trial id does not double-record it", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
