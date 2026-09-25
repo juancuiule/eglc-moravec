@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { cleanupExpiredAuthData } from "./auth/repo.js";
 import { seedLevelsIfEmpty } from "./levels/repo.js";
 
 const SCHEMA_STATEMENTS: readonly string[] = [
@@ -57,6 +58,10 @@ type ColumnMigration = {
 
 const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [];
 
+const INDEX_STATEMENTS: readonly string[] = [
+  "CREATE INDEX IF NOT EXISTS idx_trial_results_email_hash ON trial_results(email_hash)",
+];
+
 function tableColumns(db: DatabaseSync, table: string): Set<string> {
   return new Set(
     (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map(
@@ -73,11 +78,13 @@ function applyColumnMigrations(db: DatabaseSync): void {
   });
 }
 
-export function openDb(path: string): DatabaseSync {
+export function openDb(path: string, now: number = Date.now()): DatabaseSync {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   SCHEMA_STATEMENTS.forEach((statement) => db.exec(statement));
   applyColumnMigrations(db);
+  INDEX_STATEMENTS.forEach((statement) => db.exec(statement));
+  cleanupExpiredAuthData(db, now);
   seedLevelsIfEmpty(db);
   return db;
 }

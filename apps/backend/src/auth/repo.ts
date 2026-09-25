@@ -141,6 +141,28 @@ export function deleteSession(db: DatabaseSync, token: string): void {
   db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
 }
 
+export function cleanupExpiredAuthData(db: DatabaseSync, now: number): void {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(now);
+    db.prepare("DELETE FROM otp_codes WHERE expires_at < ?").run(now);
+    db.prepare(
+      `DELETE FROM users
+       WHERE is_anonymous = 1
+         AND NOT EXISTS (
+           SELECT 1 FROM sessions WHERE sessions.email_hash = users.email_hash
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM trial_results WHERE trial_results.email_hash = users.email_hash
+         )`,
+    ).run();
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export type OtpVerification = {
   emailHash: string;
   anonymousEmailHash: string | null;

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { DatabaseSync } from "node:sqlite";
+import { DatabaseSync } from "node:sqlite";
 import { openDb } from "./db.js";
 
 let tmpDir: string | undefined;
@@ -24,6 +24,12 @@ function tableNames(db: DatabaseSync): string[] {
       name: string;
     }[]
   ).map((t) => t.name);
+}
+
+function indexedColumns(db: DatabaseSync, index: string): string[] {
+  return (
+    db.prepare(`PRAGMA index_info(${index})`).all() as { name: string }[]
+  ).map((column) => column.name);
 }
 
 describe("openDb", () => {
@@ -79,6 +85,37 @@ describe("openDb", () => {
     );
   });
 
+  it("creates the named trial_results email_hash index on a fresh database", () => {
+    const db = openDb(":memory:");
+
+    expect(indexedColumns(db, "idx_trial_results_email_hash")).toEqual([
+      "email_hash",
+    ]);
+  });
+
+  it("adds the trial_results email_hash index to an existing database and reapplies it idempotently", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "existing.sqlite");
+    const existingDb = new DatabaseSync(dbPath);
+    existingDb.exec(
+      "CREATE TABLE trial_results (id TEXT PRIMARY KEY, email_hash TEXT NOT NULL)",
+    );
+    existingDb.close();
+
+    openDb(dbPath).close();
+    const db = openDb(dbPath);
+
+    expect(indexedColumns(db, "idx_trial_results_email_hash")).toEqual([
+      "email_hash",
+    ]);
+    const matchingIndexes = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?",
+      )
+      .all("idx_trial_results_email_hash");
+    expect(matchingIndexes).toHaveLength(1);
+  });
+
   it("is idempotent — opening the same database twice does not error or duplicate columns", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
     const dbPath = join(tmpDir, "twice.sqlite");
@@ -89,6 +126,27 @@ describe("openDb", () => {
     const columns = columnNames(db, "trial_results");
     expect(columns.filter((c) => c === "run_type")).toHaveLength(1);
     expect(columns.filter((c) => c === "operands")).toHaveLength(1);
+  });
+
+  it("cleans expired auth data on startup using the injected time", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "cleanup.sqlite");
+    const db = openDb(dbPath);
+    db.exec(`
+      INSERT INTO users (email_hash, created_at, is_anonymous)
+      VALUES ('expired-anonymous', 1, 1);
+      INSERT INTO sessions (token, email_hash, expires_at)
+      VALUES ('expired-session', 'expired-anonymous', 99);
+      INSERT INTO otp_codes (email_hash, code, expires_at, requested_at)
+      VALUES ('expired-otp', '123456', 99, 1);
+    `);
+    db.close();
+
+    const reopenedDb = openDb(dbPath, 100);
+
+    expect(reopenedDb.prepare("SELECT * FROM sessions").all()).toHaveLength(0);
+    expect(reopenedDb.prepare("SELECT * FROM otp_codes").all()).toHaveLength(0);
+    expect(reopenedDb.prepare("SELECT * FROM users").all()).toHaveLength(0);
   });
 
   it("seeds the levels table from LEVEL_SEED_DATA on a fresh database", () => {

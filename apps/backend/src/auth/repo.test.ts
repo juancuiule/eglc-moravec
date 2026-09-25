@@ -14,6 +14,7 @@ import {
   createSession,
   getSession,
   deleteSession,
+  cleanupExpiredAuthData,
   completeOtpVerification,
 } from "./repo.js";
 
@@ -269,6 +270,83 @@ describe("createSession / getSession / deleteSession", () => {
     deleteSession(db, "tok-1");
 
     expect(getSession(db, "tok-1")).toBeUndefined();
+  });
+});
+
+describe("cleanupExpiredAuthData", () => {
+  it("deletes expired auth rows and only genuinely orphan anonymous users", () => {
+    const db = openDb(":memory:");
+    const now = 1_000_000;
+
+    upsertUser(db, "verified-orphan", 1);
+    upsertUser(db, "anonymous-orphan", 2, true);
+    upsertUser(db, "anonymous-with-expired-session", 3, true);
+    upsertUser(db, "anonymous-with-live-session", 4, true);
+    upsertUser(db, "anonymous-with-trial", 5, true);
+
+    createSession(db, "expired-orphan-session", "anonymous-orphan", now - 1);
+    createSession(
+      db,
+      "expired-only-session",
+      "anonymous-with-expired-session",
+      now - 1,
+    );
+    createSession(db, "expired-data-session", "anonymous-with-trial", now - 1);
+    createSession(db, "live-session", "anonymous-with-live-session", now);
+    reserveOtpSlot(db, "expired-otp", "111111", now - 1, 1, 0);
+    reserveOtpSlot(db, "live-otp", "222222", now, 2, 0);
+    insertTrialResults(db, "anonymous-with-trial", [
+      evaluateTrialResult({
+        id: randomUUID(),
+        levelNumber: 1,
+        categoryCodename: "1d+1d",
+        timeTaken: 1_000,
+        playedAt: now,
+        operands: [1, 2],
+        answer: 3,
+        hintShown: false,
+        runId: randomUUID(),
+        runType: "level",
+      }),
+    ]);
+
+    cleanupExpiredAuthData(db, now);
+
+    expect(getSession(db, "expired-orphan-session")).toBeUndefined();
+    expect(getSession(db, "expired-data-session")).toBeUndefined();
+    expect(getSession(db, "live-session")).toBeDefined();
+    expect(getOtpRow(db, "expired-otp")).toBeUndefined();
+    expect(getOtpRow(db, "live-otp")).toBeDefined();
+    expect(isAnonymousUser(db, "anonymous-orphan")).toBe(false);
+    expect(isAnonymousUser(db, "anonymous-with-expired-session")).toBe(false);
+    expect(isAnonymousUser(db, "anonymous-with-live-session")).toBe(true);
+    expect(isAnonymousUser(db, "anonymous-with-trial")).toBe(true);
+    expect(
+      db
+        .prepare("SELECT 1 FROM users WHERE email_hash = ?")
+        .get("verified-orphan"),
+    ).toBeDefined();
+  });
+
+  it("removes expired rows before deleting orphan anonymous users", () => {
+    const db = openDb(":memory:");
+    const now = 1_000_000;
+    upsertUser(db, "anonymous-orphan", 1, true);
+    createSession(db, "expired-session", "anonymous-orphan", now - 1);
+    reserveOtpSlot(db, "anonymous-orphan", "111111", now - 1, 1, 0);
+    db.exec(`CREATE TRIGGER require_auth_cleanup_before_user_delete
+      BEFORE DELETE ON users
+      WHEN EXISTS (
+        SELECT 1 FROM sessions WHERE email_hash = OLD.email_hash
+      ) OR EXISTS (
+        SELECT 1 FROM otp_codes WHERE email_hash = OLD.email_hash
+      )
+      BEGIN
+        SELECT RAISE(ABORT, 'auth rows still exist');
+      END`);
+
+    expect(() => cleanupExpiredAuthData(db, now)).not.toThrow();
+    expect(isAnonymousUser(db, "anonymous-orphan")).toBe(false);
   });
 });
 
