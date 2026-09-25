@@ -1,17 +1,83 @@
-import { render } from "@testing-library/react";
-import { expect, test, vi } from "vitest";
+import { act, render } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const hydrate = vi.fn();
-const ensureSession = vi.fn().mockResolvedValue(undefined);
+const ensureSession = vi.fn<() => Promise<void>>();
+let state: { type: "logged-out" } | { type: "anonymous"; token: string };
 
 vi.mock("./store", () => ({
-  authStore: { getState: vi.fn(() => ({ hydrate, ensureSession })) },
+  authStore: {
+    getState: vi.fn(() => ({ state, hydrate, ensureSession })),
+  },
 }));
 
 import { AuthBoot } from "./AuthBoot";
 
-test("hydrates from the session cookie, then ensures a session exists, once on mount", () => {
-  render(<AuthBoot />);
-  expect(hydrate).toHaveBeenCalledTimes(1);
-  expect(ensureSession).toHaveBeenCalledTimes(1);
+describe("AuthBoot", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    state = { type: "logged-out" };
+    ensureSession.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("hydrates, then recovers from a transient session mint failure on backoff", async () => {
+    ensureSession
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(async () => {
+        state = { type: "anonymous", token: "anon-token" };
+      });
+
+    render(<AuthBoot />);
+    await act(async () => {});
+
+    expect(hydrate).toHaveBeenCalledTimes(1);
+    expect(ensureSession).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(ensureSession).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("retries promptly when the browser comes online", async () => {
+    ensureSession
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(async () => {
+        state = { type: "anonymous", token: "anon-token" };
+      });
+
+    render(<AuthBoot />);
+    await act(async () => {});
+
+    act(() => window.dispatchEvent(new Event("online")));
+    await act(async () => {});
+
+    expect(ensureSession).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("bounds retries and cleans up timers and the online listener", async () => {
+    const { unmount } = render(<AuthBoot />);
+    await act(async () => {});
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(ensureSession).toHaveBeenCalledTimes(4);
+    expect(vi.getTimerCount()).toBe(0);
+
+    unmount();
+    act(() => window.dispatchEvent(new Event("online")));
+    await act(async () => {});
+
+    expect(ensureSession).toHaveBeenCalledTimes(4);
+  });
 });

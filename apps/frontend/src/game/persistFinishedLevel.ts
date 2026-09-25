@@ -1,6 +1,6 @@
 import { isBetterLevelRecord } from "engine";
 import { Api, type LevelStats } from "../api/Api";
-import type { AuthState } from "../auth/store";
+import { authStore, type AuthState } from "../auth/store";
 import { pushResults } from "../sync/pushResults";
 import type { Finished } from "./index";
 
@@ -12,11 +12,9 @@ export type PersistFinishedLevelResult = {
 
 /**
  * Syncs a finished Level to the backend for any session at all — anonymous
- * or logged in. Every player gets an anonymous session automatically (see
- * AuthBoot/ensureSession), so LoggedOut here only means that first request
- * hasn't resolved yet or failed — nothing is persisted locally as a
- * fallback (there's no local trial history anymore; the backend is the
- * only store of record), so a run finished during that window is lost.
+ * or logged in. If the supplied snapshot is logged out, one anonymous-session
+ * establishment attempt is made before giving up. Nothing is persisted locally
+ * as a fallback (the backend is the only store of record).
  *
  * Returns two things:
  * - `isNewRecord`/`record`: an immediate, local comparison against
@@ -27,8 +25,8 @@ export type PersistFinishedLevelResult = {
  *   set on another device mid-session, which the local comparison alone
  *   can't see. Fire-and-forget, same as the push itself: callers should
  *   never await this before rendering, only use it to correct state
- *   later. When logged out (nothing was pushed), resolves to `record`
- *   unchanged rather than rejecting.
+ *   later. If session establishment fails (nothing was pushed), resolves to
+ *   `record` unchanged rather than rejecting.
  */
 export function persistFinishedLevel(
   state: Finished,
@@ -46,12 +44,18 @@ export function persistFinishedLevel(
   };
   const record = isNewRecord ? thisRun : (previousRecord ?? thisRun);
 
+  const syncAndRefresh = (token: string) =>
+    pushResults(token, config.levelNumber, results, state.runId)
+      .then(() => Api.fetchLevelStats(token))
+      .then((levelStats) => levelStats[String(config.levelNumber)]);
+
   const refreshed =
     authState.type !== "logged-out"
-      ? pushResults(authState.token, config.levelNumber, results, state.runId)
-          .then(() => Api.fetchLevelStats(authState.token))
-          .then((levelStats) => levelStats[String(config.levelNumber)])
-      : Promise.resolve(record);
+      ? syncAndRefresh(authState.token)
+      : authStore
+          .getState()
+          .ensureSessionToken()
+          .then((token) => (token ? syncAndRefresh(token) : record));
 
   return { isNewRecord, record, refreshed };
 }

@@ -34,6 +34,7 @@ export type AuthStore = {
   state: AuthState;
   hydrate: () => void;
   ensureSession: () => Promise<void>;
+  ensureSessionToken: () => Promise<string | null>;
   loginAnonymous: (session: { token: string }) => void;
   login: (session: { token: string; email: string }) => void;
   logout: () => void;
@@ -62,8 +63,13 @@ export function createAuthStore() {
         if (get().state.type !== "logged-out") return;
         get().loginAnonymous({ token: session.token });
       } catch {
-        // best-effort; trials just stay local-only until this succeeds, same as before this existed
+        // Best-effort. AuthBoot and result persistence can retry later.
       }
+    },
+
+    async ensureSessionToken() {
+      await get().ensureSession();
+      return authToken(get().state);
     },
 
     loginAnonymous(session) {
@@ -90,6 +96,7 @@ export function createAuthStore() {
       });
       clearSession();
       set({ state: { type: "logged-out" } });
+      void get().ensureSession();
     },
   }));
 }

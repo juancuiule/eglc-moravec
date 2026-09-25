@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const { ensureSessionToken } = vi.hoisted(() => ({
+  ensureSessionToken: vi.fn<() => Promise<string | null>>(),
+}));
+
+vi.mock("../auth/store", () => ({
+  authStore: { getState: () => ({ ensureSessionToken }) },
+}));
 vi.mock("../sync/pushResults", () => ({
   pushResults: vi.fn(() => Promise.resolve()),
 }));
@@ -60,6 +67,7 @@ const loggedIn: AuthState = {
 describe("persistFinishedLevel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ensureSessionToken.mockResolvedValue(null);
     vi.mocked(pushResults).mockResolvedValue(undefined);
     vi.mocked(Api.fetchLevelStats).mockResolvedValue({});
   });
@@ -142,19 +150,32 @@ describe("persistFinishedLevel", () => {
     expect(third.isNewRecord).toBe(false);
   });
 
-  it("does not sync to the backend when logged out", () => {
-    persistFinishedLevel(makeFinished(), loggedOut, undefined);
+  it("makes one session-establishment attempt and syncs a completion that started logged out", async () => {
+    ensureSessionToken.mockResolvedValue("fresh-anon-token");
+    const state = makeFinished();
 
-    expect(pushResults).not.toHaveBeenCalled();
+    const { refreshed } = persistFinishedLevel(state, loggedOut, undefined);
+    await refreshed;
+
+    expect(ensureSessionToken).toHaveBeenCalledTimes(1);
+    expect(pushResults).toHaveBeenCalledTimes(1);
+    expect(pushResults).toHaveBeenCalledWith(
+      "fresh-anon-token",
+      state.config.levelNumber,
+      state.results,
+      state.runId,
+    );
   });
 
-  it("refreshed resolves to the unchanged record when logged out — nothing was pushed", async () => {
+  it("refreshed resolves to the unchanged record when session establishment fails", async () => {
     const { record, refreshed } = persistFinishedLevel(
       makeFinished(),
       loggedOut,
       undefined,
     );
     await expect(refreshed).resolves.toBe(record);
+    expect(ensureSessionToken).toHaveBeenCalledTimes(1);
+    expect(pushResults).not.toHaveBeenCalled();
   });
 
   it("syncs results when logged in", () => {

@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const { ensureSessionToken } = vi.hoisted(() => ({
+  ensureSessionToken: vi.fn<() => Promise<string | null>>(),
+}));
+
+vi.mock("../auth/store", () => ({
+  authStore: { getState: () => ({ ensureSessionToken }) },
+}));
 vi.mock("../sync/pushPracticeResults", () => ({
   pushPracticeResults: vi.fn(),
 }));
@@ -47,10 +54,32 @@ const loggedIn: AuthState = {
 describe("persistStoppedPractice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ensureSessionToken.mockResolvedValue(null);
   });
 
-  it("does not sync to the backend when logged out", () => {
+  it("makes one session-establishment attempt and syncs a completion that started logged out", async () => {
+    ensureSessionToken.mockResolvedValue("fresh-anon-token");
+    const state = makeStopped();
+
+    persistStoppedPractice(state, loggedOut);
+
+    await vi.waitFor(() => {
+      expect(pushPracticeResults).toHaveBeenCalledWith(
+        "fresh-anon-token",
+        state.results,
+        state.runId,
+      );
+    });
+    expect(ensureSessionToken).toHaveBeenCalledTimes(1);
+    expect(pushPracticeResults).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not sync when session establishment fails", async () => {
     persistStoppedPractice(makeStopped(), loggedOut);
+
+    await vi.waitFor(() => {
+      expect(ensureSessionToken).toHaveBeenCalledTimes(1);
+    });
     expect(pushPracticeResults).not.toHaveBeenCalled();
   });
 

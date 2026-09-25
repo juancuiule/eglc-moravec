@@ -210,9 +210,13 @@ describe("createAuthStore", () => {
     });
   });
 
-  it("logout clears the persisted session, calls Api.logout, and returns to loggedOut", () => {
+  it("logout clears the persisted session immediately, then establishes a fresh anonymous session", async () => {
     vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     vi.mocked(Api.logout).mockResolvedValue(undefined);
+    vi.mocked(Api.registerDevice).mockResolvedValue({
+      token: "fresh-anon-token",
+      expiresAt: 123,
+    });
     const store = createAuthStore();
     store.getState().hydrate();
 
@@ -221,6 +225,38 @@ describe("createAuthStore", () => {
     expect(store.getState().state).toEqual({ type: "logged-out" });
     expect(clearSession).toHaveBeenCalled();
     expect(Api.logout).toHaveBeenCalledWith("t1");
+
+    await vi.waitFor(() => {
+      expect(store.getState().state).toEqual({
+        type: "anonymous",
+        token: "fresh-anon-token",
+      });
+    });
+  });
+
+  it("does not overwrite an OTP login when post-logout registration resolves late", async () => {
+    const registration = deferred<{ token: string; expiresAt: number }>();
+    vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
+    vi.mocked(Api.logout).mockResolvedValue(undefined);
+    vi.mocked(Api.registerDevice).mockReturnValue(registration.promise);
+    const store = createAuthStore();
+    store.getState().hydrate();
+
+    store.getState().logout();
+    store.getState().login({ token: "otp-token", email: "player@example.com" });
+    registration.resolve({ token: "anonymous-token", expiresAt: 123 });
+    await registration.promise;
+    await vi.waitFor(() => expect(Api.registerDevice).toHaveBeenCalledTimes(1));
+
+    expect(store.getState().state).toEqual({
+      type: "logged-in",
+      token: "otp-token",
+      email: "player@example.com",
+    });
+    expect(saveSession).toHaveBeenLastCalledWith({
+      token: "otp-token",
+      email: "player@example.com",
+    });
   });
 
   it("logout is a no-op when already loggedOut", () => {
