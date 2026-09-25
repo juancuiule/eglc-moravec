@@ -46,21 +46,48 @@ export function isLocalStoreHydrated(): boolean {
 }
 
 let persisterStarted = false;
+// Generous — legit slow IndexedDB loads should win; this only fires when
+// open() truly hangs.
+const HYDRATION_TIMEOUT_MS = 10_000;
 
 // Idempotent, browser-only. Called from AuthBoot; SSR and tests leave the
 // store in-memory and can flip HYDRATED_VALUE directly.
 export function ensureLocalPersistence(): void {
-  if (persisterStarted || typeof indexedDB === "undefined") return;
+  if (persisterStarted) return;
+  // No IndexedDB at all, a persister constructor throw, or a failed
+  // startAutoPersisting all degrade the same way: flip hydrated and run the
+  // session in-memory rather than leaving every reader on "loading".
+  if (typeof indexedDB === "undefined") {
+    localStore.setValue(HYDRATED_VALUE, true);
+    return;
+  }
   persisterStarted = true;
-  const persister = createIndexedDbPersister(localStore, "moravec");
-  persister
-    .startAutoPersisting()
-    .then(() => localStore.setValue(HYDRATED_VALUE, true))
-    .catch(() => {
-      // IndexedDB unavailable (private mode, quota) — stay hydrated so the
-      // app works as an in-memory session rather than hanging on "loading".
-      localStore.setValue(HYDRATED_VALUE, true);
-    });
+  const markHydrated = () => localStore.setValue(HYDRATED_VALUE, true);
+  try {
+    const persister = createIndexedDbPersister(
+      localStore,
+      "moravec",
+      undefined,
+      // TinyBase swallows IDB failures internally — without this, every
+      // broken-storage write retries a doomed open() in total silence.
+      (e) => console.warn("local persistence error", e),
+    );
+    // Real IDB errors (private mode, denied quota) still settle this promise
+    // — TinyBase converts them to ignored errors — so both branches mark
+    // hydrated. The setTimeout backstop covers the nastier case: an
+    // indexedDB.open whose callbacks never fire (hung WebKit/FF-private
+    // opens) leaves the promise pending forever.
+    void persister.startAutoPersisting().then(markHydrated, markHydrated);
+    setTimeout(() => {
+      if (isLocalStoreHydrated()) return;
+      markHydrated();
+      // Best-effort: drops queued persister actions so a late-resolving load
+      // can't clobber post-timeout in-memory writes. Never awaited.
+      void persister.destroy();
+    }, HYDRATION_TIMEOUT_MS);
+  } catch {
+    markHydrated();
+  }
 }
 
 // True while a real IndexedDB persister exists but hasn't finished its

@@ -18,7 +18,7 @@ vi.mock("../storage/deviceId", () => ({
   getOrCreateDeviceId: vi.fn(() => "device-1"),
 }));
 
-import { createAuthStore, authToken } from "./store";
+import { createAuthStore, authToken, setLogoutHook } from "./store";
 import { Api } from "../api/Api";
 import { loadSession, saveSession, clearSession } from "../storage/session";
 
@@ -224,7 +224,8 @@ describe("createAuthStore", () => {
 
     expect(store.getState().state).toEqual({ type: "logged-out" });
     expect(clearSession).toHaveBeenCalled();
-    expect(Api.logout).toHaveBeenCalledWith("t1");
+    // Server-side revocation is deferred behind the outbox flush hook.
+    await vi.waitFor(() => expect(Api.logout).toHaveBeenCalledWith("t1"));
 
     await vi.waitFor(() => {
       expect(store.getState().state).toEqual({
@@ -257,6 +258,30 @@ describe("createAuthStore", () => {
       token: "otp-token",
       email: "player@example.com",
     });
+  });
+
+  it("logout revokes the token only after the outbox hook settles — never concurrently", async () => {
+    vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
+    vi.mocked(Api.logout).mockResolvedValue(undefined);
+    vi.mocked(Api.registerDevice).mockResolvedValue({
+      token: "fresh-anon-token",
+      expiresAt: 123,
+    });
+    const flush = deferred<void>();
+    setLogoutHook(() => flush.promise);
+    const store = createAuthStore();
+    store.getState().hydrate();
+
+    store.getState().logout();
+    // Logged out locally at once, but the revoke must wait on the flush —
+    // otherwise it can land first and 401 the pending push.
+    expect(store.getState().state).toEqual({ type: "logged-out" });
+    await Promise.resolve();
+    expect(Api.logout).not.toHaveBeenCalled();
+
+    flush.resolve();
+    await vi.waitFor(() => expect(Api.logout).toHaveBeenCalledWith("t1"));
+    setLogoutHook(null);
   });
 
   it("logout is a no-op when already loggedOut", () => {

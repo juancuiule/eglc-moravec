@@ -47,8 +47,9 @@ export type AuthStore = {
 // Registered by the local-first sync engine (local/syncEngine.ts) so logout
 // can best-effort flush the outbox with the dying token and then wipe local
 // data — without auth importing sync code (cycle). Called with the pre-clear
-// token, before the anonymous session is re-established.
-let logoutHook: ((token: string) => void) | null = null;
+// token; resolves once the flush attempt and wipe have settled, so logout
+// can revoke the token only after the push had its shot.
+let logoutHook: ((token: string) => Promise<void>) | null = null;
 export function setLogoutHook(hook: typeof logoutHook): void {
   logoutHook = hook;
 }
@@ -104,16 +105,20 @@ export function createAuthStore() {
     logout() {
       const { state } = get();
       if (state.type !== "logged-in") return;
-      // The outbox flush fires before Api.logout invalidates the token —
-      // still a race (nothing is awaited), but it gives pending rows their
-      // best shot at landing under the account identity.
-      logoutHook?.(state.token);
-      void Api.logout(state.token).catch(() => {
-        // best-effort; local logout proceeds regardless of network state
-      });
+      const token = state.token;
       clearSession();
       set({ state: { type: "logged-out" } });
       void get().ensureSession();
+      // Sequenced in the background: the outbox gets a bounded shot at
+      // pushing pending rows under the account token, then the token is
+      // revoked server-side. Firing Api.logout concurrently would let the
+      // revoke race ahead of the push and 401 it — discarding runs that
+      // never left the device.
+      void Promise.resolve(logoutHook?.(token)).finally(() => {
+        void Api.logout(token).catch(() => {
+          // best-effort; local logout proceeds regardless of network state
+        });
+      });
     },
 
     invalidateSession() {

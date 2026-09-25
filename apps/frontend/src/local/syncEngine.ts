@@ -3,7 +3,12 @@ import { Api } from "../api/Api";
 import { ApiError } from "../api/utils";
 import { authStore, authToken, setLogoutHook } from "../auth/store";
 import { markSynced, mergeServerTrials, pendingInputs } from "./trials";
-import { afterHydration, isPersistenceLoading, resetLocalData } from "./store";
+import {
+  afterHydration,
+  isPersistenceLoading,
+  localStore,
+  TRIALS_TABLE,
+} from "./store";
 
 // Flush triggers (all funnel into the same coalesced flush):
 //   - kickSync() after every outbox write
@@ -14,6 +19,9 @@ import { afterHydration, isPersistenceLoading, resetLocalData } from "./store";
 // engine asks the auth store for one, so enqueue never waits on auth.
 
 const BACKOFF_MS = [1_000, 2_000, 5_000, 10_000, 30_000];
+// Cap on the dying-token flush at logout — long enough for a pending push
+// to land, short enough that logout never visibly stalls behind the network.
+const LOGOUT_FLUSH_BUDGET_MS = 3_000;
 
 let inFlight: Promise<void> | null = null;
 let queued = false;
@@ -41,8 +49,8 @@ function scheduleRetry(): void {
 //
 // navigator.onLine is deliberately NOT consulted — per the spec it's a hint
 // to *attempt*, never a gate; real request outcomes drive the backoff loop.
-async function flushPass(tokenOverride?: string): Promise<void> {
-  let token = tokenOverride ?? authToken(authStore.getState().state) ?? null;
+async function flushPass(): Promise<void> {
+  let token = authToken(authStore.getState().state);
   if (!token) token = await authStore.getState().ensureSessionToken();
   if (!token) {
     if (pendingInputs().length > 0) scheduleRetry();
@@ -59,16 +67,12 @@ async function flushPass(tokenOverride?: string): Promise<void> {
         await Api.syncResults(token, batch);
         markSynced(batch.map((i) => i.id));
       }
-      // Skip the pull for the dying-token logout flush — data is about to be
-      // wiped anyway.
-      if (tokenOverride === undefined) {
-        mergeServerTrials(await Api.fetchTrials(token));
-      }
+      mergeServerTrials(await Api.fetchTrials(token));
       failures = 0;
       return;
     } catch (e) {
       const unauthorized = e instanceof ApiError && e.status === 401;
-      if (!unauthorized || attempt === 1 || tokenOverride !== undefined) {
+      if (!unauthorized || attempt === 1) {
         scheduleRetry();
         return;
       }
@@ -144,14 +148,42 @@ export function startSyncEngine(): () => void {
     if (authToken(state.state) !== authToken(prev.state)) kickSync();
   });
 
-  // Logout: best-effort push of anything pending under the dying token, then
-  // wipe the store so a shared browser leaks nothing. Deferred past hydration
-  // so a mid-load wipe isn't clobbered by the initial IDB load.
-  setLogoutHook((token) => {
-    afterHydration(() => {
-      void flushPass(token).finally(resetLocalData);
-    });
-  });
+  // Logout: snapshot the outgoing session's pending rows, wipe the table
+  // atomically, then push the snapshot under the dying token (bounded).
+  // Wipe-first ordering closes three races at once:
+  //   - rows enqueued afterwards belong to the new anonymous session
+  //     (re-minted while this runs) and land post-wipe, untouched;
+  //   - the token-change flush kicked by that re-mint finds an empty queue,
+  //     so account rows can't be claimed under the anonymous identity and
+  //     re-keyed to whoever logs in next on this browser;
+  //   - a mid-flight pull-merge can't resurrect wiped rows.
+  // Deliberate policy: rows are discarded even if the push fails — privacy
+  // over retention — but the loss is logged, never silent.
+  setLogoutHook(
+    (token) =>
+      new Promise<void>((resolve) => {
+        afterHydration(() => {
+          const snapshot = pendingInputs();
+          localStore.delTable(TRIALS_TABLE);
+          void Promise.race([
+            (async () => {
+              for (let i = 0; i < snapshot.length; i += MAX_SYNC_TRIALS) {
+                await Api.syncResults(
+                  token,
+                  snapshot.slice(i, i + MAX_SYNC_TRIALS),
+                );
+              }
+            })().catch((e) =>
+              console.warn(
+                "logout flush failed — discarding pending trials",
+                e,
+              ),
+            ),
+            new Promise((r) => setTimeout(r, LOGOUT_FLUSH_BUDGET_MS)),
+          ]).finally(resolve);
+        });
+      }),
+  );
 
   kickSync(); // boot flush — drains anything persisted from a prior session
 

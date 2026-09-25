@@ -155,6 +155,9 @@ test("shows an error message when the trial fetch fails, with a retry", async ()
   renderWithQueryClient();
 
   expect(await screen.findByText(/Couldn't load stats/)).toBeDefined();
+  // The error and the empty state are mutually exclusive — a failed pull
+  // over an empty local store must not show both at once.
+  expect(screen.queryByText(/complete some levels/)).toBeNull();
 
   vi.mocked(Api.fetchTrials).mockResolvedValue([]);
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));

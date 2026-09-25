@@ -184,7 +184,7 @@ export function StatsScreen() {
         <p className="text-center text-sm text-muted py-8">{t("loading")}</p>
       )}
 
-      {isError && !hasAnyData && (
+      {isError && !isLoading && !hasAnyData && (
         <div className="flex flex-col items-center gap-2 py-8">
           <p className="text-center text-sm text-danger">{t("loadError")}</p>
           <button onClick={() => refetch()} className={`${textLink} underline`}>
@@ -193,7 +193,7 @@ export function StatsScreen() {
         </div>
       )}
 
-      {!isLoading && !hasAnyData && (
+      {!isLoading && !isError && !hasAnyData && (
         <p className="text-center text-muted-2 py-8">
           {tab === "level"
             ? t.rich("noDataLevel", {

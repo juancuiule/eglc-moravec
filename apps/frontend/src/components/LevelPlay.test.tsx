@@ -32,6 +32,7 @@ vi.mock("@/api/Api", () => ({
 
 import { Api, type LevelStats } from "@/api/Api";
 import { localStore, TRIALS_TABLE } from "@/local/store";
+import { mergeServerTrials } from "@/local/trials";
 import { TRIALS_PER_LEVEL } from "engine";
 
 // Fixtures, not the real catalog's levels — tests shouldn't depend on
@@ -216,6 +217,42 @@ test("a better record learned from the pull corrects the record baseline", async
       ),
     ).toBe(true),
   );
+});
+
+test("a better record pulled mid-play becomes the baseline — a worse finish earns no badge", async () => {
+  const { queryByText } = renderWithQueryClient(
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
+  );
+  expect(gameStore.getState().state.type).toBe("playing");
+
+  // Mid-play, another device's 3-star level-1 run arrives via a pull-merge —
+  // e.g. the boot flush landing after mount. The ratchet must follow it
+  // before this device finishes.
+  const otherRunId = crypto.randomUUID();
+  act(() => {
+    mergeServerTrials(
+      Array.from({ length: TRIALS_PER_LEVEL }, (_, i) => ({
+        id: crypto.randomUUID(),
+        runId: otherRunId,
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 1,
+        operands: [2, 3],
+        answer: 6,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 100,
+        hintShown: false,
+        playedAt: 1_700_000_000_000 + i * 100,
+      })),
+    );
+  });
+
+  // This device then finishes a worse run (all timeouts → 0 stars). With a
+  // stale baseline this would wrongly claim a new record.
+  finishCurrentRun();
+  await waitFor(() => expect(gameStore.getState().state.type).toBe("finished"));
+  expect(queryByText("New record!")).toBeNull();
 });
 
 test("a same-mount Replay's New record badge reflects the just-finished run, not a stale stats prop", () => {

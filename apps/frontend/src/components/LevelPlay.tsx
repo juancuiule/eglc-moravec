@@ -105,19 +105,23 @@ export function LevelPlay({
     // changes reset the machine; `effectiveStats` is read fresh inside.
   }, [levelNumber, level, start]);
 
-  // Once the local store hydrates, a locally-better record ratchets the
-  // comparison baseline up (covers offline-completed or not-yet-pushed runs).
+  // A locally-better record ratchets the comparison baseline up (covers
+  // offline-completed runs and, importantly, a pull-merge that lands
+  // mid-play from another device). Deps are the record's own fields —
+  // `localStats` is re-derived every render, so depending on it directly
+  // would re-run the effect constantly.
+  const localRecord = localStats[String(levelNumber)];
+  const localRecordKey = localRecord
+    ? `${localRecord.stars}/${localRecord.totalTime}/${localRecord.completedAt}`
+    : "";
   useEffect(() => {
-    if (!hydrated) return;
-    const local = localStats[String(levelNumber)];
-    if (local) {
-      setPreviousRecord((current) =>
-        isBetterLevelRecord(local, current ?? null) ? local : current,
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-check
-    // when hydration lands or the level changes.
-  }, [hydrated, levelNumber]);
+    if (!hydrated || !localRecord) return;
+    setPreviousRecord((current) =>
+      isBetterLevelRecord(localRecord, current ?? null) ? localRecord : current,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `localRecordKey`
+    // changes exactly when the record does; localStats' identity is unstable.
+  }, [hydrated, levelNumber, localRecordKey]);
 
   const { type } = gameState;
 

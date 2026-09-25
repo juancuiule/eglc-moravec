@@ -13,7 +13,7 @@ const { api, auth, ensureSessionToken, invalidateSession } = vi.hoisted(() => {
       | { type: "anonymous"; token: string }
       | { type: "logged-in"; token: string; email: string },
     subscribers: new Set<(s: never, p: never) => void>(),
-    logoutHook: undefined as undefined | ((token: string) => void),
+    logoutHook: undefined as undefined | ((token: string) => Promise<void>),
   };
   const ensureSessionToken = vi.fn<() => Promise<string | null>>();
   const invalidateSession = vi.fn(() => {
@@ -296,7 +296,7 @@ describe("flush", () => {
 });
 
 describe("logout", () => {
-  it("flushes pending rows with the dying token, then wipes the store", async () => {
+  it("wipes the store atomically, then pushes the snapshot with the dying token", async () => {
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
@@ -304,22 +304,73 @@ describe("logout", () => {
 
     // A run finishes, is queued locally, and then the user logs out before
     // the background flush could land — the hook fires with the dying token.
-    enqueueRun([makeInput()], [makeResult()]);
-    auth.logoutHook?.("dying-tok");
-    await tick();
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]);
+    const hook = auth.logoutHook?.("dying-tok");
 
-    expect(api.syncResults).toHaveBeenCalledWith(
-      "dying-tok",
-      expect.any(Array),
-    );
-    // After the flush promise settles the store is wiped.
-    await vi.waitFor(() =>
-      expect(localStore.getTable(TRIALS_TABLE)).toEqual({}),
-    );
-    // The logout flush skips the pull — data is gone anyway.
+    // Wipe-first: the table is already empty synchronously — a concurrent
+    // flush under the next session can't steal or resurrect these rows.
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
+
+    await hook;
+    expect(api.syncResults).toHaveBeenCalledWith("dying-tok", [
+      expect.objectContaining({ id: input.id }),
+    ]);
+    // The logout flush never pulls — data is gone anyway.
     const pullCalls = api.fetchTrials.mock.calls.filter(
       ([t]) => t === "dying-tok",
     );
     expect(pullCalls).toHaveLength(0);
+  });
+
+  it("a run enqueued after logout's snapshot survives the wipe and stays pending", async () => {
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+    api.syncResults.mockClear();
+
+    const doomed = makeInput();
+    enqueueRun([doomed], [makeResult()]);
+    const hook = auth.logoutHook?.("dying-tok");
+    // New anonymous-session run lands while the dying-token push is in
+    // flight — it must survive the wipe and never ride the account token.
+    const newcomer = makeInput();
+    enqueueRun([newcomer], [makeResult()]);
+    await hook;
+    await tick();
+
+    const dyingCalls = api.syncResults.mock.calls.filter(
+      ([t]) => t === "dying-tok",
+    );
+    const pushedIds = dyingCalls.flatMap(([, batch]) =>
+      (batch as { id: string }[]).map((i) => i.id),
+    );
+    expect(pushedIds).toContain(doomed.id);
+    expect(pushedIds).not.toContain(newcomer.id);
+
+    expect(localStore.getRow(TRIALS_TABLE, doomed.id)).toEqual({});
+    expect(localStore.getCell(TRIALS_TABLE, newcomer.id, "synced")).toBe(false);
+  });
+
+  it("wipes even when the dying-token push fails — loss is logged, never silent", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+    api.syncResults.mockClear();
+    api.syncResults.mockRejectedValue(new Error("offline at logout"));
+
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]);
+    await auth.logoutHook?.("dying-tok");
+
+    // Deliberate policy: privacy over retention — the unsent run is
+    // discarded rather than left for the next session to claim.
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("logout flush failed"),
+      expect.anything(),
+    );
+    warn.mockRestore();
   });
 });
