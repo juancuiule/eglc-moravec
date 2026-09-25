@@ -192,10 +192,14 @@ Triggers:
 5. **Backoff loop** — reschedules itself while pending rows exist or the
    last attempt failed; stops after a successful flush that empties the
    queue.
-6. **Logout** — best-effort flush, then `resetLocalStore()` (clear tables
-   and Values): pending trials must not survive into a different account on
-   a shared browser. A failed flush there accepts loss rather than leaking
-   rows across identities.
+6. **Logout** — snapshot the pending rows, `resetLocalData()` immediately
+   (clear tables and Values), then push the snapshot under the dying token
+   (bounded, best-effort). Wipe-first ordering: emptying the queue before
+   the push means the re-minted anonymous session's own flush can't claim
+   account rows, mid-flight pull-merges can't resurrect them (epoch guard),
+   and rows enqueued by the next session land post-wipe untouched. Pending
+   trials must not survive into a different account on a shared browser —
+   a failed push accepts loss rather than leaking rows across identities.
 
 Non-goal: closed-tab background sync (Background Sync API) — sync runs only
 while a tab is open.

@@ -45,10 +45,11 @@ export type AuthStore = {
 };
 
 // Registered by the local-first sync engine (local/syncEngine.ts) so logout
-// can best-effort flush the outbox with the dying token and then wipe local
-// data — without auth importing sync code (cycle). Called with the pre-clear
-// token; resolves once the flush attempt and wipe have settled, so logout
-// can revoke the token only after the push had its shot.
+// can give the outbox a bounded dying-token push and wipe local data —
+// without auth importing sync code (cycle). Called with the pre-clear
+// token; resolves once the wipe and push attempt have settled, so logout
+// can revoke the token only after the push had its shot. (Internal order
+// is snapshot → wipe → push-from-memory; see the engine's comment.)
 let logoutHook: ((token: string) => Promise<void>) | null = null;
 export function setLogoutHook(hook: typeof logoutHook): void {
   logoutHook = hook;
