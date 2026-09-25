@@ -2,46 +2,63 @@ import {
   isBetterLevelRecord,
   LEVEL_COMPLETE_THRESHOLD,
   starsForScore,
+  TOTAL_LEVELS,
+  TRIALS_PER_LEVEL,
 } from "./levelScoring";
 import { reconstructOperation } from "./operations/index";
-import { isSupportedCategoryCodename } from "./operations/category";
+import {
+  isSupportedCategoryCodename,
+  operandsMatchCategory,
+} from "./operations/category";
 import { computePlayedAtTimestamps } from "./playedAt";
 import { Trial, type TrialResult } from "./trial/engine";
 import * as z from "zod";
 
-export const TrialResultSchema = z.object({
+export const MAX_SYNC_TRIALS = 1000;
+export const MAX_DATE_TIMESTAMP = 8.64e15;
+
+const TrialResultFields = {
   id: z.uuidv4(),
   runId: z.uuidv4(),
-  levelNumber: z.number().nullable(),
   categoryCodename: z.string().refine(isSupportedCategoryCodename),
-  timeTaken: z.number(),
-  playedAt: z.number(),
-  operands: z.array(z.number()).max(2).min(1),
+  timeTaken: z.number().finite().int().nonnegative(),
+  playedAt: z.number().finite().int().nonnegative().max(MAX_DATE_TIMESTAMP),
+  operands: z.array(z.number()),
   answer: z.number().nullable(),
   hintShown: z.boolean(),
-  runType: z.enum(["level", "practice"]),
+};
+
+export const TrialResultSchema = z
+  .discriminatedUnion("runType", [
+    z.object({
+      ...TrialResultFields,
+      runType: z.literal("level"),
+      levelNumber: z.number().int().min(1).max(TOTAL_LEVELS),
+    }),
+    z.object({
+      ...TrialResultFields,
+      runType: z.literal("practice"),
+      levelNumber: z.null(),
+    }),
+  ])
+  .refine(({ categoryCodename, operands }) =>
+    operandsMatchCategory(categoryCodename, operands),
+  );
+
+export const TrialResultsSchema = z.object({
+  trials: z.array(TrialResultSchema).max(MAX_SYNC_TRIALS),
 });
 
 export type TrialResultInput = z.infer<typeof TrialResultSchema>;
 
 export function parseTrialResults(body: unknown): TrialResultInput[] | null {
-  if (typeof body !== "object" || body === null) return null;
-  const trials = (body as { trials?: unknown }).trials;
-
-  if (!Array.isArray(trials)) return null;
-  return trials.every((trial) => {
-    const parsed = TrialResultSchema.safeParse(trial);
-    return parsed.success;
-  })
-    ? trials
-    : null;
+  const parsed = TrialResultsSchema.safeParse(body);
+  return parsed.success ? parsed.data.trials : null;
 }
 
-export type TrialResultPolicy = {
-  runType: "level" | "practice";
-  levelNumber: number | null;
-  runId: string;
-};
+export type TrialResultPolicy =
+  | { runType: "level"; levelNumber: number; runId: string }
+  | { runType: "practice"; levelNumber: null; runId: string };
 
 export function toTrialResultInputs(
   results: TrialResult[],
@@ -54,18 +71,21 @@ export function toTrialResultInputs(
     now,
   );
 
-  return results.map((r, i) => ({
-    id: generateId(),
-    runType: policy.runType,
-    levelNumber: policy.levelNumber,
-    categoryCodename: r.operation.categoryCodename(),
-    operands: r.operation.operands(),
-    answer: r.answer,
-    timeTaken: r.timeTaken,
-    playedAt: playedAtTimestamps[i],
-    hintShown: r.hintShown,
-    runId: policy.runId,
-  }));
+  return results.map((r, i) => {
+    const trial = {
+      id: generateId(),
+      categoryCodename: r.operation.categoryCodename(),
+      operands: r.operation.operands(),
+      answer: r.answer,
+      timeTaken: r.timeTaken,
+      playedAt: playedAtTimestamps[i],
+      hintShown: r.hintShown,
+      runId: policy.runId,
+    };
+    return policy.runType === "level"
+      ? { ...trial, runType: "level", levelNumber: policy.levelNumber }
+      : { ...trial, runType: "practice", levelNumber: null };
+  });
 }
 
 export type EvaluatedTrialResult = TrialResultInput & {
@@ -87,20 +107,7 @@ export function evaluateTrialResult(
     hintShown: input.hintShown,
   });
 
-  return {
-    id: input.id,
-    levelNumber: input.levelNumber,
-    categoryCodename: input.categoryCodename,
-    operands: input.operands,
-    answer: input.answer,
-    correct,
-    timeExceeded,
-    timeTaken: input.timeTaken,
-    playedAt: input.playedAt,
-    hintShown: input.hintShown,
-    runId: input.runId,
-    runType: input.runType,
-  };
+  return { ...input, correct, timeExceeded };
 }
 
 export type LevelRunSummary = {
@@ -118,6 +125,7 @@ export type TrialForLevelRun = {
   timeTaken: number;
   playedAt: number;
   runId: string;
+  runType: string;
 };
 
 export function deriveLevelRuns(
@@ -128,17 +136,40 @@ export function deriveLevelRuns(
     byRun.set(t.runId, [...(byRun.get(t.runId) ?? []), t]);
   });
 
-  return Array.from(byRun.entries()).map(([levelRunId, runTrials]) => {
+  return Array.from(byRun.entries()).flatMap(([levelRunId, runTrials]) => {
+    const levelNumber = runTrials[0].levelNumber;
+    if (
+      runTrials.length > TRIALS_PER_LEVEL ||
+      levelNumber === null ||
+      !Number.isInteger(levelNumber) ||
+      levelNumber < 1 ||
+      levelNumber > TOTAL_LEVELS ||
+      runTrials.some(
+        (trial) =>
+          trial.levelNumber !== levelNumber ||
+          trial.runType !== "level" ||
+          !Number.isInteger(trial.timeTaken) ||
+          trial.timeTaken < 0 ||
+          !Number.isInteger(trial.playedAt) ||
+          trial.playedAt < 0 ||
+          trial.playedAt > MAX_DATE_TIMESTAMP,
+      )
+    ) {
+      return [];
+    }
+
     const correctCount = runTrials.filter((t) => t.correct).length;
     const totalTime = runTrials.reduce((sum, t) => sum + t.timeTaken, 0);
-    return {
-      levelRunId,
-      levelNumber: runTrials[0].levelNumber!,
-      stars: starsForScore(correctCount),
-      totalTime,
-      levelCompleted: correctCount >= LEVEL_COMPLETE_THRESHOLD,
-      playedAt: Math.max(...runTrials.map((t) => t.playedAt)),
-    };
+    return [
+      {
+        levelRunId,
+        levelNumber,
+        stars: starsForScore(correctCount),
+        totalTime,
+        levelCompleted: correctCount >= LEVEL_COMPLETE_THRESHOLD,
+        playedAt: Math.max(...runTrials.map((t) => t.playedAt)),
+      },
+    ];
   });
 }
 

@@ -1,4 +1,4 @@
-import { categoryFromCodename } from "./category";
+import { categoryFromCodename, operandsMatchCategory } from "./category";
 import { Addition, Multiplication, Operation, Squaring } from "./operation";
 
 export function createOperation(codename: string): Operation {
@@ -21,6 +21,9 @@ export function reconstructOperation(
   categoryCodename: string,
   operands: number[],
 ): Operation {
+  if (!operandsMatchCategory(categoryCodename, operands)) {
+    throw new Error(`Invalid operands for category: ${categoryCodename}`);
+  }
   const category = categoryFromCodename(categoryCodename);
 
   switch (category.type) {

@@ -86,6 +86,35 @@ describe("parseTrialResults", () => {
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
+  it.each([
+    ["too few binary operands", "1d+1d", [4]],
+    ["too many binary operands", "1d+1d", [4, 5, 6]],
+    ["too many squaring operands", "(2d)^2", [12, 12]],
+    ["fractional operands", "1d+1d", [4.5, 5]],
+    ["non-finite operands", "1d+1d", [4, Infinity]],
+    ["too few digits", "4dx1d", [999, 5]],
+    ["too many digits", "1d+1d", [10, 5]],
+    ["negative operands", "1d+1d", [-4, 5]],
+  ])("rejects %s", (_description, categoryCodename, operands) => {
+    const trial = { ...validTrial, categoryCodename, operands };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("accepts zero as a one-digit operand", () => {
+    const trial = { ...validTrial, operands: [0, 5], answer: 5 };
+    expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
+  });
+
+  it("accepts exactly one correctly shaped operand for squaring", () => {
+    const trial = {
+      ...validTrial,
+      categoryCodename: "(2d)^2",
+      operands: [12],
+      answer: 144,
+    };
+    expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
+  });
+
   it("rejects a trial with a wrong-typed answer", () => {
     const trial = { ...validTrial, answer: "9" };
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
@@ -115,9 +144,59 @@ describe("parseTrialResults", () => {
     expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
   });
 
-  it("rejects a non-number, non-null levelNumber", () => {
+  it.each([null, 0, 151, 3.7, -5])(
+    "rejects levelNumber %s for a Level trial",
+    (levelNumber) => {
+      const trial = { ...validTrial, levelNumber };
+      expect(parseTrialResults({ trials: [trial] })).toBeNull();
+    },
+  );
+
+  it("rejects a non-null levelNumber for a Practice trial", () => {
+    const trial = { ...validTrial, runType: "practice", levelNumber: 3 };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("rejects an empty runId", () => {
+    const trial = { ...validTrial, runId: "" };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("rejects a non-number levelNumber", () => {
     const trial = { ...validTrial, levelNumber: "3" };
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it.each([
+    ["negative timeTaken", { timeTaken: -1 }],
+    ["fractional timeTaken", { timeTaken: 1.5 }],
+    ["non-finite timeTaken", { timeTaken: Infinity }],
+    ["negative playedAt", { playedAt: -1 }],
+    ["fractional playedAt", { playedAt: 1.5 }],
+    ["non-finite playedAt", { playedAt: Infinity }],
+    ["a playedAt outside the JavaScript Date range", { playedAt: 8.64e15 + 1 }],
+  ])("rejects %s", (_description, overrides) => {
+    expect(
+      parseTrialResults({ trials: [{ ...validTrial, ...overrides }] }),
+    ).toBeNull();
+  });
+
+  it("accepts the maximum JavaScript Date timestamp", () => {
+    const trial = { ...validTrial, playedAt: 8.64e15 };
+    expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
+  });
+
+  it("rejects batches over the sync limit", () => {
+    expect(
+      parseTrialResults({
+        trials: Array.from({ length: 1001 }, () => validTrial),
+      }),
+    ).toBeNull();
+  });
+
+  it("accepts batches at the sync limit", () => {
+    const trials = Array.from({ length: 1000 }, () => validTrial);
+    expect(parseTrialResults({ trials })).toEqual(trials);
   });
 
   it("rejects null and non-object bodies", () => {
@@ -239,6 +318,45 @@ describe("deriveLevelRuns", () => {
     ];
     const [summary] = deriveLevelRuns(trials);
     expect(summary.playedAt).toBe(3000);
+  });
+
+  it("ignores an oversized run", () => {
+    const trials = Array.from({ length: 21 }, () => evaluatedTrial());
+    expect(deriveLevelRuns(trials)).toEqual([]);
+  });
+
+  it("ignores a run containing inconsistent level numbers", () => {
+    const trials = [evaluatedTrial(), evaluatedTrial({ levelNumber: 5 })];
+    expect(deriveLevelRuns(trials)).toEqual([]);
+  });
+
+  it("ignores a run containing inconsistent run types", () => {
+    const trials = [
+      evaluatedTrial(),
+      evaluatedTrial({ runType: "practice", levelNumber: null }),
+    ];
+    expect(deriveLevelRuns(trials)).toEqual([]);
+  });
+
+  it.each([
+    { timeTaken: -1 },
+    { timeTaken: 1.5 },
+    { timeTaken: Infinity },
+    { playedAt: -1 },
+    { playedAt: 1.5 },
+    { playedAt: 8.64e15 + 1 },
+  ])("ignores a run containing invalid persisted timing: %o", (overrides) => {
+    expect(deriveLevelRuns([evaluatedTrial(overrides)])).toEqual([]);
+  });
+
+  it("keeps valid runs when another grouped run is malformed", () => {
+    const trials = [
+      ...Array.from({ length: 21 }, () => evaluatedTrial()),
+      evaluatedTrial({ runId: "run-2", levelNumber: 5 }),
+    ];
+    expect(deriveLevelRuns(trials)).toEqual([
+      expect.objectContaining({ levelRunId: "run-2", levelNumber: 5 }),
+    ]);
   });
 
   it("returns an empty array for no trials", () => {

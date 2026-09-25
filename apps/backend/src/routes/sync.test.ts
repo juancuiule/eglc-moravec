@@ -138,6 +138,59 @@ describe("POST /sync/results", () => {
     },
   );
 
+  it.each([
+    [
+      "category-shaped operands",
+      { categoryCodename: "4dx1d", operands: [2, 3] },
+    ],
+    ["Level discrimination", { levelNumber: null }],
+    ["Practice discrimination", { runType: "practice", levelNumber: 5 }],
+    ["nonnegative timeTaken", { timeTaken: -1 }],
+    ["integer timeTaken", { timeTaken: 1.5 }],
+    ["Date-safe playedAt", { playedAt: 8.64e15 + 1 }],
+  ])(
+    "rejects invalid %s without storing the batch",
+    async (_description, overrides) => {
+      const { db, app } = setup();
+      const token = await loginAndGetToken(db, app);
+      const invalidTrial = { ...trial, ...overrides, id: randomUUID() };
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/sync/results",
+        headers: { authorization: `Bearer ${token}` },
+        payload: { trials: [trial, invalidTrial] },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toEqual({ error: "invalid_request" });
+      expect(
+        getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+      ).toHaveLength(0);
+    },
+  );
+
+  it("rejects a batch over the sync limit", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const trials = Array.from({ length: 1001 }, () => ({
+      ...trial,
+      id: randomUUID(),
+    }));
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { trials },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(
+      getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+    ).toHaveLength(0);
+  });
+
   it("retrying the same trial id does not double-record it", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
@@ -243,7 +296,7 @@ function batchFor(
 async function postResults(
   app: FastifyInstance,
   token: string,
-  trials: ReturnType<typeof trialFor>[],
+  trials: unknown[],
 ) {
   return app.inject({
     method: "POST",
@@ -331,6 +384,99 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(getRes.json().levelStats["1"]).toMatchObject({ stars: 3 });
+  });
+
+  it("does not award stats to a run duplicated beyond 20 trials", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const runId = randomUUID();
+
+    await postResults(app, token, batchFor(1, 20, 0, runId));
+    await postResults(app, token, batchFor(1, 1, 0, runId));
+
+    const getRes = await app.inject({
+      method: "GET",
+      url: "/sync/level-stats",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(getRes.statusCode).toBe(200);
+    expect(getRes.json()).toEqual({ levelStats: {} });
+  });
+
+  it("does not award stats to a run containing inconsistent level numbers", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const runId = randomUUID();
+
+    await postResults(app, token, [
+      ...batchFor(1, 15, 0, runId),
+      ...batchFor(2, 5, 0, runId),
+    ]);
+
+    const getRes = await app.inject({
+      method: "GET",
+      url: "/sync/level-stats",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(getRes.statusCode).toBe(200);
+    expect(getRes.json()).toEqual({ levelStats: {} });
+  });
+
+  it("ignores historical rows with a playedAt outside the JavaScript Date range", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    db.prepare(
+      `INSERT INTO trial_results
+         (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at, hint_shown, run_id, run_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      randomUUID(),
+      hashEmail(EMAIL, TEST_SECRET),
+      1,
+      "1d+1d",
+      "[3,4]",
+      7,
+      1,
+      0,
+      1000,
+      8.64e15 + 1,
+      0,
+      randomUUID(),
+      "level",
+    );
+
+    const getRes = await app.inject({
+      method: "GET",
+      url: "/sync/level-stats",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(getRes.statusCode).toBe(200);
+    expect(getRes.json()).toEqual({ levelStats: {} });
+  });
+
+  it("does not award stats to a run containing inconsistent run types", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const runId = randomUUID();
+    const practiceInLevelRun = {
+      ...trialFor(1, true, runId),
+      id: randomUUID(),
+      levelNumber: null,
+      runType: "practice" as const,
+    };
+
+    await postResults(app, token, [
+      ...batchFor(1, 15, 0, runId),
+      practiceInLevelRun,
+    ]);
+
+    const getRes = await app.inject({
+      method: "GET",
+      url: "/sync/level-stats",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(getRes.statusCode).toBe(200);
+    expect(getRes.json()).toEqual({ levelStats: {} });
   });
 
   it("GET returns an empty object for a user with no records", async () => {

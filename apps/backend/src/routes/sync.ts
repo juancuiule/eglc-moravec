@@ -1,11 +1,10 @@
 import {
-  TrialResultSchema,
+  TrialResultsSchema,
   deriveLevelStats,
   evaluateTrialResult,
 } from "engine";
 import type { FastifyInstance } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
-import * as z from "zod";
 import { requireEmailHash } from "../auth/session.js";
 import { parseBody } from "../parser.js";
 import {
@@ -22,10 +21,7 @@ export function registerSyncRoutes(
     const emailHash = requireEmailHash(db, request, reply);
     if (emailHash === null) return;
 
-    const { trials } = parseBody(
-      request.body,
-      z.object({ trials: z.array(TrialResultSchema) }),
-    );
+    const { trials } = parseBody(request.body, TrialResultsSchema);
 
     const evaluated = trials.map(evaluateTrialResult);
     insertTrialResults(db, emailHash, evaluated);
@@ -37,9 +33,7 @@ export function registerSyncRoutes(
     const emailHash = requireEmailHash(db, request, reply);
     if (emailHash === null) return;
 
-    const rows = getTrialResultsForUser(db, emailHash).filter(
-      (r) => r.run_type === "level",
-    );
+    const rows = getTrialResultsForUser(db, emailHash);
 
     const stats = deriveLevelStats(
       rows.map((r) => ({
@@ -48,6 +42,7 @@ export function registerSyncRoutes(
         timeTaken: r.time_taken,
         playedAt: r.played_at,
         runId: r.run_id,
+        runType: r.run_type,
       })),
     );
     const levelStats = Object.fromEntries(

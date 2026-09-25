@@ -49,6 +49,23 @@ describe("reconstructOperation", () => {
     expect(rebuilt.result()).toBe(original.result());
   });
 
+  it.each([
+    ["1d+1d", [4]],
+    ["1d+1d", [4, 5, 6]],
+    ["4dx1d", [2, 3]],
+    ["(2d)^2", [12, 12]],
+    ["(2d)^2", [12.5]],
+  ])(
+    "throws when %s operands do not match the category shape",
+    (codename, operands) => {
+      expect(() => reconstructOperation(codename, operands)).toThrow();
+    },
+  );
+
+  it("reconstructs a one-digit operation containing zero", () => {
+    expect(reconstructOperation("1d+1d", [0, 5]).result()).toBe(5);
+  });
+
   it("throws for an unknown codename", () => {
     expect(() => reconstructOperation("not-a-codename", [1, 2])).toThrow();
   });

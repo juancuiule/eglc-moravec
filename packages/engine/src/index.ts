@@ -1,6 +1,7 @@
 export {
   categoryFromCodename,
   isSupportedCategoryCodename,
+  operandsMatchCategory,
   SUPPORTED_CATEGORY_CODENAMES,
   type AdditionCategory,
   type MultiplicationCategory,
@@ -31,7 +32,10 @@ export {
 } from "./trial/engine";
 
 export {
+  MAX_DATE_TIMESTAMP,
+  MAX_SYNC_TRIALS,
   TrialResultSchema,
+  TrialResultsSchema,
   evaluateTrialResult,
   toTrialResultInputs,
   deriveLevelStats,

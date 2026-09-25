@@ -44,6 +44,29 @@ export function isSupportedCategoryCodename(codename: string): boolean {
   return supportedCategoryCodenames.has(codename);
 }
 
+export function operandsMatchCategory(
+  codename: string,
+  operands: readonly number[],
+): boolean {
+  if (!isSupportedCategoryCodename(codename)) return false;
+
+  const category = categoryFromCodename(codename);
+  const digitCounts =
+    category.type === "squaring"
+      ? [category.digits]
+      : [category.lDigits, category.rDigits];
+
+  return (
+    operands.length === digitCounts.length &&
+    operands.every((operand, index) => {
+      const digits = digitCounts[index];
+      const min = digits === 1 ? 0 : 10 ** (digits - 1);
+      const max = 10 ** digits - 1;
+      return Number.isInteger(operand) && operand >= min && operand <= max;
+    })
+  );
+}
+
 const codenameRegex = {
   addition: /^(\d+)d\+(\d+)d$/,
   multiplication: /^(\d+)dx(\d+)d$/,
