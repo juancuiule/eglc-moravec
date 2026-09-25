@@ -46,7 +46,7 @@ vi.mock("../auth/store", async (importOriginal) => {
 
 import { ApiError } from "../api/utils";
 import { localStore, TRIALS_TABLE } from "./store";
-import { enqueueRun } from "./trials";
+import { enqueueRun, mergeServerTrials } from "./trials";
 import { startSyncEngine, kickSync, flushSettled } from "./syncEngine";
 import { Addition, type TrialResult, type TrialResultInput } from "engine";
 
@@ -281,6 +281,39 @@ describe("flush", () => {
     expect(invalidateSession).not.toHaveBeenCalled();
     expect(api.syncResults).toHaveBeenLastCalledWith("acct", expect.any(Array));
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(true);
+  });
+
+  it("401 under a logged-in session also wipes the local mirror — dead account, shared browser", async () => {
+    setAuth({ type: "logged-in", token: "acct", email: "a@b.com" });
+    // One synced history row + one still-pending run, both the account's.
+    mergeServerTrials([
+      {
+        id: "srv-1",
+        runId: "r",
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 2,
+        operands: [3, 4],
+        answer: 12,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 900,
+        hintShown: false,
+        playedAt: 1_700_000_000_000,
+      },
+    ]);
+    enqueueRun([makeInput()], [makeResult()]);
+    api.syncResults.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
+    ensureSessionToken.mockResolvedValue("anon2");
+
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+
+    expect(invalidateSession).toHaveBeenCalledTimes(1);
+    // The dead account's mirror — synced history AND pending outbox — is
+    // wiped; nothing is left for the next browser user to see or claim.
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
   });
 
   it("a pull resolving after logout's wipe cannot resurrect old rows", async () => {

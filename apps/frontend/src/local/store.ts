@@ -126,7 +126,21 @@ export function localEpoch(): number {
   return epoch;
 }
 
+// Armed synchronously when logout's wipe is queued while hydration is still
+// pending — cleared inside the same hydration listener chain that wipes.
+// TinyBase fires value listeners in registration order, so a flush deferred
+// BEFORE the hook could otherwise run first and push the outgoing session's
+// pending rows under the freshly-minted anonymous token.
+let wipePending = false;
+export function markWipePending(): void {
+  wipePending = true;
+}
+export function isWipePending(): boolean {
+  return wipePending;
+}
+
 export function resetLocalData(): void {
   epoch += 1;
+  wipePending = false;
   localStore.delTable(TRIALS_TABLE);
 }

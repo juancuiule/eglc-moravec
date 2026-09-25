@@ -7,7 +7,9 @@ import { markSynced, mergeServerTrials, pendingInputs } from "./trials";
 import {
   afterHydration,
   isPersistenceLoading,
+  isWipePending,
   localEpoch,
+  markWipePending,
   resetLocalData,
 } from "./store";
 
@@ -94,8 +96,15 @@ async function flushPass(): Promise<void> {
       // Dead session — but only invalidate if the failed token is still the
       // current identity. OTP login revokes the anonymous token mid-flight:
       // a stale request's 401 must not log the new account session out.
-      if (authToken(authStore.getState().state) === token) {
+      const current = authStore.getState().state;
+      if (authToken(current) === token) {
+        const wasAccount = current.type === "logged-in";
         authStore.getState().invalidateSession();
+        // A dead account's local mirror must not outlive the session on a
+        // shared browser — same wipe policy as logout (epoch bump also
+        // aborts this pass's own continuations; the re-mint's token-change
+        // kick runs a fresh pass that pulls the new session's rows).
+        if (wasAccount) resetLocalData();
       }
       token =
         authToken(authStore.getState().state) ??
@@ -131,6 +140,13 @@ function flush(): Promise<void> {
   // pass would see an empty queue and the load would clobber merged rows.
   if (isPersistenceLoading()) {
     return new Promise((resolve) => afterHydration(() => resolve(flush())));
+  }
+  // A logout wipe is queued but hasn't run yet (it's next in the hydration
+  // listener chain) — yield a macrotask so it completes first. Otherwise an
+  // earlier-deferred flush could push the dying session's rows under the
+  // next session's token.
+  if (isWipePending()) {
+    return new Promise((resolve) => setTimeout(() => resolve(flush()), 0));
   }
   if (inFlight) {
     queued = true;
@@ -188,6 +204,11 @@ export function startSyncEngine(): () => void {
   setLogoutHook(
     (token) =>
       new Promise<void>((resolve) => {
+        // Armed synchronously — even when hydration defers the wipe itself,
+        // no flush may start pushing the dying session's rows meanwhile
+        // (a flush deferred earlier would otherwise beat the wipe in the
+        // hydration listener chain).
+        markWipePending();
         afterHydration(() => {
           const snapshot = pendingInputs();
           // resetLocalData also bumps the local epoch — in-flight pushes'

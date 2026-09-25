@@ -230,9 +230,12 @@ Level/Practice stats stay unmerged (filter by `runType` on read) — an
 unchanged presentation rule, not a storage decision.
 
 `GET /sync/level-stats`, `GET /sync/trials`, and `GET /sync/activity`
-remain for the SSR paths (`/level/[n]` page gating, `/levels` first paint)
-that still fetch server-side — nothing removes them; the UI just stops
-_depending_ on them.
+remain on the wire, but their roles changed: `GET /sync/trials` is the
+pull-merge source on every flush (it _is_ the sync read path);
+`GET /sync/level-stats` feeds `/level/[n]` a first-paint seed only — the
+real unlock gate is client-side in `LevelPlay` against merged stats, and
+`/levels` fetches no stats at all; `GET /sync/activity` is superseded by
+local `playedAt` computation and unused by the client.
 
 ## Phase 4 — Level catalog snapshot + offline app shell
 

@@ -107,6 +107,9 @@ export function createAuthStore() {
       const { state } = get();
       if (state.type !== "logged-in") return;
       const token = state.token;
+      // The hook fires first and synchronously arms the wipe — before the
+      // anonymous re-mint below can possibly kick a flush under it.
+      const settled = logoutHook?.(token);
       clearSession();
       set({ state: { type: "logged-out" } });
       void get().ensureSession();
@@ -115,7 +118,7 @@ export function createAuthStore() {
       // revoked server-side. Firing Api.logout concurrently would let the
       // revoke race ahead of the push and 401 it — discarding runs that
       // never left the device.
-      void Promise.resolve(logoutHook?.(token)).finally(() => {
+      void Promise.resolve(settled).finally(() => {
         void Api.logout(token).catch(() => {
           // best-effort; local logout proceeds regardless of network state
         });

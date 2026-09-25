@@ -284,6 +284,33 @@ describe("createAuthStore", () => {
     setLogoutHook(null);
   });
 
+  it("logout fires the outbox hook synchronously, before the anonymous re-mint can resolve", async () => {
+    vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
+    const registration = deferred<{ token: string; expiresAt: number }>();
+    vi.mocked(Api.registerDevice).mockReturnValue(registration.promise);
+    const hookCalls: string[] = [];
+    setLogoutHook(async (t) => {
+      hookCalls.push(t);
+    });
+    const store = createAuthStore();
+    store.getState().hydrate();
+
+    store.getState().logout();
+
+    // Synchronous — the wipe it arms lands before any new-token flush can
+    // start pushing the dying session's rows.
+    expect(hookCalls).toEqual(["t1"]);
+
+    registration.resolve({ token: "anon", expiresAt: 123 });
+    await vi.waitFor(() =>
+      expect(store.getState().state).toEqual({
+        type: "anonymous",
+        token: "anon",
+      }),
+    );
+    setLogoutHook(null);
+  });
+
   it("logout is a no-op when already loggedOut", () => {
     const store = createAuthStore();
 
