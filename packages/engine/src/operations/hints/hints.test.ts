@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { NoHint } from "./NoHint";
+import { AdditionHint } from "./AdditionHint";
 import { MultiplicationHint } from "./MultiplicationHint";
 import { SquaringHint } from "./SquaringHint";
 
@@ -10,6 +11,43 @@ describe("NoHint", () => {
 
   it("getSteps returns empty array", () => {
     expect(new NoHint().getSteps()).toEqual([]);
+  });
+});
+
+describe("AdditionHint", () => {
+  it("produces the tens-then-units decomposition for 47 + 35", () => {
+    const steps = new AdditionHint(47, 35).getSteps();
+    expect(steps).toContain("47 + 35");
+    expect(steps).toContain("= 47 + 30 + 5");
+    expect(steps).toContain("= 77 + 5");
+  });
+
+  it("hasHint returns true for a two-digit right operand with units", () => {
+    expect(new AdditionHint(47, 35).hasHint()).toBe(true);
+  });
+
+  it("behaves like NoHint for 1-digit right operands and multiples of ten — the trick is already done", () => {
+    for (const [l, r] of [
+      [4, 7],
+      [47, 30],
+      [12, 60],
+    ] as const) {
+      const hint = new AdditionHint(l, r);
+      expect(hint.hasHint()).toBe(false);
+      expect(hint.getSteps()).toEqual([]);
+    }
+  });
+
+  it("does not reveal the final answer", () => {
+    for (const [l, r] of [
+      [23, 45],
+      [47, 35],
+      [99, 99],
+      [12, 34],
+    ] as const) {
+      const steps = new AdditionHint(l, r).getSteps();
+      expect(steps.join(" ")).not.toContain(String(l + r));
+    }
   });
 });
 
@@ -82,12 +120,22 @@ describe("SquaringHint", () => {
 });
 
 describe("Operation.hint() integration", () => {
-  it("Addition returns NoHint", async () => {
+  it("Addition offers a hint for 2d+2d but not for trivial 1d+1d", async () => {
     const { Addition } = await import("../operation");
     const { categoryFromCodename } = await import("../category");
-    const cat = categoryFromCodename("1d+1d");
-    const op = Addition.create(cat as Parameters<typeof Addition.create>[0]);
-    expect(op.hint().hasHint()).toBe(false);
+
+    const cat1 = categoryFromCodename("1d+1d");
+    const op1 = Addition.create(cat1 as Parameters<typeof Addition.create>[0]);
+    expect(op1.hint().hasHint()).toBe(false);
+
+    const cat2 = categoryFromCodename("2d+2d");
+    const op2 = new Addition(
+      47,
+      35,
+      cat2 as Parameters<typeof Addition.create>[0],
+    );
+    expect(op2.hint().hasHint()).toBe(true);
+    expect(op2.hint().getSteps().length).toBeGreaterThan(0);
   });
 
   it("Multiplication returns MultiplicationHint", async () => {

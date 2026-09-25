@@ -6,6 +6,7 @@ import {
 import { createRandomOperand, OperandOptions } from "./operand";
 import type { Hint } from "./hints/Hint";
 import { NoHint } from "./hints/NoHint";
+import { AdditionHint } from "./hints/AdditionHint";
 import { MultiplicationHint } from "./hints/MultiplicationHint";
 import { SquaringHint } from "./hints/SquaringHint";
 
@@ -61,6 +62,10 @@ export class Addition extends Operation {
 
   operands(): number[] {
     return [this.leftOperand, this.rightOperand];
+  }
+
+  hint(): Hint {
+    return new AdditionHint(this.leftOperand, this.rightOperand);
   }
 
   humanReadable(): string {

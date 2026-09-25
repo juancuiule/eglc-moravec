@@ -5,7 +5,7 @@
     "addition": {
       "title": "Addition",
       "subtitle": "Learn to add numbers quickly",
-      "explanation": "Add left to right instead of right to left: add the tens of the second number to the first, then add the remaining units. There's no decomposition trick beyond that — the in-game Hint button won't do anything here."
+      "explanation": "Add left to right instead of right to left: add the tens of the second number to the first, then add the remaining units. This is exactly the Hint you'll see in-game if you get stuck."
     },
     "multiplication": {
       "title": "Multiplication",

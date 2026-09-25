@@ -47,9 +47,15 @@ test("show answer reveals the numeric result", () => {
   );
 });
 
-test("addition has no live hint — there's no decomposition trick", () => {
+test("addition's live hint shows the tens-then-units decomposition", () => {
   render(<TutorialDetail topic="addition" />);
-  expect(screen.queryByTestId("hint-card")).toBeNull();
+  // ~1 in 9 random 2d+2d examples has a multiple-of-ten right operand, where
+  // there's legitimately no hint — reroll until a decomposable one comes up.
+  for (let i = 0; i < 25 && screen.queryByTestId("hint-card") === null; i++) {
+    fireEvent.click(screen.getByRole("button", { name: "New example" }));
+  }
+  const hintCard = screen.getByTestId("hint-card");
+  expect(hintCard.textContent).toMatch(/\+ \d+ \+ \d/);
 });
 
 test("the Practice CTA is a real link to that category's practice page", () => {
