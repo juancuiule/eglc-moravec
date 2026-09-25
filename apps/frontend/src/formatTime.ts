@@ -1,3 +1,10 @@
+/** "4.2s" — compact per-trial/aggregate time for stat tables and the
+ *  per-trial review, where a fixed-width "00:04:200" record format would
+ *  overflow narrow columns. */
+export function formatSeconds(ms: number): string {
+  return (ms / 1000).toFixed(1) + "s";
+}
+
 /** "00:55:503" — minutes:seconds:milliseconds, for a level's best recorded time. */
 export function formatDuration(ms: number): string {
   const totalMs = Math.max(0, Math.round(ms));

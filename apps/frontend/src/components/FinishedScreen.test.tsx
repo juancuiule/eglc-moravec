@@ -209,4 +209,22 @@ describe("per-trial review", () => {
     expect(screen.getByText("(144)")).toBeDefined();
     expect(screen.getByText("hint")).toBeDefined();
   });
+
+  test("times use the compact per-trial format and the list never scrolls horizontally", () => {
+    render(
+      <FinishedScreen
+        state={withResults}
+        isNewRecord={false}
+        nextLevelNumber={4}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Review your/ }));
+
+    expect(screen.getByText("2.1s")).toBeDefined();
+    expect(screen.getByText("4.2s")).toBeDefined();
+    expect(screen.getByText("16.0s")).toBeDefined();
+    // A y-scroller would silently compute overflow-x:auto — the container
+    // clips it so the panel can never gain a horizontal scrollbar.
+    expect(screen.getByRole("table").className).toContain("overflow-x-hidden");
+  });
 });

@@ -8,13 +8,10 @@ import { Api } from "../api/Api";
 import { authToken, useAuth } from "../auth/store";
 import { computeStats } from "../stats/computeStats";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
+import { formatSeconds } from "../formatTime";
 import { panel, backLink, textLink } from "../styles";
 
 type Tab = "level" | "practice";
-
-function formatMs(ms: number): string {
-  return (ms / 1000).toFixed(1) + "s";
-}
 
 function EffBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
@@ -185,7 +182,9 @@ export function StatsScreen() {
                       </span>
                     </div>
                     <span className="text-xs text-right text-muted">
-                      {row.avgTimeMs !== null ? formatMs(row.avgTimeMs) : "—"}
+                      {row.avgTimeMs !== null
+                        ? formatSeconds(row.avgTimeMs)
+                        : "—"}
                     </span>
                   </>
                 )}
