@@ -16,6 +16,13 @@
     "backLabel": "Volver a estadísticas",
     "correctTotal": "{correct} correctas · {total} intentos totales",
     "noCorrectTrials": "Todavía no hay intentos correctos — <link>practicá esta categoría</link>.",
-    "responseTimeDistribution": "Distribución del tiempo de respuesta"
+    "responseTimeDistribution": "Distribución del tiempo de respuesta",
+    "errorHeatmap": "Errores por problema",
+    "hardestProblems": "Problemas más difíciles",
+    "noMisses": "Sin errores en esta categoría todavía.",
+    "wrongOfAttempts": "{errors}/{attempts} mal",
+    "confusionsTitle": "Confusiones recurrentes",
+    "confusionNeighbor": "Respondiste {given} a {asked} — eso es {neighbor}",
+    "confusionPlain": "Respondiste {given} a {asked}"
   }
 }

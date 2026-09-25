@@ -592,7 +592,7 @@ describe("POST /sync/results with Practice trials", () => {
 });
 
 describe("GET /sync/trials", () => {
-  it("returns the minimal per-trial shape the frontend's stats computation needs", async () => {
+  it("returns the full stored per-trial shape — operands/answer power per-operation stats on the client", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
@@ -612,11 +612,18 @@ describe("GET /sync/trials", () => {
     expect(getRes.json()).toEqual({
       trials: [
         {
+          id: trial.id,
           categoryCodename: "2dx1d",
+          operands: [12, 5],
+          answer: 60,
           correct: true,
           timeExceeded: false,
           timeTaken: 3400,
+          playedAt: 1_700_000_000_000,
+          hintShown: true,
           runType: "level",
+          runId: RUN_ID,
+          levelNumber: 5,
         },
       ],
     });

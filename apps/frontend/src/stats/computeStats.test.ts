@@ -7,8 +7,17 @@ function trial(
   correct: boolean,
   timeExceeded = false,
   timeTaken = 3000,
+  operands: number[] = [1, 1],
+  answer: number | null = 1,
 ): StatsTrial {
-  return { categoryCodename, correct, timeExceeded, timeTaken };
+  return {
+    categoryCodename,
+    operands,
+    answer,
+    correct,
+    timeExceeded,
+    timeTaken,
+  };
 }
 
 describe("computeStats", () => {

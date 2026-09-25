@@ -10,6 +10,8 @@ import {
 // about runType or levelNumber to begin with.
 export type StatsTrial = {
   categoryCodename: string;
+  operands: number[];
+  answer: number | null;
   correct: boolean;
   timeExceeded: boolean;
   timeTaken: number;

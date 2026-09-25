@@ -12,6 +12,24 @@ export type LevelStats = {
   completedAt: string; // ISO date
 };
 
+// What GET /sync/trials actually returns — a flattened PersistedTrial.
+// Not EvaluatedTrialResult: that type belongs to the sync push/validation
+// contract, and the wire restores levelNumber=null for Practice rows.
+export type SyncedTrial = {
+  id: string;
+  categoryCodename: string;
+  operands: number[];
+  answer: number | null; // null = timed out
+  correct: boolean;
+  timeExceeded: boolean;
+  timeTaken: number; // ms
+  playedAt: number; // epoch ms
+  hintShown: boolean;
+  runType: "level" | "practice";
+  runId: string;
+  levelNumber: number | null;
+};
+
 export const Api = {
   requestOtp(email: string): Promise<void> {
     return requestVoid("/auth/otp/request", {
@@ -66,8 +84,8 @@ export const Api = {
     return levelStats;
   },
 
-  async fetchTrials(token: string) {
-    const { trials } = await requestJson<{ trials: EvaluatedTrialResult[] }>(
+  async fetchTrials(token: string): Promise<SyncedTrial[]> {
+    const { trials } = await requestJson<{ trials: SyncedTrial[] }>(
       "/sync/trials",
       {
         method: "GET",

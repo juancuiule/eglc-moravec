@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatsScreen } from "./StatsScreen";
 import { authStore } from "@/auth/store";
 import { IntlTestProvider } from "@/testUtils/renderWithIntl";
-import type { EvaluatedTrialResult } from "engine";
+import type { SyncedTrial } from "../api/Api";
 
 vi.mock("@/api/Api", () => ({
   Api: { fetchTrials: vi.fn() },
@@ -33,7 +33,7 @@ function renderWithQueryClient() {
 }
 
 test("a category row with data is a real button, keyboard-reachable and screen-reader visible", async () => {
-  const trials: EvaluatedTrialResult[] = [
+  const trials: SyncedTrial[] = [
     {
       id: "11111111-1111-4111-8111-111111111111",
       runId: "22222222-2222-4222-8222-222222222222",
@@ -60,7 +60,7 @@ test("a category row with data is a real button, keyboard-reachable and screen-r
 test("a category row with no data is not rendered as an interactive control", async () => {
   // Seed one category with data so the list renders at all, and check a
   // *different*, data-less category's row isn't an interactive control.
-  const trials: EvaluatedTrialResult[] = [
+  const trials: SyncedTrial[] = [
     {
       id: "11111111-1111-4111-8111-111111111111",
       runId: "22222222-2222-4222-8222-222222222222",
@@ -85,7 +85,7 @@ test("a category row with no data is not rendered as an interactive control", as
 });
 
 test("Level and Practice trials are never merged — a Practice-only trial doesn't show under the Level tab", async () => {
-  const trials: EvaluatedTrialResult[] = [
+  const trials: SyncedTrial[] = [
     {
       id: "11111111-1111-4111-8111-111111111111",
       runId: "22222222-2222-4222-8222-222222222222",

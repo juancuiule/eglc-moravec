@@ -16,6 +16,13 @@
     "backLabel": "Back to statistics",
     "correctTotal": "{correct} correct · {total} total trials",
     "noCorrectTrials": "No correct trials yet — <link>practice this category</link>.",
-    "responseTimeDistribution": "Response time distribution"
+    "responseTimeDistribution": "Response time distribution",
+    "errorHeatmap": "Error rate by problem",
+    "hardestProblems": "Hardest problems",
+    "noMisses": "No misses in this category yet.",
+    "wrongOfAttempts": "{errors}/{attempts} wrong",
+    "confusionsTitle": "Recurring confusions",
+    "confusionNeighbor": "You answered {given} to {asked} — that's {neighbor}",
+    "confusionPlain": "You answered {given} to {asked}"
   }
 }
