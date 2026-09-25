@@ -3,10 +3,10 @@ import { Api } from "@/api/Api";
 import { SESSION_COOKIE, parseSessionCookie } from "@/storage/session";
 
 /**
- * Validates a persisted session against the backend before "/" or "/login"
- * ever renders — the server-side replacement for the old client-mounted
+ * Validates a persisted session against the backend before "/" or any login
+ * route renders — the server-side replacement for the old client-mounted
  * restoreSession() fetch. Pages never validate auth themselves; by the time
- * one of these two routes renders, any session cookie present is already
+ * one of these routes renders, any session cookie present is already
  * known-good, or has already been cleared.
  *
  * Skips prefetch requests (Next.js prefetches every in-viewport <Link> by
@@ -38,5 +38,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login"],
+  matcher: ["/", "/login/:path*"],
 };

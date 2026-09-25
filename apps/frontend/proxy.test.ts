@@ -4,19 +4,41 @@ vi.mock("@/api/Api", () => ({
   Api: { checkSession: vi.fn() },
 }));
 
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
-import { proxy } from "./proxy";
+import { config, proxy } from "./proxy";
 import { Api } from "@/api/Api";
 import { SESSION_COOKIE } from "@/storage/session";
 
 function requestWithCookie(
   raw: string | null,
   extraHeaders: Record<string, string> = {},
+  pathname = "/",
 ) {
   const headers = new Headers(extraHeaders);
   if (raw !== null) headers.set("cookie", `${SESSION_COOKIE}=${raw}`);
-  return new NextRequest("http://localhost:3001/", { headers });
+  return new NextRequest(`http://localhost:3001${pathname}`, { headers });
 }
+
+function matcherIncludes(pathname: string) {
+  return unstable_doesMiddlewareMatch({ config, url: pathname });
+}
+
+describe("proxy matcher", () => {
+  it.each(["/", "/login", "/login/otp", "/login/recovery/confirm"])(
+    "validates sessions on %s",
+    (pathname) => {
+      expect(matcherIncludes(pathname)).toBe(true);
+    },
+  );
+
+  it.each(["/levels", "/favicon.ico", "/_next/static/chunks/app.js"])(
+    "does not proxy unrelated route %s",
+    (pathname) => {
+      expect(matcherIncludes(pathname)).toBe(false);
+    },
+  );
+});
 
 describe("proxy", () => {
   beforeEach(() => {
@@ -48,6 +70,18 @@ describe("proxy", () => {
 
     const res = await proxy(requestWithCookie(raw));
 
+    expect(res.cookies.get(SESSION_COOKIE)?.value).toBe("");
+  });
+
+  it("validates and clears a stale anonymous session on the OTP page", async () => {
+    vi.mocked(Api.checkSession).mockResolvedValue(false);
+    const raw = encodeURIComponent(
+      JSON.stringify({ token: "stale-anonymous", email: null }),
+    );
+
+    const res = await proxy(requestWithCookie(raw, {}, "/login/otp"));
+
+    expect(Api.checkSession).toHaveBeenCalledWith("stale-anonymous");
     expect(res.cookies.get(SESSION_COOKIE)?.value).toBe("");
   });
 
