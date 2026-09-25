@@ -1,3 +1,8 @@
+import {
+  isSupportedCategoryCodename,
+  SUPPORTED_CATEGORY_CODENAMES,
+} from "engine";
+
 // The minimal shape this module actually needs — deliberately not tied to
 // Api.ts's SyncedTrial (which also carries a runType). StatsScreen filters
 // by runType before calling in, so the same aggregation runs over either
@@ -17,19 +22,6 @@ export type CategoryStats = {
   effectiveness: number; // 0–1
   avgTimeMs: number | null; // null if no correct trials
 };
-
-// Ordered list of all known categories, from simplest to hardest
-export const ALL_CATEGORIES: string[] = [
-  "1d+1d",
-  "2d+2d",
-  "1dx1d",
-  "2dx1d",
-  "3dx1d",
-  "4dx1d",
-  "(2d)^2",
-  "(3d)^2",
-  "(4d)^2",
-];
 
 export type HistogramBucket = { label: string; count: number };
 
@@ -70,10 +62,12 @@ export function computeStats(trials: StatsTrial[]): CategoryStats[] {
     byCategory.set(t.categoryCodename, list);
   }
 
-  // Include all known categories + any unknown ones from history
+  // Currently supported categories first (canonical engine order), then any
+  // retired/unknown codenames still present in the player's history — those
+  // Trials remain valid research data even though they can't be replayed.
   const allCodenames = [
-    ...ALL_CATEGORIES,
-    ...[...byCategory.keys()].filter((k) => !ALL_CATEGORIES.includes(k)),
+    ...SUPPORTED_CATEGORY_CODENAMES,
+    ...[...byCategory.keys()].filter((k) => !isSupportedCategoryCodename(k)),
   ];
 
   return allCodenames.map((codename) => {

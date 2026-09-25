@@ -49,7 +49,7 @@ export {
   isBetterLevelRecord,
   LEVEL_COMPLETE_THRESHOLD,
   starsForScore,
-  TOTAL_LEVELS,
+  SEED_LEVEL_COUNT,
   TRIALS_PER_LEVEL,
   type LevelRecordCandidate,
 } from "./levelScoring";

@@ -80,7 +80,7 @@ function finishCurrentRun() {
 
 test("fresh mount starts a Playing run for the given level", () => {
   renderWithQueryClient(
-    <LevelPlay stats={{}} levelNumber={1} level={level1} />,
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );
 
   const state = gameStore.getState().state;
@@ -94,7 +94,7 @@ test("fresh mount starts a Playing run for the given level", () => {
 
 test("switching to a different level mid-play abandons the in-progress run and starts fresh for the new level", () => {
   const { rerenderWithQueryClient } = renderWithQueryClient(
-    <LevelPlay stats={{}} levelNumber={1} level={level1} />,
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );
   expect(gameStore.getState().state.type).toBe("playing");
   const level1RunId =
@@ -106,7 +106,12 @@ test("switching to a different level mid-play abandons the in-progress run and s
   // rerenders this same component with a new levelNumber, no unmount.
   act(() => {
     rerenderWithQueryClient(
-      <LevelPlay stats={{}} levelNumber={2} level={level2} />,
+      <LevelPlay
+        nextLevelNumber={2}
+        stats={{}}
+        levelNumber={2}
+        level={level2}
+      />,
     );
   });
 
@@ -122,7 +127,7 @@ test("switching to a different level mid-play abandons the in-progress run and s
 
 test("revisiting the same level after finishing it starts a fresh run, not the stale Finished state", () => {
   const { unmount } = renderWithQueryClient(
-    <LevelPlay levelNumber={1} level={level1} stats={{}} />,
+    <LevelPlay nextLevelNumber={2} levelNumber={1} level={level1} stats={{}} />,
   );
 
   expect(gameStore.getState().state.type).toBe("playing");
@@ -140,7 +145,7 @@ test("revisiting the same level after finishing it starts a fresh run, not the s
   // Revisiting the same level remounts it — this should not resume the
   // stale Finished state from the previous visit.
   renderWithQueryClient(
-    <LevelPlay levelNumber={1} level={level1} stats={{}} />,
+    <LevelPlay nextLevelNumber={2} levelNumber={1} level={level1} stats={{}} />,
   );
 
   const state = gameStore.getState().state;
@@ -154,7 +159,7 @@ test("revisiting the same level after finishing it starts a fresh run, not the s
 
 test("a missing refreshed level stat leaves the current record unchanged without comparing undefined", async () => {
   renderWithQueryClient(
-    <LevelPlay stats={{}} levelNumber={1} level={level1} />,
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );
 
   finishCurrentRun();
@@ -176,7 +181,7 @@ test("an existing refreshed level stat still corrects the current record", async
   };
   vi.mocked(Api.fetchLevelStats).mockResolvedValue({ "1": fresh });
   renderWithQueryClient(
-    <LevelPlay stats={{}} levelNumber={1} level={level1} />,
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );
 
   finishCurrentRun();
@@ -209,7 +214,7 @@ test("a same-mount Replay's New record badge reflects the just-finished run, not
   }
 
   const { getByText, queryByText } = renderWithQueryClient(
-    <LevelPlay stats={{}} levelNumber={1} level={level1} />,
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );
 
   finishAllCorrect();

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   starsForScore,
   LEVEL_COMPLETE_THRESHOLD,
-  TOTAL_LEVELS,
+  SEED_LEVEL_COUNT,
   TRIALS_PER_LEVEL,
   isBetterLevelRecord,
 } from "./levelScoring";
@@ -34,9 +34,9 @@ describe("LEVEL_COMPLETE_THRESHOLD", () => {
   });
 });
 
-describe("TOTAL_LEVELS", () => {
+describe("SEED_LEVEL_COUNT", () => {
   it("is 150", () => {
-    expect(TOTAL_LEVELS).toBe(150);
+    expect(SEED_LEVEL_COUNT).toBe(150);
   });
 });
 

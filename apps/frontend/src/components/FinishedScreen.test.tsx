@@ -1,12 +1,18 @@
-import { screen } from "@testing-library/react";
-import { test, vi, expect } from "vitest";
+import { screen, fireEvent } from "@testing-library/react";
+import { test, vi, expect, describe, beforeEach } from "vitest";
 import { FinishedScreen } from "./FinishedScreen";
 import type { Finished } from "../game/index";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
+const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: pushMock, replace: vi.fn() }),
 }));
+
+beforeEach(() => {
+  pushMock.mockClear();
+});
 
 const finishedState: Finished = {
   type: "finished",
@@ -18,24 +24,106 @@ const finishedState: Finished = {
   stars: 2,
 };
 
+function finishedAt(levelNumber: number): Finished {
+  return {
+    ...finishedState,
+    config: { ...finishedState.config, levelNumber },
+  };
+}
+
 // Regression test for #24: "Play next level" must be a real navigable link
 // (Cmd/Ctrl/middle-click, "open in new tab") rather than a button that only
 // works via a JS onClick.
 test('"Play next level" is a real link to the next level, not a button', () => {
-  render(<FinishedScreen state={finishedState} isNewRecord={false} />);
+  render(
+    <FinishedScreen
+      state={finishedState}
+      isNewRecord={false}
+      nextLevelNumber={4}
+    />,
+  );
 
   const link = screen.getByRole("link", { name: "Play next level (N)" });
   expect(link.getAttribute("href")).toBe("/level/4");
 });
 
+describe.each([1, 75])("a completed middle-catalog Level %i", (levelNumber) => {
+  test("offers and shortcuts to the explicit next Level", () => {
+    render(
+      <FinishedScreen
+        state={finishedAt(levelNumber)}
+        isNewRecord={false}
+        nextLevelNumber={levelNumber + 1}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "Play next level (N)" });
+    expect(link.getAttribute("href")).toBe(`/level/${levelNumber + 1}`);
+
+    fireEvent.keyDown(window, { key: "n" });
+    expect(pushMock).toHaveBeenCalledWith(`/level/${levelNumber + 1}`);
+  });
+});
+
+test("a completed final active Level offers no next Level and ignores N", () => {
+  render(
+    <FinishedScreen
+      state={finishedAt(150)}
+      isNewRecord={false}
+      nextLevelNumber={null}
+    />,
+  );
+
+  expect(
+    screen.queryByRole("link", { name: "Play next level (N)" }),
+  ).toBeNull();
+
+  fireEvent.keyDown(window, { key: "n" });
+  expect(pushMock).not.toHaveBeenCalled();
+});
+
+test("a failed run offers no next Level even mid-catalog", () => {
+  render(
+    <FinishedScreen
+      state={{
+        ...finishedAt(3),
+        levelCompleted: false,
+        stars: 0,
+        correctCount: 10,
+      }}
+      isNewRecord={false}
+      nextLevelNumber={4}
+    />,
+  );
+
+  expect(
+    screen.queryByRole("link", { name: "Play next level (N)" }),
+  ).toBeNull();
+
+  fireEvent.keyDown(window, { key: "n" });
+  expect(pushMock).not.toHaveBeenCalled();
+});
+
 test("a new record shows the celebration message", () => {
-  render(<FinishedScreen state={finishedState} isNewRecord={true} />);
+  render(
+    <FinishedScreen
+      state={finishedState}
+      isNewRecord={true}
+      nextLevelNumber={4}
+    />,
+  );
 
   expect(screen.getByText("New record!")).toBeDefined();
 });
 
 test("no celebration message when the run didn't set a new record", () => {
-  render(<FinishedScreen state={finishedState} isNewRecord={false} />);
+  render(
+    <FinishedScreen
+      state={finishedState}
+      isNewRecord={false}
+      nextLevelNumber={4}
+    />,
+  );
 
   expect(screen.queryByText("New record!")).toBeNull();
 });
@@ -50,6 +138,7 @@ test("no celebration message on a failed run, even if isNewRecord is somehow tru
         correctCount: 10,
       }}
       isNewRecord={true}
+      nextLevelNumber={4}
     />,
   );
 

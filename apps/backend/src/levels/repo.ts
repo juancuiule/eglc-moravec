@@ -15,6 +15,25 @@ export function seedLevelsIfEmpty(db: DatabaseSync): void {
   });
 }
 
+// The catalog is authoritative for navigation, so a malformed one must never
+// boot: unlock math assumes the previous level is `n - 1`, which only holds
+// when numbers are contiguous from 1. Gaps or a missing Level 1 are operator
+// errors to fix in the `levels` table — never renumbered or repaired here.
+export function assertLevelsAreContiguous(db: DatabaseSync): void {
+  const numbers = getLevelNumbers(db);
+  if (numbers.length === 0) {
+    throw new Error("Level catalog is empty");
+  }
+  numbers.forEach((n, i) => {
+    const expected = i + 1;
+    if (n !== expected) {
+      throw new Error(
+        `Level catalog is invalid: expected level ${expected}, found ${n} — levels must be contiguous starting at 1`,
+      );
+    }
+  });
+}
+
 export function getLevelNumbers(db: DatabaseSync): number[] {
   const rows = db
     .prepare("SELECT level_number FROM levels ORDER BY level_number")

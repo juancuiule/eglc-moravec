@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { cleanupExpiredAuthData } from "./auth/repo.js";
-import { seedLevelsIfEmpty } from "./levels/repo.js";
+import { assertLevelsAreContiguous, seedLevelsIfEmpty } from "./levels/repo.js";
 
 const SCHEMA_STATEMENTS: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS users (
@@ -86,6 +86,7 @@ export function openDb(path: string, now: number = Date.now()): DatabaseSync {
   INDEX_STATEMENTS.forEach((statement) => db.exec(statement));
   cleanupExpiredAuthData(db, now);
   seedLevelsIfEmpty(db);
+  assertLevelsAreContiguous(db);
   return db;
 }
 

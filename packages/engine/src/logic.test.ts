@@ -144,13 +144,18 @@ describe("parseTrialResults", () => {
     expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
   });
 
-  it.each([null, 0, 151, 3.7, -5])(
+  it.each([null, 0, 3.7, -5, Number.MAX_SAFE_INTEGER + 1])(
     "rejects levelNumber %s for a Level trial",
     (levelNumber) => {
       const trial = { ...validTrial, levelNumber };
       expect(parseTrialResults({ trials: [trial] })).toBeNull();
     },
   );
+
+  it("accepts a Level trial for a level above the seed catalog size — removed or not-yet-deployed Levels stay syncable history", () => {
+    const trial = { ...validTrial, levelNumber: 200 };
+    expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
+  });
 
   it("rejects a non-null levelNumber for a Practice trial", () => {
     const trial = { ...validTrial, runType: "practice", levelNumber: 3 };
@@ -328,6 +333,13 @@ describe("deriveLevelRuns", () => {
   it("ignores a run containing inconsistent level numbers", () => {
     const trials = [evaluatedTrial(), evaluatedTrial({ levelNumber: 5 })];
     expect(deriveLevelRuns(trials)).toEqual([]);
+  });
+
+  it("derives a run for a level number above the seed catalog size — removed Levels stay analyzable", () => {
+    const trials = [evaluatedTrial({ levelNumber: 200 })];
+    expect(deriveLevelRuns(trials)).toEqual([
+      expect.objectContaining({ levelNumber: 200 }),
+    ]);
   });
 
   it("ignores a run containing inconsistent run types", () => {

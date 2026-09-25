@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { computeStats, ALL_CATEGORIES, type StatsTrial } from "./computeStats";
+import { SUPPORTED_CATEGORY_CODENAMES } from "engine";
+import { computeStats, type StatsTrial } from "./computeStats";
 
 function trial(
   categoryCodename: string,
@@ -13,7 +14,7 @@ function trial(
 describe("computeStats", () => {
   it("returns a row for every known category", () => {
     const stats = computeStats([]);
-    expect(stats.map((s) => s.codename)).toEqual(ALL_CATEGORIES);
+    expect(stats.map((s) => s.codename)).toEqual(SUPPORTED_CATEGORY_CODENAMES);
   });
 
   it("rows with no attempts have total=0 and effectiveness=0", () => {

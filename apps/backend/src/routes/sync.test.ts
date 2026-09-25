@@ -98,6 +98,24 @@ describe("POST /sync/results", () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it("stores a trial for a level number above the seed catalog size — the active catalog bounds navigation, not historical results", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const retiredLevelTrial = { ...trial, id: randomUUID(), levelNumber: 200 };
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/sync/results",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { trials: [retiredLevelTrial] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].level_number).toBe(200);
+  });
+
   it("rejects a malformed body", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);

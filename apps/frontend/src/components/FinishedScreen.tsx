@@ -4,16 +4,21 @@ import { formatDuration } from "@/formatTime";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { TOTAL_LEVELS } from "engine";
 import { useTranslations } from "next-intl";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
 import { button, linkButton, panel } from "../styles";
 import { StarsDisplay } from "./StarsDisplay";
 
-type Props = { state: Finished; isNewRecord: boolean };
+type Props = {
+  state: Finished;
+  isNewRecord: boolean;
+  // Next Level in the active backend catalog, or null when this run finished
+  // the final one — the catalog, not a constant, decides.
+  nextLevelNumber: number | null;
+};
 
-export function FinishedScreen({ state, isNewRecord }: Props) {
+export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
   const t = useTranslations("Levels");
   const tCommon = useTranslations("Common");
   const router = useRouter();
@@ -22,10 +27,11 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
 
   const { correctCount, levelCompleted, stars, results, config } = state;
   const totalAttempts = results.length;
-  const isLastLevel = config.levelNumber >= TOTAL_LEVELS;
+  const hasNextLevel = nextLevelNumber !== null;
 
   function playNext() {
-    router.push(`/level/${config.levelNumber + 1}`);
+    if (nextLevelNumber === null) return;
+    router.push(`/level/${nextLevelNumber}`);
   }
 
   function replay() {
@@ -40,7 +46,7 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "n" || e.key === "N") {
-        if (levelCompleted && !isLastLevel) playNext();
+        if (levelCompleted && hasNextLevel) playNext();
       } else if (e.key === "r" || e.key === "R") {
         replay();
       } else if (e.key === "m" || e.key === "M") {
@@ -56,7 +62,7 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
     // unmounting this screen rather than updating it in place. Safe to omit
     // them from the deps below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [levelCompleted, isLastLevel]);
+  }, [levelCompleted, hasNextLevel]);
 
   const totalTime = results.reduce((sum, r) => sum + r.timeTaken, 0);
 
@@ -115,9 +121,9 @@ export function FinishedScreen({ state, isNewRecord }: Props) {
         className="flex flex-col gap-2 animate-fade-in"
         style={{ animationDelay: "400ms", animationFillMode: "backwards" }}
       >
-        {levelCompleted && !isLastLevel && (
+        {levelCompleted && hasNextLevel && (
           <Link
-            href={`/level/${config.levelNumber + 1}`}
+            href={`/level/${nextLevelNumber}`}
             className={linkButton({ intent: "success" })}
           >
             {t("playNextLevel")}

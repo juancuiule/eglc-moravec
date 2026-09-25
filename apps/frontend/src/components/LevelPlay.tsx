@@ -16,9 +16,15 @@ type Props = {
   levelNumber: number;
   level: Level;
   stats: Record<string, LevelStats>;
+  nextLevelNumber: number | null;
 };
 
-export function LevelPlay({ levelNumber, level, stats }: Props) {
+export function LevelPlay({
+  levelNumber,
+  level,
+  stats,
+  nextLevelNumber,
+}: Props) {
   const gameState = useGame((s) => s.state);
   const start = useGame((s) => s.start);
   const [isNewRecord, setIsNewRecord] = useState(false);
@@ -92,7 +98,13 @@ export function LevelPlay({ levelNumber, level, stats }: Props) {
     case "finished": {
       const { config } = gameState;
       if (config.levelNumber === levelNumber) {
-        return <FinishedScreen state={gameState} isNewRecord={isNewRecord} />;
+        return (
+          <FinishedScreen
+            state={gameState}
+            isNewRecord={isNewRecord}
+            nextLevelNumber={nextLevelNumber}
+          />
+        );
       }
       break;
     }

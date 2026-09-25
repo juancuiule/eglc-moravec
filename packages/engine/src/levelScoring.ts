@@ -1,6 +1,9 @@
 export const LEVEL_COMPLETE_THRESHOLD = 15;
 
-export const TOTAL_LEVELS = 150;
+// Size of the initial level fixture seeded into the backend catalog — not a
+// product limit. The database-backed catalog is authoritative and may grow or
+// shrink; synced historical level numbers carry no hard maximum.
+export const SEED_LEVEL_COUNT = 150;
 export const TRIALS_PER_LEVEL = 20;
 
 export function starsForScore(correctCount: number): 0 | 1 | 2 | 3 {

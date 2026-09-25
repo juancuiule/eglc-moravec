@@ -2,7 +2,6 @@ import {
   isBetterLevelRecord,
   LEVEL_COMPLETE_THRESHOLD,
   starsForScore,
-  TOTAL_LEVELS,
   TRIALS_PER_LEVEL,
 } from "./levelScoring";
 import { reconstructOperation } from "./operations/index";
@@ -33,7 +32,10 @@ export const TrialResultSchema = z
     z.object({
       ...TrialResultFields,
       runType: z.literal("level"),
-      levelNumber: z.number().int().min(1).max(TOTAL_LEVELS),
+      // Positive safe integer, no catalog maximum: the active catalog is a
+      // navigation concern, while synced Trials may reference Levels that no
+      // longer exist in it (historical/offline runs).
+      levelNumber: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
     }),
     z.object({
       ...TrialResultFields,
@@ -141,9 +143,8 @@ export function deriveLevelRuns(
     if (
       runTrials.length > TRIALS_PER_LEVEL ||
       levelNumber === null ||
-      !Number.isInteger(levelNumber) ||
+      !Number.isSafeInteger(levelNumber) ||
       levelNumber < 1 ||
-      levelNumber > TOTAL_LEVELS ||
       runTrials.some(
         (trial) =>
           trial.levelNumber !== levelNumber ||

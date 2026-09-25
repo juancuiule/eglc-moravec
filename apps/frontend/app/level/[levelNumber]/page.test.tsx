@@ -17,7 +17,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/api/Api", () => ({
-  Api: { fetchLevel: vi.fn(), fetchLevelStats: vi.fn() },
+  Api: {
+    fetchLevel: vi.fn(),
+    fetchLevelNumbers: vi.fn(),
+    fetchLevelStats: vi.fn(),
+  },
 }));
 
 import LevelPage from "./page";
@@ -39,6 +43,7 @@ function sessionCookieValue(token: string): string {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(Api.fetchLevel).mockResolvedValue({ "1d+1d": 100 });
+  vi.mocked(Api.fetchLevelNumbers).mockResolvedValue([1, 2, 3]);
   vi.mocked(Api.fetchLevelStats).mockResolvedValue({});
   cookiesMock.mockResolvedValue(cookieStore());
 });
@@ -89,6 +94,7 @@ describe("LevelPage", () => {
     expect(result.props).toMatchObject({
       levelNumber: 2,
       level: { "1d+1d": 100 },
+      nextLevelNumber: 3,
     });
   });
 
@@ -96,8 +102,23 @@ describe("LevelPage", () => {
     const result = await LevelPage({
       params: Promise.resolve({ levelNumber: "1" }),
     });
-    expect(result.props).toMatchObject({ levelNumber: 1 });
+    expect(result.props).toMatchObject({ levelNumber: 1, nextLevelNumber: 2 });
     expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("passes a null nextLevelNumber when the catalog ends at this level", async () => {
+    cookiesMock.mockResolvedValue(cookieStore(sessionCookieValue("tok-abc")));
+    vi.mocked(Api.fetchLevelStats).mockResolvedValue({
+      "2": { stars: 1, totalTime: 1000, completedAt: "x" },
+    });
+
+    const result = await LevelPage({
+      params: Promise.resolve({ levelNumber: "3" }),
+    });
+    expect(result.props).toMatchObject({
+      levelNumber: 3,
+      nextLevelNumber: null,
+    });
   });
 
   it("fails safe to locked, not open, when the stats fetch itself fails", async () => {

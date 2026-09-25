@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { ALL_CATEGORIES } from "../stats/computeStats";
+import { SUPPORTED_CATEGORY_CODENAMES } from "engine";
 import { CATEGORY_LABELS } from "../categoryLabels";
 import { panel, backLink } from "../styles";
 
@@ -20,7 +20,7 @@ export async function PracticeModeSelection() {
       <p className="text-sm text-muted">{t("description")}</p>
 
       <div className="grid grid-cols-3 gap-2">
-        {ALL_CATEGORIES.map((codename) => (
+        {SUPPORTED_CATEGORY_CODENAMES.map((codename) => (
           <Link
             key={codename}
             href={`/practice/${encodeURIComponent(codename)}`}
