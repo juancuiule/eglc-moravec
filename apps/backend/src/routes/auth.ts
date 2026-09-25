@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
 import { generateOtp, generateSessionToken } from "../auth/crypto.js";
 import { sendOtpEmail } from "../auth/email.js";
@@ -28,46 +28,94 @@ import { parseBody } from "../parser.js";
 
 import * as z from "zod";
 
+function rateLimited(reply: FastifyReply, max: number, retryAfterMs: number) {
+  const seconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+  return reply
+    .code(429)
+    .headers({
+      "retry-after": seconds,
+      "x-ratelimit-limit": max,
+      "x-ratelimit-remaining": 0,
+      "x-ratelimit-reset": seconds,
+    })
+    .send({ error: "rate_limited" });
+}
+
 export function registerAuthRoutes(
   app: FastifyInstance,
   db: DatabaseSync,
   config: Config,
 ): void {
-  app.post("/auth/otp/request", async (request, reply) => {
-    const { email } = parseBody(
-      request.body,
-      z.object({
-        email: z.email(),
-      }),
-    );
+  let sendWindowStartedAt = 0;
+  let sendAttempts = 0;
 
-    const emailHash = hashEmail(email, config.hashSecret);
-    const now = Date.now();
-    const before = getOtpRow(db, emailHash);
-    const code = generateOtp();
+  app.post(
+    "/auth/otp/request",
+    {
+      config: {
+        rateLimit: {
+          max: config.otpIpRateLimitMax,
+          timeWindow: config.otpIpRateLimitWindowMs,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { email } = parseBody(
+        request.body,
+        z.object({
+          email: z.email(),
+        }),
+      );
 
-    const reserved = reserveOtpSlot(
-      db,
-      emailHash,
-      code,
-      now + config.otpTtlMs,
-      now,
-      config.otpMinIntervalMs,
-    );
-    if (!reserved) {
-      return reply.code(429).send({ error: "rate_limited" });
-    }
+      const emailHash = hashEmail(email, config.hashSecret);
+      const now = Date.now();
+      const before = getOtpRow(db, emailHash);
+      const code = generateOtp();
 
-    try {
-      await sendOtpEmail(normalizeEmail(email), code, config.resendApiKey);
-    } catch (err) {
-      restoreOtpRow(db, emailHash, before, { code, requestedAt: now });
-      app.log.error(err);
-      return reply.code(502).send({ error: "email_delivery_failed" });
-    }
+      const reserved = reserveOtpSlot(
+        db,
+        emailHash,
+        code,
+        now + config.otpTtlMs,
+        now,
+        config.otpMinIntervalMs,
+      );
+      if (!reserved) {
+        return rateLimited(
+          reply,
+          1,
+          (before?.requested_at ?? now) + config.otpMinIntervalMs - now,
+        );
+      }
 
-    return reply.send({ ok: true });
-  });
+      if (
+        sendAttempts === 0 ||
+        now - sendWindowStartedAt >= config.otpGlobalRateLimitWindowMs
+      ) {
+        sendWindowStartedAt = now;
+        sendAttempts = 0;
+      }
+      if (sendAttempts >= config.otpGlobalRateLimitMax) {
+        restoreOtpRow(db, emailHash, before, { code, requestedAt: now });
+        return rateLimited(
+          reply,
+          config.otpGlobalRateLimitMax,
+          config.otpGlobalRateLimitWindowMs - (now - sendWindowStartedAt),
+        );
+      }
+      sendAttempts++;
+
+      try {
+        await sendOtpEmail(normalizeEmail(email), code, config.resendApiKey);
+      } catch {
+        restoreOtpRow(db, emailHash, before, { code, requestedAt: now });
+        app.log.error("OTP email delivery failed");
+        return reply.code(502).send({ error: "email_delivery_failed" });
+      }
+
+      return reply.send({ ok: true });
+    },
+  );
 
   app.post("/auth/device", async (request, reply) => {
     const { deviceId } = parseBody(

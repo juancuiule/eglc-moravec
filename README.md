@@ -97,7 +97,7 @@ pnpm test                     # every package's test suite
 pnpm typecheck
 ```
 
-Each app needs its own `.env`. See `apps/frontend/.env.example` and `apps/backend/.env.example`. Without `RESEND_API_KEY` set, OTP codes just log to stdout, which is enough to exercise the whole login flow locally.
+Each app needs its own `.env`. See `apps/frontend/.env.example` and `apps/backend/.env.example`. Without `RESEND_API_KEY` set, OTP email delivery is skipped. Recipients and codes are never logged; use a test provider key for manual login testing, or the mocked email tests for automated checks.
 
 ## Repo layout
 

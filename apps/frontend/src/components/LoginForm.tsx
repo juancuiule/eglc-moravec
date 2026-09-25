@@ -55,7 +55,11 @@ export function LoginForm() {
           autoFocus
         />
         {requestCode.error && (
-          <p className="text-sm text-danger">{requestCode.error.message}</p>
+          <p className="text-sm text-danger">
+            {requestCode.error.message === "rate_limited"
+              ? t("rateLimited")
+              : requestCode.error.message}
+          </p>
         )}
         <button
           type="submit"

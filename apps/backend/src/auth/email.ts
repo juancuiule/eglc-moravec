@@ -4,7 +4,7 @@ export async function sendOtpEmail(
   apiKey: string | null,
 ): Promise<void> {
   if (apiKey === null) {
-    console.log(`[dev] OTP for ${to}: ${code}`);
+    console.log("[dev] OTP email delivery skipped: RESEND_API_KEY is unset");
     return;
   }
 
@@ -23,8 +23,6 @@ export async function sendOtpEmail(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Resend request failed: ${response.status} ${await response.text()}`,
-    );
+    throw new Error(`Resend request failed: ${response.status}`);
   }
 }

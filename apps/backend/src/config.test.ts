@@ -49,6 +49,71 @@ describe("loadConfig", () => {
     ).not.toThrow();
   });
 
+  it("defaults to secure OTP limits with proxy trust disabled", () => {
+    expect(loadConfig({})).toMatchObject({
+      otpIpRateLimitMax: 10,
+      otpIpRateLimitWindowMs: 600_000,
+      otpGlobalRateLimitMax: 100,
+      otpGlobalRateLimitWindowMs: 3_600_000,
+      trustedProxyIp: null,
+    });
+  });
+
+  it("accepts positive integer OTP overrides and an explicit proxy IP", () => {
+    expect(
+      loadConfig({
+        OTP_IP_RATE_LIMIT_MAX: "2",
+        OTP_IP_RATE_LIMIT_WINDOW_MS: "3000",
+        OTP_GLOBAL_RATE_LIMIT_MAX: "4",
+        OTP_GLOBAL_RATE_LIMIT_WINDOW_MS: "5000",
+        TRUSTED_PROXY_IP: "172.30.60.2",
+      }),
+    ).toMatchObject({
+      otpIpRateLimitMax: 2,
+      otpIpRateLimitWindowMs: 3000,
+      otpGlobalRateLimitMax: 4,
+      otpGlobalRateLimitWindowMs: 5000,
+      trustedProxyIp: "172.30.60.2",
+    });
+  });
+
+  describe.each([
+    "OTP_IP_RATE_LIMIT_MAX",
+    "OTP_IP_RATE_LIMIT_WINDOW_MS",
+    "OTP_GLOBAL_RATE_LIMIT_MAX",
+    "OTP_GLOBAL_RATE_LIMIT_WINDOW_MS",
+  ])("%s", (key) => {
+    it.each([
+      "",
+      " ",
+      "0",
+      "-1",
+      "1.5",
+      "1.0000000000000001",
+      "1e2",
+      "0x10",
+      "NaN",
+      "Infinity",
+      "100oops",
+      "9007199254740992",
+    ])("rejects invalid override %j", (value) => {
+      expect(() => loadConfig({ [key]: value })).toThrow(key);
+    });
+  });
+
+  it.each([
+    "true",
+    "1",
+    "0.0.0.0/0",
+    "172.30.60.0/24",
+    "loopback",
+    "172.30.60.2,172.30.60.3",
+  ])("rejects broad or invalid proxy trust %j", (value) => {
+    expect(() => loadConfig({ TRUSTED_PROXY_IP: value })).toThrow(
+      "TRUSTED_PROXY_IP",
+    );
+  });
+
   describe("prettyPrintLogs", () => {
     it("is on only when NODE_ENV is exactly 'development'", () => {
       const config = loadConfig({
