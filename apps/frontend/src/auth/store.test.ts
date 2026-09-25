@@ -22,6 +22,14 @@ import { createAuthStore, authToken } from "./store";
 import { Api } from "../api/Api";
 import { loadSession, saveSession, clearSession } from "../storage/session";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe("createAuthStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -96,6 +104,62 @@ describe("createAuthStore", () => {
       expect(store.getState().state).toEqual({
         type: "anonymous",
         token: "anon-tok",
+      });
+    });
+
+    it("does not replace an OTP login when device registration resolves late", async () => {
+      const registration = deferred<{ token: string; expiresAt: number }>();
+      vi.mocked(Api.registerDevice).mockReturnValue(registration.promise);
+      const store = createAuthStore();
+
+      const ensureSession = store.getState().ensureSession();
+      store
+        .getState()
+        .login({ token: "otp-token", email: "player@example.com" });
+      registration.resolve({ token: "anonymous-token", expiresAt: 123 });
+      await ensureSession;
+
+      expect(store.getState().state).toEqual({
+        type: "logged-in",
+        token: "otp-token",
+        email: "player@example.com",
+      });
+      expect(saveSession).toHaveBeenCalledTimes(1);
+      expect(saveSession).toHaveBeenCalledWith({
+        token: "otp-token",
+        email: "player@example.com",
+      });
+    });
+
+    it("does not replace an anonymous session established by a concurrent call", async () => {
+      const firstRegistration = deferred<{
+        token: string;
+        expiresAt: number;
+      }>();
+      const secondRegistration = deferred<{
+        token: string;
+        expiresAt: number;
+      }>();
+      vi.mocked(Api.registerDevice)
+        .mockReturnValueOnce(firstRegistration.promise)
+        .mockReturnValueOnce(secondRegistration.promise);
+      const store = createAuthStore();
+
+      const firstEnsureSession = store.getState().ensureSession();
+      const secondEnsureSession = store.getState().ensureSession();
+      secondRegistration.resolve({ token: "second-token", expiresAt: 123 });
+      await secondEnsureSession;
+      firstRegistration.resolve({ token: "first-token", expiresAt: 123 });
+      await firstEnsureSession;
+
+      expect(store.getState().state).toEqual({
+        type: "anonymous",
+        token: "second-token",
+      });
+      expect(saveSession).toHaveBeenCalledTimes(1);
+      expect(saveSession).toHaveBeenCalledWith({
+        token: "second-token",
+        email: null,
       });
     });
 

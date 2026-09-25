@@ -59,6 +59,7 @@ export function createAuthStore() {
       try {
         const deviceId = getOrCreateDeviceId();
         const session = await Api.registerDevice(deviceId);
+        if (get().state.type !== "logged-out") return;
         get().loginAnonymous({ token: session.token });
       } catch {
         // best-effort; trials just stay local-only until this succeeds, same as before this existed
