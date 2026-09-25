@@ -5,7 +5,11 @@ import { type LevelStats } from "@/api/Api";
 import { persistFinishedLevel } from "@/game/persistFinishedLevel";
 import { gameStore, useGame } from "@/game/store";
 import type { Level } from "@/level";
-import { useLocalHydrated, useLocalLevelStats } from "@/local/hooks";
+import {
+  useFirstPullSettled,
+  useLocalHydrated,
+  useLocalLevelStats,
+} from "@/local/hooks";
 import { mergeLevelStats } from "@/local/trials";
 import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
 import { watchStoreTransition } from "@/storeWatch";
@@ -43,10 +47,15 @@ export function LevelPlay({
   const localStats = useLocalLevelStats() ?? {};
   const effectiveStats = mergeLevelStats(stats, localStats);
   const unlocked = isLevelUnlocked(levelNumber, effectiveStats);
+  // On a fresh device with a failed/absent server seed, hydration completing
+  // on an empty store would otherwise redirect before the boot pull has a
+  // chance to merge the player's real history. Hold the gate until the
+  // engine's first pull settles; a genuinely locked level still redirects.
+  const firstPullSettled = useFirstPullSettled();
 
   useEffect(() => {
-    if (hydrated && !unlocked) router.replace("/");
-  }, [hydrated, unlocked, router]);
+    if (hydrated && firstPullSettled && !unlocked) router.replace("/");
+  }, [hydrated, unlocked, firstPullSettled, router]);
 
   // In-memory only, per-mount — never persisted. Not a reintroduction of
   // the removed storage/levelStats.ts cache: it resets on every navigation
@@ -127,6 +136,12 @@ export function LevelPlay({
 
   // Don't judge locked/unlocked against an empty pre-hydration store.
   if (!hydrated) return <LoadingPanel label={t("loading")} />;
+  // A locked verdict is only trustworthy once the first pull has settled —
+  // on a fresh device an empty local store (with a failed server seed) would
+  // otherwise bounce before the player's real history merges. Unlocked
+  // levels don't wait.
+  if (!unlocked && !firstPullSettled)
+    return <LoadingPanel label={t("loading")} />;
   if (!unlocked) return null; // redirecting away
 
   switch (type) {

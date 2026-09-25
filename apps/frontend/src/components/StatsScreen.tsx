@@ -22,6 +22,7 @@ import { CategoryStatsDetail } from "./CategoryStatsDetail";
 import { formatSeconds } from "../formatTime";
 import { useLocalTrials } from "../local/hooks";
 import { mergeServerTrials } from "../local/trials";
+import { localEpoch } from "../local/store";
 import { panel, backLink, button, textLink } from "../styles";
 
 type Tab = "level" | "practice";
@@ -121,8 +122,11 @@ export function StatsScreen() {
     queryKey: ["trialsPull", token],
     queryFn: async () => {
       if (!token) return 0;
+      // Epoch-guarded: a pull that resolves after a logout wipe must not
+      // repopulate the store with the previous session's rows.
+      const gen = localEpoch();
       const trials = await Api.fetchTrials(token);
-      mergeServerTrials(trials);
+      if (gen === localEpoch()) mergeServerTrials(trials);
       return trials.length;
     },
   });

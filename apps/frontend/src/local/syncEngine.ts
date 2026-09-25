@@ -1,4 +1,5 @@
 import { MAX_SYNC_TRIALS } from "engine";
+import { createStore } from "zustand/vanilla";
 import { Api } from "../api/Api";
 import { ApiError } from "../api/utils";
 import { authStore, authToken, setLogoutHook } from "../auth/store";
@@ -6,8 +7,8 @@ import { markSynced, mergeServerTrials, pendingInputs } from "./trials";
 import {
   afterHydration,
   isPersistenceLoading,
-  localStore,
-  TRIALS_TABLE,
+  localEpoch,
+  resetLocalData,
 } from "./store";
 
 // Flush triggers (all funnel into the same coalesced flush):
@@ -49,7 +50,18 @@ function scheduleRetry(): void {
 //
 // navigator.onLine is deliberately NOT consulted — per the spec it's a hint
 // to *attempt*, never a gate; real request outcomes drive the backoff loop.
+// Reactive status for UI gates — e.g. LevelPlay holds its locked-redirect
+// until the first pull settles, so a fresh device doesn't bounce a deep link
+// before the boot flush has merged the player's server history.
+export const syncStatus = createStore<{ firstPullSettled: boolean }>(() => ({
+  firstPullSettled: false,
+}));
+
 async function flushPass(): Promise<void> {
+  // Epoch captured before any request — a logout wipe mid-pass advances it,
+  // and every write below checks it so an old session's response can't
+  // repopulate the wiped store.
+  const gen = localEpoch();
   let token = authToken(authStore.getState().state);
   if (!token) token = await authStore.getState().ensureSessionToken();
   if (!token) {
@@ -65,9 +77,12 @@ async function flushPass(): Promise<void> {
         const batch = pendingInputs().slice(0, MAX_SYNC_TRIALS);
         if (batch.length === 0) break;
         await Api.syncResults(token, batch);
+        if (localEpoch() !== gen) return;
         markSynced(batch.map((i) => i.id));
       }
-      mergeServerTrials(await Api.fetchTrials(token));
+      const pulled = await Api.fetchTrials(token);
+      if (localEpoch() !== gen) return;
+      mergeServerTrials(pulled);
       failures = 0;
       return;
     } catch (e) {
@@ -76,10 +91,15 @@ async function flushPass(): Promise<void> {
         scheduleRetry();
         return;
       }
-      // Dead session — drop it and re-mint anonymous against the stable
-      // device id, then retry this pass exactly once.
-      authStore.getState().invalidateSession();
-      token = await authStore.getState().ensureSessionToken();
+      // Dead session — but only invalidate if the failed token is still the
+      // current identity. OTP login revokes the anonymous token mid-flight:
+      // a stale request's 401 must not log the new account session out.
+      if (authToken(authStore.getState().state) === token) {
+        authStore.getState().invalidateSession();
+      }
+      token =
+        authToken(authStore.getState().state) ??
+        (await authStore.getState().ensureSessionToken());
       if (!token) {
         scheduleRetry();
         return;
@@ -93,6 +113,12 @@ async function runFlush(): Promise<void> {
     await flushPass();
   } finally {
     inFlight = null;
+    // Whatever happened — success, failure, no token — the first attempt
+    // settled: gates waiting on "is history loaded yet" can judge on the
+    // local store now.
+    if (!syncStatus.getState().firstPullSettled) {
+      syncStatus.setState({ firstPullSettled: true });
+    }
     if (queued) {
       queued = false;
       void flush();
@@ -164,7 +190,10 @@ export function startSyncEngine(): () => void {
       new Promise<void>((resolve) => {
         afterHydration(() => {
           const snapshot = pendingInputs();
-          localStore.delTable(TRIALS_TABLE);
+          // resetLocalData also bumps the local epoch — in-flight pushes'
+          // markSynced and pending pull-merges from the old session are
+          // epoch-guarded and can't resurrect what we're wiping.
+          resetLocalData();
           void Promise.race([
             (async () => {
               for (let i = 0; i < snapshot.length; i += MAX_SYNC_TRIALS) {

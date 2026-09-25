@@ -116,6 +116,17 @@ export function afterHydration(fn: () => void): void {
 // Shared-browser logout: drops every local row (and the hydrated flag is left
 // set — the store is still live, just empty). Auto-persist propagates the
 // wipe to IndexedDB.
+//
+// Wiping also advances the local epoch: async continuations (an in-flight
+// pull-merge, a push's markSynced) capture the epoch before their request
+// and must check it after — an old session's response must never repopulate
+// a store that now belongs to the next session.
+let epoch = 0;
+export function localEpoch(): number {
+  return epoch;
+}
+
 export function resetLocalData(): void {
+  epoch += 1;
   localStore.delTable(TRIALS_TABLE);
 }

@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatsScreen } from "./StatsScreen";
 import { authStore } from "@/auth/store";
-import { localStore, TRIALS_TABLE } from "@/local/store";
+import { localStore, resetLocalData, TRIALS_TABLE } from "@/local/store";
 import { IntlTestProvider } from "@/testUtils/renderWithIntl";
 import type { SyncedTrial } from "../api/Api";
 
@@ -163,6 +163,39 @@ test("shows an error message when the trial fetch fails, with a retry", async ()
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
   expect(await screen.findByText(/No data yet/)).toBeDefined();
+});
+
+test("a pull resolving after a logout wipe does not repopulate the store", async () => {
+  let resolvePull: (v: SyncedTrial[]) => void = () => {};
+  vi.mocked(Api.fetchTrials).mockImplementation(
+    () => new Promise((res) => (resolvePull = res)),
+  );
+  renderWithQueryClient();
+
+  // Logout's wipe lands while this screen's fetch is still in flight.
+  act(() => resetLocalData());
+  await act(async () => {
+    resolvePull([
+      {
+        id: crypto.randomUUID(),
+        runId: crypto.randomUUID(),
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 1,
+        operands: [2, 3],
+        answer: 6,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 900,
+        hintShown: false,
+        playedAt: 1_700_000_000_000,
+      },
+    ]);
+  });
+
+  // The wiped store stays empty — the previous session's rows never
+  // re-enter through the stale response.
+  expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
 });
 
 test("renders the activity calendar and days-trained caption once trials exist", async () => {

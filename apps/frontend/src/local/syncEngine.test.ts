@@ -260,6 +260,76 @@ describe("flush", () => {
     expect(api.fetchTrials).toHaveBeenCalled();
   });
 
+  it("a 401 from a superseded token does NOT invalidate the current session", async () => {
+    api.syncResults
+      .mockImplementationOnce(async () => {
+        // OTP login lands while the anonymous-token request is in flight —
+        // the backend revokes the anon token, so the response is a 401 for
+        // an identity that no longer exists.
+        setAuth({ type: "logged-in", token: "acct", email: "a@b.com" });
+        throw new ApiError("unauthenticated", 401);
+      })
+      .mockResolvedValue({});
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]);
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+
+    // The logged-in session must survive — only the failed token may be
+    // invalidated, and it already isn't current.
+    expect(invalidateSession).not.toHaveBeenCalled();
+    expect(api.syncResults).toHaveBeenLastCalledWith("acct", expect.any(Array));
+    expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(true);
+  });
+
+  it("a pull resolving after logout's wipe cannot resurrect old rows", async () => {
+    let resolvePull: (v: unknown) => void = () => {};
+    api.fetchTrials.mockImplementation(
+      () => new Promise((res) => (resolvePull = res)),
+    );
+    teardown = startSyncEngine();
+    await tick(); // boot flush: empty outbox → fetchTrials now in-flight
+
+    await auth.logoutHook?.("dying-tok"); // wipe + epoch bump
+    resolvePull([
+      {
+        id: "srv-1",
+        runId: "r",
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 2,
+        operands: [3, 4],
+        answer: 12,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 900,
+        hintShown: false,
+        playedAt: 1_700_000_000_000,
+      },
+    ]);
+    await tick();
+
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
+  });
+
+  it("a push resolving after the wipe can't recreate partial rows via markSynced", async () => {
+    let resolvePush: (v: unknown) => void = () => {};
+    api.syncResults
+      .mockImplementationOnce(() => new Promise((res) => (resolvePush = res)))
+      .mockResolvedValue({}); // the logout snapshot's own push resolves fast
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]);
+    teardown = startSyncEngine();
+    await tick(); // push in-flight under "tok"
+
+    await auth.logoutHook?.("dying-tok"); // wipes the queued row, bumps epoch
+    resolvePush({});
+    await tick();
+
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
+  });
+
   it("a token CHANGING kicks a flush too — login switches identity mid-queue", async () => {
     setAuth({ type: "anonymous", token: "anon-tok" });
     teardown = startSyncEngine();

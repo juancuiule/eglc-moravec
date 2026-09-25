@@ -4,8 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 
-const { isBetterLevelRecordMock } = vi.hoisted(() => ({
+const { isBetterLevelRecordMock, replaceMock } = vi.hoisted(() => ({
   isBetterLevelRecordMock: vi.fn(),
+  replaceMock: vi.fn(),
 }));
 
 vi.mock("engine", async (importOriginal) => {
@@ -23,7 +24,7 @@ import type { Level } from "@/level";
 // useRouter() itself — unrelated to LevelPlay's own logic, but still needs
 // a router context to render in this test environment.
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: replaceMock }),
 }));
 
 vi.mock("@/api/Api", () => ({
@@ -33,6 +34,7 @@ vi.mock("@/api/Api", () => ({
 import { Api, type LevelStats } from "@/api/Api";
 import { localStore, TRIALS_TABLE } from "@/local/store";
 import { mergeServerTrials } from "@/local/trials";
+import { syncStatus } from "@/local/syncEngine";
 import { TRIALS_PER_LEVEL } from "engine";
 
 // Fixtures, not the real catalog's levels — tests shouldn't depend on
@@ -49,6 +51,10 @@ beforeEach(() => {
   // hydrated and empty unless a test seeds it.
   localStore.delTable(TRIALS_TABLE);
   localStore.setValue("hydrated", true);
+  // The engine isn't running in tests — default to "first pull settled" so
+  // the locked-redirect gate resolves immediately; tests that exercise the
+  // pending state set it explicitly.
+  syncStatus.setState({ firstPullSettled: true });
   gameStore.getState().reset();
   // persistFinishedLevel's push needs a session token — every real player
   // has one automatically (see AuthBoot), so tests simulate that same
@@ -217,6 +223,56 @@ test("a better record learned from the pull corrects the record baseline", async
       ),
     ).toBe(true),
   );
+});
+
+test("a locked-looking level holds the redirect until the first pull settles", async () => {
+  // Fresh device: store hydrated but empty, server seed failed (stats={}) —
+  // the boot pull hasn't landed yet.
+  syncStatus.setState({ firstPullSettled: false });
+  renderWithQueryClient(
+    <LevelPlay nextLevelNumber={3} stats={{}} levelNumber={2} level={level2} />,
+  );
+
+  // Locked-looking, but unresolved — hold, don't bounce.
+  expect(replaceMock).not.toHaveBeenCalled();
+
+  // The pull settles with nothing to merge — NOW the locked verdict holds.
+  act(() => syncStatus.setState({ firstPullSettled: true }));
+  expect(replaceMock).toHaveBeenCalledWith("/");
+});
+
+test("a pull landing during the wait can still unlock the deep link", async () => {
+  syncStatus.setState({ firstPullSettled: false });
+  renderWithQueryClient(
+    <LevelPlay nextLevelNumber={3} stats={{}} levelNumber={2} level={level2} />,
+  );
+  expect(replaceMock).not.toHaveBeenCalled();
+
+  // Server history arrives before the pull "settles": a 3-star level-1 run
+  // merges in, level 2 unlocks, and the gate opens without a redirect.
+  const runId = crypto.randomUUID();
+  act(() => {
+    mergeServerTrials(
+      Array.from({ length: TRIALS_PER_LEVEL }, (_, i) => ({
+        id: crypto.randomUUID(),
+        runId,
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 1,
+        operands: [2, 3],
+        answer: 6,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 100,
+        hintShown: false,
+        playedAt: 1_700_000_000_000 + i * 100,
+      })),
+    );
+    syncStatus.setState({ firstPullSettled: true });
+  });
+
+  expect(replaceMock).not.toHaveBeenCalled();
+  expect(gameStore.getState().state.type).toBe("playing");
 });
 
 test("a better record pulled mid-play becomes the baseline — a worse finish earns no badge", async () => {

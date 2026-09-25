@@ -1,9 +1,11 @@
 "use client";
 
 import { useTable, useValue } from "tinybase/ui-react";
+import { useStore } from "zustand";
 import type { LevelStats, SyncedTrial } from "../api/Api";
 import { HYDRATED_VALUE, localStore, TRIALS_TABLE } from "./store";
 import { levelStatsFromTrials, trialsFromTable } from "./trials";
+import { syncStatus } from "./syncEngine";
 
 // undefined while IndexedDB is still loading — callers render the same
 // loading/empty states they already had, and importantly never treat an
@@ -27,4 +29,12 @@ export function useLocalLevelStats(): Record<string, LevelStats> | undefined {
   const trials = useLocalTrials();
   if (trials === undefined) return undefined;
   return levelStatsFromTrials(trials);
+}
+
+// False until the sync engine's first flush attempt settles (success or
+// failure). Gates that judge on local history — like LevelPlay's locked-
+// redirect — hold while it's false, so a fresh device's boot pull gets a
+// chance to merge server history before anything reads "no data".
+export function useFirstPullSettled(): boolean {
+  return useStore(syncStatus, (s) => s.firstPullSettled);
 }
