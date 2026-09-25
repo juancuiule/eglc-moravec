@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { ensureLocalPersistence } from "../local/store";
+import { startSyncEngine } from "../local/syncEngine";
 import { authStore } from "./store";
 
 const SESSION_RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
@@ -17,6 +19,13 @@ const SESSION_RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
  * first trying to establish a session.
  */
 export function AuthBoot() {
+  // Start IndexedDB persistence and the sync engine once, at app boot. Both
+  // are idempotent; the teardown only matters for Strict Mode remounts.
+  useEffect(() => {
+    ensureLocalPersistence();
+    return startSyncEngine();
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     let inFlight = false;

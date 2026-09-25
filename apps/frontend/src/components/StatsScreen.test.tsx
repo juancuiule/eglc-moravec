@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatsScreen } from "./StatsScreen";
 import { authStore } from "@/auth/store";
+import { localStore, TRIALS_TABLE } from "@/local/store";
 import { IntlTestProvider } from "@/testUtils/renderWithIntl";
 import type { SyncedTrial } from "../api/Api";
 
@@ -13,6 +14,10 @@ vi.mock("@/api/Api", () => ({
 import { Api } from "@/api/Api";
 
 beforeEach(() => {
+  // The read model is the local store: hydrated and empty each test; the
+  // mocked fetchTrials still exercises the pull-merge path.
+  localStore.delTable(TRIALS_TABLE);
+  localStore.setValue("hydrated", true);
   vi.mocked(Api.fetchTrials).mockResolvedValue([]);
   // Every real player has a session by the time this renders (see
   // AuthBoot) — the trials fetch needs a token to run at all.

@@ -1,6 +1,8 @@
-import { type LevelStats } from "@/api/Api";
+"use client";
+
 import { formatDuration } from "@/formatTime";
 import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
+import { useLocalLevelStats } from "@/local/hooks";
 import { backLink, panel } from "@/styles";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -32,11 +34,11 @@ function RowStars({
   );
 }
 
-export function LevelsList(props: {
-  stats: Record<string, LevelStats>;
-  levelKeys: number[];
-}) {
-  const { stats, levelKeys } = props;
+export function LevelsList(props: { levelKeys: number[] }) {
+  const { levelKeys } = props;
+  // Records (and therefore unlock state) come from the local-first store —
+  // correct offline and immediately after a run, even before a push lands.
+  const stats = useLocalLevelStats();
   const t = useTranslations("Levels");
   const tCommon = useTranslations("Common");
 
@@ -53,17 +55,19 @@ export function LevelsList(props: {
         <h1 className="text-xl font-bold tracking-tight">{t("heading")}</h1>
       </div>
 
-      {completedCount > 0 && levelKeys && (
+      {stats === undefined ? (
+        <p className="py-8 text-center text-sm text-muted">{t("loading")}</p>
+      ) : completedCount > 0 ? (
         <p className="text-center text-xs text-muted">
           {t("completedCount", {
             completed: completedCount,
             total: levelKeys.length,
           })}
         </p>
-      )}
+      ) : null}
 
-      {levelKeys && stats && (
-        <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto">
+      {stats !== undefined && (
+        <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto overflow-x-hidden">
           {levelKeys.map((n) => {
             const levelStats = stats[String(n)];
             const unlocked = isLevelUnlocked(n, stats);

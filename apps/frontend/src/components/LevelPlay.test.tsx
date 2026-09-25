@@ -27,10 +27,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/api/Api", () => ({
-  Api: { fetchLevelStats: vi.fn(), syncResults: vi.fn() },
+  Api: { fetchLevelStats: vi.fn(), syncResults: vi.fn(), fetchTrials: vi.fn() },
 }));
 
 import { Api, type LevelStats } from "@/api/Api";
+import { localStore, TRIALS_TABLE } from "@/local/store";
 import { TRIALS_PER_LEVEL } from "engine";
 
 // Fixtures, not the real catalog's levels — tests shouldn't depend on
@@ -42,6 +43,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(Api.fetchLevelStats).mockResolvedValue({});
   vi.mocked(Api.syncResults).mockResolvedValue({ trials: [] });
+  vi.mocked(Api.fetchTrials).mockResolvedValue([]);
+  // LevelPlay reads unlock state + records from the local-first store —
+  // hydrated and empty unless a test seeds it.
+  localStore.delTable(TRIALS_TABLE);
+  localStore.setValue("hydrated", true);
   gameStore.getState().reset();
   // persistFinishedLevel's push needs a session token — every real player
   // has one automatically (see AuthBoot), so tests simulate that same
@@ -157,29 +163,45 @@ test("revisiting the same level after finishing it starts a fresh run, not the s
   }
 });
 
-test("a missing refreshed level stat leaves the current record unchanged without comparing undefined", async () => {
+test("the flush settles into a locally-derived record — never a falsy comparison", async () => {
   renderWithQueryClient(
     <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );
 
   finishCurrentRun();
 
-  await waitFor(() => expect(Api.fetchLevelStats).toHaveBeenCalledOnce());
+  // The post-finish refresh path pulls server trials and re-derives locally.
+  await waitFor(() => expect(Api.fetchTrials).toHaveBeenCalled());
   expect(
     isBetterLevelRecordMock.mock.calls.filter(([candidate]) => !candidate),
   ).toHaveLength(0);
-  expect(isBetterLevelRecordMock.mock.calls[0]?.[0]).toMatchObject({
-    stars: 0,
-  });
+  expect(
+    isBetterLevelRecordMock.mock.calls.some(([candidate]) =>
+      candidate ? candidate.stars === 0 : false,
+    ),
+  ).toBe(true);
 });
 
-test("an existing refreshed level stat still corrects the current record", async () => {
-  const fresh: LevelStats = {
-    stars: 3,
-    totalTime: 1234,
-    completedAt: "2026-01-01T00:00:00.000Z",
-  };
-  vi.mocked(Api.fetchLevelStats).mockResolvedValue({ "1": fresh });
+test("a better record learned from the pull corrects the record baseline", async () => {
+  // A 3-star level-1 run made on another device — merged into the store by
+  // the post-finish pull, then into the record baseline.
+  const otherRunId = crypto.randomUUID();
+  vi.mocked(Api.fetchTrials).mockResolvedValue(
+    Array.from({ length: TRIALS_PER_LEVEL }, (_, i) => ({
+      id: crypto.randomUUID(),
+      runId: otherRunId,
+      runType: "level",
+      categoryCodename: "1dx1d",
+      levelNumber: 1,
+      operands: [2, 3],
+      answer: 6,
+      correct: true,
+      timeExceeded: false,
+      timeTaken: 100,
+      hintShown: false,
+      playedAt: 1_700_000_000_000 + i * 100,
+    })),
+  );
   renderWithQueryClient(
     <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );
@@ -189,14 +211,11 @@ test("an existing refreshed level stat still corrects the current record", async
   await waitFor(() =>
     expect(
       isBetterLevelRecordMock.mock.calls.some(
-        ([candidate]) => candidate === fresh,
+        ([candidate]) =>
+          candidate?.stars === 3 && candidate?.totalTime === 2000,
       ),
     ).toBe(true),
   );
-  const correctionCall = isBetterLevelRecordMock.mock.calls.find(
-    ([candidate]) => candidate === fresh,
-  );
-  expect(correctionCall?.[1]).toMatchObject({ stars: 0 });
 });
 
 test("a same-mount Replay's New record badge reflects the just-finished run, not a stale stats prop", () => {

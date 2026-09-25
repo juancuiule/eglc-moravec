@@ -1,9 +1,8 @@
 import { Api, LevelStats } from "@/api/Api";
 import { LevelPlay } from "@/components/LevelPlay";
-import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
 import { SESSION_COOKIE, parseSessionCookie } from "@/storage/session";
 import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 type Props = { params: Promise<{ levelNumber: string }> };
 
@@ -24,7 +23,9 @@ export default async function LevelPage({ params }: Props) {
     ? await Api.fetchLevelStats(session.token).catch(() => ({}))
     : {};
 
-  if (!isLevelUnlocked(levelNumber, stats)) redirect("/");
+  // Unlock gating happens client-side in LevelPlay against the local-first
+  // store — the server snapshot is only a seed; a locally-completed run may
+  // unlock a Level the server hasn't heard about yet.
 
   // The backend catalog — not a fixed level count — decides whether there is
   // a next Level and what its number is.

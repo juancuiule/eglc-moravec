@@ -38,7 +38,20 @@ export type AuthStore = {
   loginAnonymous: (session: { token: string }) => void;
   login: (session: { token: string; email: string }) => void;
   logout: () => void;
+  // Drop the current session without calling Api.logout — used when the
+  // backend has already rejected the token (401). The next ensureSession
+  // re-mints an anonymous session against the stable device id.
+  invalidateSession: () => void;
 };
+
+// Registered by the local-first sync engine (local/syncEngine.ts) so logout
+// can best-effort flush the outbox with the dying token and then wipe local
+// data — without auth importing sync code (cycle). Called with the pre-clear
+// token, before the anonymous session is re-established.
+let logoutHook: ((token: string) => void) | null = null;
+export function setLogoutHook(hook: typeof logoutHook): void {
+  logoutHook = hook;
+}
 
 function stateFromPersisted(session: PersistedSession | null): AuthState {
   if (!session) return { type: "logged-out" };
@@ -91,12 +104,21 @@ export function createAuthStore() {
     logout() {
       const { state } = get();
       if (state.type !== "logged-in") return;
+      // The outbox flush fires before Api.logout invalidates the token —
+      // still a race (nothing is awaited), but it gives pending rows their
+      // best shot at landing under the account identity.
+      logoutHook?.(state.token);
       void Api.logout(state.token).catch(() => {
         // best-effort; local logout proceeds regardless of network state
       });
       clearSession();
       set({ state: { type: "logged-out" } });
       void get().ensureSession();
+    },
+
+    invalidateSession() {
+      clearSession();
+      set({ state: { type: "logged-out" } });
     },
   }));
 }

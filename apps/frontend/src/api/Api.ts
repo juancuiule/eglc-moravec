@@ -31,7 +31,6 @@ export type SyncedTrial = {
 };
 
 /** One row of GET /sync/activity: a local calendar day plus its trial count. */
-export type ActivityDay = { day: string; trials: number };
 
 export const Api = {
   requestOtp(email: string): Promise<void> {
@@ -96,20 +95,6 @@ export const Api = {
       },
     );
     return trials;
-  },
-
-  /** Pre-aggregated trials-per-day — powers "days trained" counters without
-   *  pulling the full trial list. `tzOffsetMinutes` is getTimezoneOffset();
-   *  the returned day strings are already in the viewer's local timezone. */
-  async fetchActivity(
-    token: string,
-    tzOffsetMinutes: number,
-  ): Promise<ActivityDay[]> {
-    const { days } = await requestJson<{ days: ActivityDay[] }>(
-      `/sync/activity?tzOffsetMinutes=${tzOffsetMinutes}`,
-      { method: "GET", token },
-    );
-    return days;
   },
 
   async fetchLevelNumbers(): Promise<number[]> {
