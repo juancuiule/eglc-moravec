@@ -3,6 +3,7 @@ import { test, vi, expect, describe, beforeEach } from "vitest";
 import { FinishedScreen } from "./FinishedScreen";
 import type { Finished } from "../game/index";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
+import { Trial, reconstructOperation } from "engine";
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
@@ -143,4 +144,69 @@ test("no celebration message on a failed run, even if isNewRecord is somehow tru
   );
 
   expect(screen.queryByText("New record!")).toBeNull();
+});
+
+describe("per-trial review", () => {
+  const withResults: Finished = {
+    ...finishedState,
+    results: [
+      Trial.build({
+        operation: reconstructOperation("1dx1d", [6, 7]),
+        answer: 42,
+        timeTaken: 2100,
+        hintShown: false,
+      }),
+      Trial.build({
+        operation: reconstructOperation("1dx1d", [6, 8]),
+        answer: 47,
+        timeTaken: 4200,
+        hintShown: true,
+      }),
+      Trial.build({
+        operation: reconstructOperation("(2d)^2", [12]),
+        answer: null,
+        timeTaken: 16000,
+        hintShown: false,
+      }),
+    ],
+  };
+
+  test("is collapsed by default and expands on the toggle", () => {
+    render(
+      <FinishedScreen
+        state={withResults}
+        isNewRecord={false}
+        nextLevelNumber={4}
+      />,
+    );
+
+    expect(screen.queryByRole("table")).toBeNull();
+    const toggle = screen.getByRole("button", {
+      name: "Review your 3 answers",
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(toggle);
+    expect(screen.getByRole("table")).toBeDefined();
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  test("shows each trial's problem, answer, correct result on errors, and timeouts", () => {
+    render(
+      <FinishedScreen
+        state={withResults}
+        isNewRecord={false}
+        nextLevelNumber={4}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Review your/ }));
+
+    expect(screen.getByText("6 × 7")).toBeDefined();
+    expect(screen.getByText("42")).toBeDefined();
+    expect(screen.getByText("47")).toBeDefined();
+    expect(screen.getByText("(48)")).toBeDefined();
+    expect(screen.getByText("—")).toBeDefined();
+    expect(screen.getByText("(144)")).toBeDefined();
+    expect(screen.getByText("hint")).toBeDefined();
+  });
 });

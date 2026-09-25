@@ -13,5 +13,12 @@
   "playNextLevel": "Play next level (N)",
   "replay": "Replay (R)",
   "tryAgain": "Try again (R)",
-  "loading": "Loading level…"
+  "loading": "Loading level…",
+  "showReview": "Review your {count} answers",
+  "hideReview": "Hide review",
+  "reviewTitle": "Per-trial review",
+  "reviewProblem": "Problem",
+  "reviewAnswer": "Answer",
+  "reviewTime": "Time",
+  "reviewHint": "hint"
 }

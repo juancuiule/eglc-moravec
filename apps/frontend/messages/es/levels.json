@@ -13,5 +13,12 @@
   "playNextLevel": "Jugar el próximo nivel (N)",
   "replay": "Repetir (R)",
   "tryAgain": "Intentá de nuevo (R)",
-  "loading": "Cargando nivel…"
+  "loading": "Cargando nivel…",
+  "showReview": "Revisá tus {count} respuestas",
+  "hideReview": "Ocultar repaso",
+  "reviewTitle": "Repaso por intento",
+  "reviewProblem": "Problema",
+  "reviewAnswer": "Respuesta",
+  "reviewTime": "Tiempo",
+  "reviewHint": "pista"
 }

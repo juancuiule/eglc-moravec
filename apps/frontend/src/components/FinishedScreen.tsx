@@ -3,12 +3,13 @@
 import { formatDuration } from "@/formatTime";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
-import { button, linkButton, panel } from "../styles";
+import { button, linkButton, panel, textLink } from "../styles";
 import { StarsDisplay } from "./StarsDisplay";
+import { TrialReview } from "./TrialReview";
 
 type Props = {
   state: Finished;
@@ -28,6 +29,7 @@ export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
   const { correctCount, levelCompleted, stars, results, config } = state;
   const totalAttempts = results.length;
   const hasNextLevel = nextLevelNumber !== null;
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   function playNext() {
     if (nextLevelNumber === null) return;
@@ -115,6 +117,27 @@ export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
         <p className="font-mono text-accent-text text-xs mt-1">
           {formatDuration(totalTime)}
         </p>
+      </div>
+
+      <div
+        className="animate-fade-in"
+        style={{ animationDelay: "350ms", animationFillMode: "backwards" }}
+      >
+        <button
+          type="button"
+          className={`${textLink} text-sm mx-auto block`}
+          aria-expanded={reviewOpen}
+          onClick={() => setReviewOpen((open) => !open)}
+        >
+          {reviewOpen
+            ? t("hideReview")
+            : t("showReview", { count: totalAttempts })}
+        </button>
+        {reviewOpen && (
+          <div className="mt-2">
+            <TrialReview results={results} />
+          </div>
+        )}
       </div>
 
       <div
