@@ -5,12 +5,19 @@ import { ApiError } from "../api/utils";
 import { authStore, authToken, setLogoutHook } from "../auth/store";
 import { markSynced, mergeServerTrials, pendingInputs } from "./trials";
 import {
+  stashPendingRows,
+  takeStashedRows,
+  type StashedTrialRow,
+} from "./accountStash";
+import {
   afterHydration,
   isPersistenceLoading,
   isWipePending,
   localEpoch,
+  localStore,
   markWipePending,
   resetLocalData,
+  TRIALS_TABLE,
 } from "./store";
 
 // Flush triggers (all funnel into the same coalesced flush):
@@ -99,6 +106,13 @@ async function flushPass(): Promise<void> {
       const current = authStore.getState().state;
       if (authToken(current) === token) {
         const wasAccount = current.type === "logged-in";
+        if (wasAccount) {
+          // Park unacknowledged rows for THIS account's next sign-in on this
+          // device. Pushing them under the about-to-be-minted anonymous
+          // identity would re-key them to whoever logs in next — and losing
+          // them outright would discard offline work the player earned.
+          stashPendingRows(current.email, pendingRowSnapshot());
+        }
         authStore.getState().invalidateSession();
         // A dead account's local mirror must not outlive the session on a
         // shared browser — same wipe policy as logout (epoch bump also
@@ -133,6 +147,15 @@ async function runFlush(): Promise<void> {
       void flush();
     }
   }
+}
+
+// Full-row snapshot of the unacknowledged outbox — pendingInputs() returns
+// only the wire shape; the stash also needs the display cells
+// (correct/timeExceeded) so restored rows render identically.
+function pendingRowSnapshot(): StashedTrialRow[] {
+  return Object.entries(localStore.getTable(TRIALS_TABLE))
+    .filter(([, row]) => row.synced !== true)
+    .map(([id, row]) => ({ id, ...row }));
 }
 
 function flush(): Promise<void> {
@@ -187,7 +210,21 @@ export function startSyncEngine(): () => void {
   // A token appearing OR changing — anonymous mint, login, lazy recovery —
   // means a flush that was waiting on (or mis-attributed to) auth can proceed.
   const unsubAuth = authStore.subscribe((state, prev) => {
-    if (authToken(state.state) !== authToken(prev.state)) kickSync();
+    if (authToken(state.state) === authToken(prev.state)) return;
+    // An account signing back in gets its parked trials back — restored to
+    // the outbox as pending so they push under the fresh account token.
+    // Only the matching email restores; another account's stash stays put.
+    if (state.state.type === "logged-in") {
+      const email = state.state.email;
+      const gen = localEpoch();
+      afterHydration(() => {
+        if (localEpoch() !== gen) return;
+        for (const { id, ...cells } of takeStashedRows(email)) {
+          localStore.setRow(TRIALS_TABLE, id, { ...cells, synced: false });
+        }
+      });
+    }
+    kickSync();
   });
 
   // Logout: snapshot the outgoing session's pending rows, wipe the table
@@ -199,10 +236,12 @@ export function startSyncEngine(): () => void {
   //     so account rows can't be claimed under the anonymous identity and
   //     re-keyed to whoever logs in next on this browser;
   //   - a mid-flight pull-merge can't resurrect wiped rows.
-  // Deliberate policy: rows are discarded even if the push fails — privacy
-  // over retention — but the loss is logged, never silent.
+  // Retention policy: if the push goes undelivered (failure OR budget
+  // expiry — a timed-out request may still land server-side, where the
+  // trial ids dedup safely), the rows are parked in the account stash and
+  // restored when that account signs in on this device. Nothing is dropped.
   setLogoutHook(
-    (token) =>
+    (token, email) =>
       new Promise<void>((resolve) => {
         // Armed synchronously — even when hydration defers the wipe itself,
         // no flush may start pushing the dying session's rows meanwhile
@@ -211,10 +250,12 @@ export function startSyncEngine(): () => void {
         markWipePending();
         afterHydration(() => {
           const snapshot = pendingInputs();
+          const snapshotRows = pendingRowSnapshot();
           // resetLocalData also bumps the local epoch — in-flight pushes'
           // markSynced and pending pull-merges from the old session are
           // epoch-guarded and can't resurrect what we're wiping.
           resetLocalData();
+          let delivered = false;
           void Promise.race([
             (async () => {
               for (let i = 0; i < snapshot.length; i += MAX_SYNC_TRIALS) {
@@ -223,14 +264,22 @@ export function startSyncEngine(): () => void {
                   snapshot.slice(i, i + MAX_SYNC_TRIALS),
                 );
               }
-            })().catch((e) =>
-              console.warn(
-                "logout flush failed — discarding pending trials",
-                e,
-              ),
+            })().then(
+              () => {
+                delivered = true;
+              },
+              () => {},
             ),
             new Promise((r) => setTimeout(r, LOGOUT_FLUSH_BUDGET_MS)),
-          ]).finally(resolve);
+          ]).finally(() => {
+            if (!delivered) {
+              stashPendingRows(email, snapshotRows);
+              console.warn(
+                `localFirst: logout push undelivered — parked ${snapshotRows.length} trial(s) for ${email}'s next sign-in`,
+              );
+            }
+            resolve();
+          });
         });
       }),
   );

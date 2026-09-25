@@ -13,7 +13,8 @@ const { api, auth, ensureSessionToken, invalidateSession } = vi.hoisted(() => {
       | { type: "anonymous"; token: string }
       | { type: "logged-in"; token: string; email: string },
     subscribers: new Set<(s: never, p: never) => void>(),
-    logoutHook: undefined as undefined | ((token: string) => Promise<void>),
+    logoutHook: undefined as
+      undefined | ((token: string, email: string) => Promise<void>),
   };
   const ensureSessionToken = vi.fn<() => Promise<string | null>>();
   const invalidateSession = vi.fn(() => {
@@ -47,6 +48,7 @@ vi.mock("../auth/store", async (importOriginal) => {
 import { ApiError } from "../api/utils";
 import { localStore, TRIALS_TABLE } from "./store";
 import { enqueueRun, mergeServerTrials } from "./trials";
+import { takeStashedRows } from "./accountStash";
 import { startSyncEngine, kickSync, flushSettled } from "./syncEngine";
 import { Addition, type TrialResult, type TrialResultInput } from "engine";
 
@@ -105,6 +107,7 @@ beforeEach(() => {
   auth.logoutHook = undefined;
   localStore.delTables();
   localStore.setValue("hydrated", true);
+  localStorage.clear();
   setAuth({ type: "anonymous", token: "tok" });
   setOnline(true);
   api.syncResults.mockResolvedValue({});
@@ -302,7 +305,8 @@ describe("flush", () => {
         playedAt: 1_700_000_000_000,
       },
     ]);
-    enqueueRun([makeInput()], [makeResult()]);
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]);
     api.syncResults.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
     ensureSessionToken.mockResolvedValue("anon2");
 
@@ -314,6 +318,61 @@ describe("flush", () => {
     // The dead account's mirror — synced history AND pending outbox — is
     // wiped; nothing is left for the next browser user to see or claim.
     expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
+    // The pending run was parked under the account's email, not dropped.
+    expect(takeStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
+  });
+
+  it("re-login to the same account restores parked trials and pushes them under the new token", async () => {
+    setAuth({ type: "logged-in", token: "acct", email: "a@b.com" });
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]);
+    api.syncResults.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
+    ensureSessionToken.mockResolvedValue("anon2");
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
+
+    // The account signs back in — the stash re-enters the outbox and
+    // flushes under the fresh account token, never the anonymous one.
+    setAuth({ type: "logged-in", token: "acct2", email: "a@b.com" });
+    await flushSettled();
+    await tick();
+
+    expect(api.syncResults).toHaveBeenLastCalledWith("acct2", [
+      expect.objectContaining({ id: input.id }),
+    ]);
+    expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(true);
+  });
+
+  it("a different account's sign-in leaves the stash parked — and a later same-account login still recovers it", async () => {
+    setAuth({ type: "logged-in", token: "acct", email: "a@b.com" });
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]);
+    api.syncResults.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
+    ensureSessionToken.mockResolvedValue("anon2");
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+
+    // Bob signs in — Alice's parked run must not enter his outbox.
+    setAuth({ type: "logged-in", token: "bob", email: "bob@x.com" });
+    await flushSettled();
+    await tick();
+    expect(localStore.getRow(TRIALS_TABLE, input.id)).toEqual({});
+    const pushedToBob = api.syncResults.mock.calls
+      .filter(([t]) => t === "bob")
+      .flatMap(([, batch]) => (batch as { id: string }[]).map((i) => i.id));
+    expect(pushedToBob).not.toContain(input.id);
+
+    // Alice returns on this device — her run comes back and syncs to her.
+    setAuth({ type: "anonymous", token: "anon3" });
+    setAuth({ type: "logged-in", token: "acct3", email: "a@b.com" });
+    await flushSettled();
+    await tick();
+    expect(api.syncResults).toHaveBeenLastCalledWith("acct3", [
+      expect.objectContaining({ id: input.id }),
+    ]);
   });
 
   it("a pull resolving after logout's wipe cannot resurrect old rows", async () => {
@@ -324,7 +383,7 @@ describe("flush", () => {
     teardown = startSyncEngine();
     await tick(); // boot flush: empty outbox → fetchTrials now in-flight
 
-    await auth.logoutHook?.("dying-tok"); // wipe + epoch bump
+    await auth.logoutHook?.("dying-tok", "a@b.com"); // wipe + epoch bump
     resolvePull([
       {
         id: "srv-1",
@@ -356,7 +415,7 @@ describe("flush", () => {
     teardown = startSyncEngine();
     await tick(); // push in-flight under "tok"
 
-    await auth.logoutHook?.("dying-tok"); // wipes the queued row, bumps epoch
+    await auth.logoutHook?.("dying-tok", "a@b.com"); // wipes the queued row, bumps epoch
     resolvePush({});
     await tick();
 
@@ -409,7 +468,7 @@ describe("logout", () => {
     // the background flush could land — the hook fires with the dying token.
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
-    const hook = auth.logoutHook?.("dying-tok");
+    const hook = auth.logoutHook?.("dying-tok", "a@b.com");
 
     // Wipe-first: the table is already empty synchronously — a concurrent
     // flush under the next session can't steal or resurrect these rows.
@@ -434,7 +493,7 @@ describe("logout", () => {
 
     const doomed = makeInput();
     enqueueRun([doomed], [makeResult()]);
-    const hook = auth.logoutHook?.("dying-tok");
+    const hook = auth.logoutHook?.("dying-tok", "a@b.com");
     // New anonymous-session run lands while the dying-token push is in
     // flight — it must survive the wipe and never ride the account token.
     const newcomer = makeInput();
@@ -455,7 +514,7 @@ describe("logout", () => {
     expect(localStore.getCell(TRIALS_TABLE, newcomer.id, "synced")).toBe(false);
   });
 
-  it("wipes even when the dying-token push fails — loss is logged, never silent", async () => {
+  it("an undelivered logout push parks rows for the account's next sign-in — nothing is dropped", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     teardown = startSyncEngine();
     await flushSettled();
@@ -465,15 +524,13 @@ describe("logout", () => {
 
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
-    await auth.logoutHook?.("dying-tok");
+    await auth.logoutHook?.("dying-tok", "a@b.com");
 
-    // Deliberate policy: privacy over retention — the unsent run is
-    // discarded rather than left for the next session to claim.
+    // Shared store stays wiped for the next browser user, but the rows are
+    // parked under the account's email — restored on re-login, never lost.
     expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("logout flush failed"),
-      expect.anything(),
-    );
+    expect(takeStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("undelivered"));
     warn.mockRestore();
   });
 });

@@ -50,7 +50,7 @@ export type AuthStore = {
 // token; resolves once the wipe and push attempt have settled, so logout
 // can revoke the token only after the push had its shot. (Internal order
 // is snapshot → wipe → push-from-memory; see the engine's comment.)
-let logoutHook: ((token: string) => Promise<void>) | null = null;
+let logoutHook: ((token: string, email: string) => Promise<void>) | null = null;
 export function setLogoutHook(hook: typeof logoutHook): void {
   logoutHook = hook;
 }
@@ -109,7 +109,7 @@ export function createAuthStore() {
       const token = state.token;
       // The hook fires first and synchronously arms the wipe — before the
       // anonymous re-mint below can possibly kick a flush under it.
-      const settled = logoutHook?.(token);
+      const settled = logoutHook?.(token, state.email);
       clearSession();
       set({ state: { type: "logged-out" } });
       void get().ensureSession();
