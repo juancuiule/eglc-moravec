@@ -179,3 +179,62 @@ test("renders the activity calendar and days-trained caption once trials exist",
   expect(await screen.findByRole("img", { name: "Activity" })).toBeDefined();
   expect(await screen.findByText("1 day trained this month")).toBeDefined();
 });
+
+test("the export buttons trigger real CSV and JSON downloads", async () => {
+  const trialFixture: SyncedTrial = {
+    id: "11111111-1111-4111-8111-111111111111",
+    runId: "22222222-2222-4222-8222-222222222222",
+    levelNumber: 1,
+    categoryCodename: "1d+1d",
+    operands: [1, 1],
+    answer: 2,
+    correct: true,
+    timeExceeded: false,
+    timeTaken: 1000,
+    playedAt: 1_700_000_000_000,
+    hintShown: false,
+    runType: "level",
+  };
+  vi.mocked(Api.fetchTrials).mockResolvedValue([trialFixture]);
+
+  const createUrl = vi.fn((_blob: Blob) => "blob:mock");
+  const revokeUrl = vi.fn();
+  // jsdom's URL lacks createObjectURL — assign rather than spy on a
+  // nonexistent property.
+  Object.assign(URL, {
+    createObjectURL: createUrl,
+    revokeObjectURL: revokeUrl,
+  });
+  const clickSpy = vi
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => {});
+  try {
+    renderWithQueryClient();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Download CSV" }),
+    );
+    expect(createUrl).toHaveBeenCalledOnce();
+    const csvBlob = createUrl.mock.calls[0][0] as Blob;
+    expect(csvBlob.type).toBe("text/csv");
+    expect(csvBlob.size).toBeGreaterThan(0);
+    expect(clickSpy).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Download JSON" }));
+    const jsonBlob = createUrl.mock.calls[1][0] as Blob;
+    expect(jsonBlob.type).toBe("application/json");
+    expect(jsonBlob.size).toBeGreaterThan(0);
+  } finally {
+    clickSpy.mockRestore();
+    // @ts-expect-error — removing the test stub
+    delete URL.createObjectURL;
+    // @ts-expect-error — removing the test stub
+    delete URL.revokeObjectURL;
+  }
+});
+
+test("export stays hidden until trials exist", async () => {
+  renderWithQueryClient();
+  await screen.findByText(/complete some levels/);
+  expect(screen.queryByRole("button", { name: "Download CSV" })).toBeNull();
+});

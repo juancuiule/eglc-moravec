@@ -12,9 +12,15 @@ import {
   daysTrainedThisMonth,
   type PlayedTrial,
 } from "../stats/activityStats";
+import {
+  downloadTextFile,
+  exportFilename,
+  trialsToCsv,
+  trialsToJson,
+} from "../stats/exportTrials";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
 import { formatSeconds } from "../formatTime";
-import { panel, backLink, textLink } from "../styles";
+import { panel, backLink, button, textLink } from "../styles";
 
 type Tab = "level" | "practice";
 
@@ -270,6 +276,41 @@ export function StatsScreen() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {!isLoading && !isError && (allTrials?.length ?? 0) > 0 && (
+        <div className="border-t border-subtle pt-4 flex flex-col gap-2">
+          <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">
+            {t("exportTitle")}
+          </p>
+          <p className="text-sm text-muted">{t("exportBody")}</p>
+          <div className="flex gap-2">
+            <button
+              className={`${button({ intent: "outline" })} flex-1`}
+              onClick={() =>
+                downloadTextFile(
+                  exportFilename("csv"),
+                  trialsToCsv(allTrials!),
+                  "text/csv",
+                )
+              }
+            >
+              {t("exportCsv")}
+            </button>
+            <button
+              className={`${button({ intent: "outline" })} flex-1`}
+              onClick={() =>
+                downloadTextFile(
+                  exportFilename("json"),
+                  trialsToJson(allTrials!),
+                  "application/json",
+                )
+              }
+            >
+              {t("exportJson")}
+            </button>
+          </div>
         </div>
       )}
     </div>

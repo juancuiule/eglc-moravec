@@ -15,6 +15,10 @@
   "activity": "Actividad",
   "activityDay": "{count, plural, one {# intento el {date}} other {# intentos el {date}}}",
   "daysThisMonth": "{count, plural, one {# día} other {# días}} entrenados este mes",
+  "exportTitle": "Tus datos",
+  "exportBody": "Todos los intentos registrados de esta cuenta — son tuyos.",
+  "exportCsv": "Descargar CSV",
+  "exportJson": "Descargar JSON",
   "detail": {
     "backLabel": "Volver a estadísticas",
     "correctTotal": "{correct} correctas · {total} intentos totales",

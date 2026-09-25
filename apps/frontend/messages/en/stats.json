@@ -15,6 +15,10 @@
   "activity": "Activity",
   "activityDay": "{count, plural, one {# trial on {date}} other {# trials on {date}}}",
   "daysThisMonth": "{count, plural, one {# day} other {# days}} trained this month",
+  "exportTitle": "Your data",
+  "exportBody": "Every trial recorded for this account — yours to keep.",
+  "exportCsv": "Download CSV",
+  "exportJson": "Download JSON",
   "detail": {
     "backLabel": "Back to statistics",
     "correctTotal": "{correct} correct · {total} total trials",
