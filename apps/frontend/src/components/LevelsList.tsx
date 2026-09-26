@@ -1,8 +1,10 @@
 "use client";
 
 import { formatDuration } from "@/formatTime";
+import type { LevelStats } from "@/api/Api";
 import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
-import { useLocalLevelStats } from "@/local/hooks";
+import { useLocalLevelStats, useSessionSeedStats } from "@/local/hooks";
+import { mergeLevelStats } from "@/local/trials";
 import { backLink, panel } from "@/styles";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -34,11 +36,23 @@ function RowStars({
   );
 }
 
-export function LevelsList(props: { levelKeys: number[] }) {
+export function LevelsList(props: {
+  levelKeys: number[];
+  stats?: Record<string, LevelStats>;
+}) {
   const { levelKeys } = props;
   // Records (and therefore unlock state) come from the local-first store —
   // correct offline and immediately after a run, even before a push lands.
-  const stats = useLocalLevelStats();
+  // The server seed only fills first paint and the failed-pull case; local
+  // rows win wherever they exist, and the seed dies with its session.
+  const seedStats = useSessionSeedStats(props.stats ?? {});
+  const localStats = useLocalLevelStats();
+  const stats =
+    localStats === undefined
+      ? Object.keys(seedStats).length > 0
+        ? seedStats
+        : undefined
+      : mergeLevelStats(seedStats, localStats);
   const t = useTranslations("Levels");
   const tCommon = useTranslations("Common");
 

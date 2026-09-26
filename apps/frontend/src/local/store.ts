@@ -139,8 +139,16 @@ export function isWipePending(): boolean {
   return wipePending;
 }
 
+// Store-value mirror of the module epoch — written on every wipe purely as
+// a re-render trigger (a wipe with an empty table otherwise notifies
+// nothing). Components compare the module epoch, never this value: the
+// mirror can persist stale numbers across reloads and load() can even
+// overwrite a mid-load bump — both only matter for scheduling a re-render.
+export const EPOCH_VALUE = "localEpoch";
+
 export function resetLocalData(): void {
   epoch += 1;
   wipePending = false;
+  localStore.setValue(EPOCH_VALUE, epoch);
   localStore.delTable(TRIALS_TABLE);
 }

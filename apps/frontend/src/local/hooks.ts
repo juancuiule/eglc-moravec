@@ -3,7 +3,14 @@
 import { useTable, useValue } from "tinybase/ui-react";
 import { useStore } from "zustand";
 import type { LevelStats, SyncedTrial } from "../api/Api";
-import { HYDRATED_VALUE, localStore, TRIALS_TABLE } from "./store";
+import { useRef } from "react";
+import {
+  EPOCH_VALUE,
+  HYDRATED_VALUE,
+  localEpoch,
+  localStore,
+  TRIALS_TABLE,
+} from "./store";
 import { levelStatsFromTrials, trialsFromTable } from "./trials";
 import { syncStatus } from "./syncEngine";
 
@@ -12,6 +19,24 @@ import { syncStatus } from "./syncEngine";
 // unhydrated store as "no data".
 export function useLocalHydrated(): boolean {
   return useValue(HYDRATED_VALUE, localStore) === true;
+}
+
+const EMPTY_STATS: Record<string, LevelStats> = {};
+
+// Server-fetched level stats are a first-paint seed fetched under whatever
+// session held the page at render time — after a logout/account wipe they
+// belong to a dead session and must not keep unlocking for the next user
+// of this browser. The seed is valid only while the local epoch is the one
+// it was captured under; a wipe drops it permanently for this mount (the
+// next mount refetches under the new session anyway).
+// EPOCH_VALUE is subscribed purely as the re-render trigger — the module
+// epoch is what's compared (a persisted mirror can't forge identity).
+export function useSessionSeedStats(
+  seed: Record<string, LevelStats>,
+): Record<string, LevelStats> {
+  useValue(EPOCH_VALUE, localStore);
+  const captured = useRef(localEpoch());
+  return localEpoch() === captured.current ? seed : EMPTY_STATS;
 }
 
 // All locally-known trials (own pushes, pending outbox rows, pulled merges),

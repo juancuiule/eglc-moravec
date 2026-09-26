@@ -32,7 +32,7 @@ vi.mock("@/api/Api", () => ({
 }));
 
 import { Api, type LevelStats } from "@/api/Api";
-import { localStore, TRIALS_TABLE } from "@/local/store";
+import { localStore, resetLocalData, TRIALS_TABLE } from "@/local/store";
 import { mergeServerTrials } from "@/local/trials";
 import { syncStatus } from "@/local/syncEngine";
 import { TRIALS_PER_LEVEL } from "engine";
@@ -344,4 +344,29 @@ test("a same-mount Replay's New record badge reflects the just-finished run, not
 
   expect(gameStore.getState().state.type).toBe("finished");
   expect(queryByText("New record!")).toBeNull();
+});
+
+test("a session wipe drops the server seed — an open level re-gates as locked for the next user", () => {
+  // Levels 1+2 starred in the server seed → level 3 plays under Alice's
+  // session. Logout wipes → the seed belonged to a dead session and must
+  // not keep unlocking for whoever picks up this browser.
+  const seed: Record<string, LevelStats> = {
+    "1": { stars: 3, totalTime: 5_000, completedAt: "2025-01-01T00:00:00Z" },
+    "2": { stars: 3, totalTime: 5_000, completedAt: "2025-01-01T00:00:00Z" },
+  };
+  renderWithQueryClient(
+    <LevelPlay
+      nextLevelNumber={null}
+      stats={seed}
+      levelNumber={3}
+      level={level1}
+    />,
+  );
+  expect(replaceMock).not.toHaveBeenCalled();
+  expect(gameStore.getState().state.type).toBe("playing");
+
+  act(() => resetLocalData()); // the logout/expiry boundary
+
+  // Empty local store + dropped seed → locked → the gate redirects.
+  expect(replaceMock).toHaveBeenCalledWith("/");
 });

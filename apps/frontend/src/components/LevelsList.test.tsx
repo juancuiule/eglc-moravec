@@ -1,8 +1,8 @@
-import { screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, test } from "vitest";
 import { LevelsList } from "./LevelsList";
-import type { SyncedTrial } from "@/api/Api";
-import { localStore, TRIALS_TABLE } from "@/local/store";
+import type { LevelStats, SyncedTrial } from "@/api/Api";
+import { localStore, resetLocalData, TRIALS_TABLE } from "@/local/store";
 import { mergeServerTrials } from "@/local/trials";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
@@ -49,4 +49,41 @@ test("level 2 unlocks once level 1 has a locally-stored run — synced or not", 
 
   const level2 = await screen.findByRole("link", { name: /Level 2/ });
   expect(level2.getAttribute("href")).toBe("/level/2");
+});
+
+const SEED_3STAR: LevelStats = {
+  stars: 3,
+  totalTime: 5_000,
+  completedAt: "2025-01-01T00:00:00Z",
+};
+
+test("the server stats seed fills the menu when the local store is empty (fresh browser, failed pull)", async () => {
+  render(<LevelsList levelKeys={[1, 2, 3]} stats={{ "1": SEED_3STAR }} />);
+
+  expect(
+    (await screen.findByRole("link", { name: /Level 2/ })).getAttribute("href"),
+  ).toBe("/level/2");
+});
+
+test("a session wipe drops the seed — the menu re-gates locked for the next user", async () => {
+  render(<LevelsList levelKeys={[1, 2, 3]} stats={{ "1": SEED_3STAR }} />);
+  await screen.findByRole("link", { name: /Level 2/ });
+
+  act(() => resetLocalData()); // logout/expiry boundary
+
+  await waitFor(() =>
+    expect(screen.queryByRole("link", { name: /Level 2/ })).toBeNull(),
+  );
+});
+
+test("a better local record still wins over the seed", async () => {
+  seedLevelRun(1); // local 3-star run
+  render(
+    <LevelsList
+      levelKeys={[1, 2, 3]}
+      stats={{ "1": { stars: 0, totalTime: 9_999, completedAt: "2024-01-01" } }}
+    />,
+  );
+  // local level-1 record unlocks level 2 regardless of the seed's 0 stars
+  expect(await screen.findByRole("link", { name: /Level 2/ })).toBeDefined();
 });

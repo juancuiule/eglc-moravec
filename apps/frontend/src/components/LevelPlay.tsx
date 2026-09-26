@@ -9,6 +9,7 @@ import {
   useFirstPullSettled,
   useLocalHydrated,
   useLocalLevelStats,
+  useSessionSeedStats,
 } from "@/local/hooks";
 import { mergeLevelStats } from "@/local/trials";
 import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
@@ -45,7 +46,11 @@ export function LevelPlay({
   // trusted once hydrated — before that it may simply not have loaded yet.
   const hydrated = useLocalHydrated();
   const localStats = useLocalLevelStats() ?? {};
-  const effectiveStats = mergeLevelStats(stats, localStats);
+  // The server seed dies with the session that fetched it — a logout on an
+  // open level must not leave the outgoing account's progress unlocking
+  // play for the next browser user.
+  const seedStats = useSessionSeedStats(stats);
+  const effectiveStats = mergeLevelStats(seedStats, localStats);
   const unlocked = isLevelUnlocked(levelNumber, effectiveStats);
   // On a fresh device with a failed/absent server seed, hydration completing
   // on an empty store would otherwise redirect before the boot pull has a
@@ -62,7 +67,7 @@ export function LevelPlay({
   // (see the effect below) and exists purely to stop a same-mount Replay
   // from comparing against a stale, page-load-frozen `stats` snapshot.
   const [previousRecord, setPreviousRecord] = useState<LevelStats | undefined>(
-    () => stats[String(levelNumber)],
+    () => seedStats[String(levelNumber)],
   );
   const previousRecordRef = useRef(previousRecord);
   previousRecordRef.current = previousRecord;

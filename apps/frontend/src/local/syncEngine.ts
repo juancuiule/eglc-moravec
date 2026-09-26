@@ -5,6 +5,7 @@ import { ApiError } from "../api/utils";
 import { authStore, authToken, setLogoutHook } from "../auth/store";
 import { markSynced, mergeServerTrials, pendingInputs } from "./trials";
 import {
+  dropStashedRows,
   stashPendingRows,
   takeStashedRows,
   type StashedTrialRow,
@@ -108,9 +109,11 @@ async function flushPass(): Promise<void> {
         const wasAccount = current.type === "logged-in";
         if (wasAccount) {
           // Park unacknowledged rows for THIS account's next sign-in on this
-          // device. Pushing them under the about-to-be-minted anonymous
-          // identity would re-key them to whoever logs in next — and losing
-          // them outright would discard offline work the player earned.
+          // device — the durable copy lands BEFORE the wipe, in the same
+          // synchronous span. Pushing them under the about-to-be-minted
+          // anonymous identity would re-key them to whoever logs in next —
+          // and losing them outright would discard offline work the player
+          // earned.
           stashPendingRows(current.email, pendingRowSnapshot());
         }
         authStore.getState().invalidateSession();
@@ -236,10 +239,11 @@ export function startSyncEngine(): () => void {
   //     so account rows can't be claimed under the anonymous identity and
   //     re-keyed to whoever logs in next on this browser;
   //   - a mid-flight pull-merge can't resurrect wiped rows.
-  // Retention policy: if the push goes undelivered (failure OR budget
-  // expiry — a timed-out request may still land server-side, where the
-  // trial ids dedup safely), the rows are parked in the account stash and
-  // restored when that account signs in on this device. Nothing is dropped.
+  // Retention policy: the durable stash copy is written BEFORE the wipe —
+  // a reload during the push window can't lose the rows. A successful push
+  // drops the parked copy; an undelivered one (failure OR budget expiry — a
+  // timed-out request may still land server-side, where trial ids dedup
+  // safely) stays parked for the account's next sign-in on this device.
   setLogoutHook(
     (token, email) =>
       new Promise<void>((resolve) => {
@@ -251,6 +255,16 @@ export function startSyncEngine(): () => void {
         afterHydration(() => {
           const snapshot = pendingInputs();
           const snapshotRows = pendingRowSnapshot();
+          const snapshotIds = snapshotRows.map((r) => r.id);
+          // Durable before destructive — both synchronous, so no reload can
+          // land between park and wipe. If the park fails, wiping erases the
+          // only copy: say so loudly.
+          const parked = stashPendingRows(email, snapshotRows);
+          if (!parked) {
+            console.error(
+              "localFirst: logout could not park pending trials — a failed push now loses them",
+            );
+          }
           // resetLocalData also bumps the local epoch — in-flight pushes'
           // markSynced and pending pull-merges from the old session are
           // epoch-guarded and can't resurrect what we're wiping.
@@ -272,12 +286,11 @@ export function startSyncEngine(): () => void {
             ),
             new Promise((r) => setTimeout(r, LOGOUT_FLUSH_BUDGET_MS)),
           ]).finally(() => {
-            if (!delivered) {
-              stashPendingRows(email, snapshotRows);
+            if (delivered) void dropStashedRows(email, snapshotIds);
+            else if (parked)
               console.warn(
-                `localFirst: logout push undelivered — parked ${snapshotRows.length} trial(s) for ${email}'s next sign-in`,
+                `localFirst: logout push undelivered — ${snapshotRows.length} trial(s) stay parked for ${email}'s next sign-in`,
               );
-            }
             resolve();
           });
         });

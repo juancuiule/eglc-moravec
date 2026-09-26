@@ -483,6 +483,8 @@ describe("logout", () => {
       ([t]) => t === "dying-tok",
     );
     expect(pullCalls).toHaveLength(0);
+    // The durable parked copy is dropped once the push is acknowledged.
+    expect(takeStashedRows("a@b.com")).toEqual([]);
   });
 
   it("a run enqueued after logout's snapshot survives the wipe and stays pending", async () => {
