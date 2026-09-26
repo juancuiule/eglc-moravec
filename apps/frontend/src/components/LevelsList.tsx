@@ -91,12 +91,12 @@ export function LevelsList(props: {
               return (
                 <div
                   key={n}
-                  className="flex items-center justify-between px-6 py-3 border-b border-subtle text-disabled"
+                  className="flex items-center justify-between gap-2 px-6 py-3 border-b border-subtle text-disabled"
                 >
-                  <span className="font-semibold">
+                  <span className="font-semibold min-w-0 truncate">
                     {t("level", { number: n })}
                   </span>
-                  <span>🔒</span>
+                  <span className="shrink-0">🔒</span>
                 </div>
               );
             }
@@ -108,13 +108,13 @@ export function LevelsList(props: {
                   href={`/level/${n}`}
                   className="flex flex-col items-center gap-1 px-6 py-3 bg-accent text-white"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="font-bold">
+                  <div className="flex items-center justify-between gap-2 w-full">
+                    <span className="font-bold min-w-0 truncate">
                       {t("level", { number: n })}
                     </span>
                     <RowStars stars={0} light />
                   </div>
-                  <span className="text-sm font-semibold tracking-wide">
+                  <span className="text-sm font-semibold tracking-wide whitespace-nowrap">
                     {t("play")}
                   </span>
                 </Link>
@@ -127,10 +127,10 @@ export function LevelsList(props: {
                 href={`/level/${n}`}
                 className="flex items-center justify-between gap-2 px-6 py-3 border-b border-subtle hover:bg-base transition-color *:flex-1 *:flex"
               >
-                <span className="font-semibold text-muted justify-start">
+                <span className="font-semibold text-muted justify-start min-w-0 truncate">
                   {t("level", { number: n })}
                 </span>
-                <span className="text-teal font-mono text-xs justify-center">
+                <span className="text-teal font-mono text-xs justify-center whitespace-nowrap">
                   {formatDuration(levelStats.totalTime)}
                 </span>
                 <RowStars className="justify-end" stars={levelStats.stars} />

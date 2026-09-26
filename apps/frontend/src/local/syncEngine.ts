@@ -1,13 +1,13 @@
-import { MAX_SYNC_TRIALS } from "engine";
+import { MAX_SYNC_TRIALS, type TrialResultInput } from "engine";
 import { createStore } from "zustand/vanilla";
 import { Api } from "../api/Api";
 import { ApiError } from "../api/utils";
 import { authStore, authToken, setLogoutHook } from "../auth/store";
 import { markSynced, mergeServerTrials, pendingInputs } from "./trials";
 import {
-  dropStashedRows,
+  dropStashedRowIds,
+  readStashedRows,
   stashPendingRows,
-  takeStashedRows,
   type StashedTrialRow,
 } from "./accountStash";
 import {
@@ -17,6 +17,7 @@ import {
   localEpoch,
   localStore,
   markWipePending,
+  persistNow,
   resetLocalData,
   TRIALS_TABLE,
 } from "./store";
@@ -63,75 +64,96 @@ function scheduleRetry(): void {
 // Reactive status for UI gates — e.g. LevelPlay holds its locked-redirect
 // until the first pull settles, so a fresh device doesn't bounce a deep link
 // before the boot flush has merged the player's server history.
-export const syncStatus = createStore<{ firstPullSettled: boolean }>(() => ({
-  firstPullSettled: false,
-}));
+export const syncStatus = createStore<{ pullSettledToken: string | null }>(
+  () => ({ pullSettledToken: null }),
+);
+
+type PassOutcome = "done" | "unauthorized" | "failed" | "stale-epoch";
+
+// Pending rows as MAX_SYNC_TRIALS-sized batches — a generator so the push
+// loop reads declaratively; rows enqueued mid-pass get swept in since
+// pendingInputs() is re-evaluated at each step.
+function* pendingChunks(): Generator<TrialResultInput[]> {
+  let batch = pendingInputs().slice(0, MAX_SYNC_TRIALS);
+  while (batch.length > 0) {
+    yield batch;
+    batch = pendingInputs().slice(0, MAX_SYNC_TRIALS);
+  }
+}
+
+// One round of push-then-pull under a single token. Pure transport +
+// classification: all identity healing and retry policy lives in the
+// caller. Every store write re-checks the epoch captured by the caller —
+// an old session's response must never repopulate a wiped store.
+async function pushThenPull(token: string, gen: number): Promise<PassOutcome> {
+  try {
+    for (const batch of pendingChunks()) {
+      await Api.syncResults(token, batch);
+      if (localEpoch() !== gen) return "stale-epoch";
+      markSynced(batch.map((i) => i.id));
+      // The server now owns these ids — any parked fallback is redundant.
+      dropStashedRowIds(batch.map((i) => i.id));
+    }
+    const pulled = await Api.fetchTrials(token);
+    if (localEpoch() !== gen) return "stale-epoch";
+    mergeServerTrials(pulled);
+    return "done";
+  } catch (e) {
+    return e instanceof ApiError && e.status === 401
+      ? "unauthorized"
+      : "failed";
+  }
+}
+
+// A 401 on the CURRENT token: invalidate it, and when it was an account's,
+// park its unacknowledged rows (durable, synchronous) and wipe the mirror —
+// a dead account's history must not outlive it on a shared browser. A stale
+// token's 401 (superseded by a login mid-flight, e.g. OTP revoking the
+// anonymous token) heals nothing: the pass just retries under the new
+// identity.
+function healDeadSession(failedToken: string): void {
+  const current = authStore.getState().state;
+  if (authToken(current) !== failedToken) return;
+  if (current.type === "logged-in") {
+    stashPendingRows(current.email, pendingRowSnapshot());
+    authStore.getState().invalidateSession();
+    resetLocalData();
+  } else {
+    authStore.getState().invalidateSession();
+  }
+}
 
 async function flushPass(): Promise<void> {
   // Epoch captured before any request — a logout wipe mid-pass advances it,
-  // and every write below checks it so an old session's response can't
+  // and pushThenPull's writes check it so an old session's response can't
   // repopulate the wiped store.
   const gen = localEpoch();
-  let token = authToken(authStore.getState().state);
-  if (!token) token = await authStore.getState().ensureSessionToken();
+  let token =
+    authToken(authStore.getState().state) ??
+    (await authStore.getState().ensureSessionToken());
   if (!token) {
     if (pendingInputs().length > 0) scheduleRetry();
     return;
   }
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      // Push in MAX_SYNC_TRIALS chunks; rows enqueued mid-pass get swept into
-      // the same pass since pendingInputs() is re-read each round.
-      for (;;) {
-        const batch = pendingInputs().slice(0, MAX_SYNC_TRIALS);
-        if (batch.length === 0) break;
-        await Api.syncResults(token, batch);
-        if (localEpoch() !== gen) return;
-        markSynced(batch.map((i) => i.id));
-      }
-      const pulled = await Api.fetchTrials(token);
-      if (localEpoch() !== gen) return;
-      mergeServerTrials(pulled);
-      failures = 0;
-      return;
-    } catch (e) {
-      const unauthorized = e instanceof ApiError && e.status === 401;
-      if (!unauthorized || attempt === 1) {
-        scheduleRetry();
-        return;
-      }
-      // Dead session — but only invalidate if the failed token is still the
-      // current identity. OTP login revokes the anonymous token mid-flight:
-      // a stale request's 401 must not log the new account session out.
-      const current = authStore.getState().state;
-      if (authToken(current) === token) {
-        const wasAccount = current.type === "logged-in";
-        if (wasAccount) {
-          // Park unacknowledged rows for THIS account's next sign-in on this
-          // device — the durable copy lands BEFORE the wipe, in the same
-          // synchronous span. Pushing them under the about-to-be-minted
-          // anonymous identity would re-key them to whoever logs in next —
-          // and losing them outright would discard offline work the player
-          // earned.
-          stashPendingRows(current.email, pendingRowSnapshot());
-        }
-        authStore.getState().invalidateSession();
-        // A dead account's local mirror must not outlive the session on a
-        // shared browser — same wipe policy as logout (epoch bump also
-        // aborts this pass's own continuations; the re-mint's token-change
-        // kick runs a fresh pass that pulls the new session's rows).
-        if (wasAccount) resetLocalData();
-      }
-      token =
-        authToken(authStore.getState().state) ??
-        (await authStore.getState().ensureSessionToken());
-      if (!token) {
-        scheduleRetry();
-        return;
-      }
-    }
+  let outcome = await pushThenPull(token, gen);
+  if (outcome === "unauthorized") {
+    healDeadSession(token);
+    token =
+      authToken(authStore.getState().state) ??
+      (await authStore.getState().ensureSessionToken());
+    outcome = token ? await pushThenPull(token, gen) : "failed";
   }
+
+  // A pass that ran to a terminal under this token has settled this
+  // session's pull — gates (LevelPlay's locked-redirect) can judge on the
+  // local store now. Scoped by token: a login invalidates the previous
+  // settle, so a new account's deep link waits for ITS pull. An epoch-abort
+  // settles nothing — the next session's own pass will.
+  if (outcome !== "stale-epoch" && token !== null) {
+    syncStatus.setState({ pullSettledToken: token });
+  }
+  if (outcome === "failed") scheduleRetry();
 }
 
 async function runFlush(): Promise<void> {
@@ -139,12 +161,6 @@ async function runFlush(): Promise<void> {
     await flushPass();
   } finally {
     inFlight = null;
-    // Whatever happened — success, failure, no token — the first attempt
-    // settled: gates waiting on "is history loaded yet" can judge on the
-    // local store now.
-    if (!syncStatus.getState().firstPullSettled) {
-      syncStatus.setState({ firstPullSettled: true });
-    }
     if (queued) {
       queued = false;
       void flush();
@@ -222,8 +238,19 @@ export function startSyncEngine(): () => void {
       const gen = localEpoch();
       afterHydration(() => {
         if (localEpoch() !== gen) return;
-        for (const { id, ...cells } of takeStashedRows(email)) {
+        // Non-destructive read: the stash stays until the rows are durable
+        // elsewhere — a confirmed IndexedDB write, or the next push's server
+        // ACK (dropStashedRowIds in the flush). A reload in between loses
+        // nothing.
+        const rows = readStashedRows(email);
+        for (const { id, ...cells } of rows) {
           localStore.setRow(TRIALS_TABLE, id, { ...cells, synced: false });
+        }
+        if (rows.length > 0) {
+          const ids = rows.map((r) => r.id);
+          void persistNow().then((ok) => {
+            if (ok) dropStashedRowIds(ids);
+          });
         }
       });
     }
@@ -286,7 +313,7 @@ export function startSyncEngine(): () => void {
             ),
             new Promise((r) => setTimeout(r, LOGOUT_FLUSH_BUDGET_MS)),
           ]).finally(() => {
-            if (delivered) void dropStashedRows(email, snapshotIds);
+            if (delivered) dropStashedRowIds(snapshotIds);
             else if (parked)
               console.warn(
                 `localFirst: logout push undelivered — ${snapshotRows.length} trial(s) stay parked for ${email}'s next sign-in`,

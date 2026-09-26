@@ -11,6 +11,7 @@ import {
   localStore,
   TRIALS_TABLE,
 } from "./store";
+import { authStore, authToken } from "../auth/store";
 import { levelStatsFromTrials, trialsFromTable } from "./trials";
 import { syncStatus } from "./syncEngine";
 
@@ -61,5 +62,10 @@ export function useLocalLevelStats(): Record<string, LevelStats> | undefined {
 // redirect — hold while it's false, so a fresh device's boot pull gets a
 // chance to merge server history before anything reads "no data".
 export function useFirstPullSettled(): boolean {
-  return useStore(syncStatus, (s) => s.firstPullSettled);
+  // Scoped to the CURRENT token — a settle from a previous session
+  // (anonymous boot pull before a login, say) must not satisfy the gate:
+  // the new session's own pull is still outstanding.
+  const settledFor = useStore(syncStatus, (s) => s.pullSettledToken);
+  const token = useStore(authStore, (s) => authToken(s.state));
+  return settledFor === token;
 }

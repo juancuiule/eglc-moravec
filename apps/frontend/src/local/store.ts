@@ -46,9 +46,23 @@ export function isLocalStoreHydrated(): boolean {
 }
 
 let persisterStarted = false;
+let activePersister: ReturnType<typeof createIndexedDbPersister> | null = null;
 // Generous — legit slow IndexedDB loads should win; this only fires when
 // open() truly hangs.
 const HYDRATION_TIMEOUT_MS = 10_000;
+
+// Force a durable write now. Callers that hand rows to the in-memory store
+// (e.g. restoring an account stash) use this before releasing the previous
+// durable copy — resolves false when there is no live persister or the
+// write itself failed.
+export function persistNow(): Promise<boolean> {
+  return (
+    activePersister?.save().then(
+      () => true,
+      () => false,
+    ) ?? Promise.resolve(false)
+  );
+}
 
 // Idempotent, browser-only. Called from AuthBoot; SSR and tests leave the
 // store in-memory and can flip HYDRATED_VALUE directly.
@@ -64,14 +78,14 @@ export function ensureLocalPersistence(): void {
   persisterStarted = true;
   const markHydrated = () => localStore.setValue(HYDRATED_VALUE, true);
   try {
-    const persister = createIndexedDbPersister(
+    const persister = (activePersister = createIndexedDbPersister(
       localStore,
       "moravec",
       undefined,
       // TinyBase swallows IDB failures internally — without this, every
       // broken-storage write retries a doomed open() in total silence.
       (e) => console.warn("local persistence error", e),
-    );
+    ));
     // Real IDB errors (private mode, denied quota) still settle this promise
     // — TinyBase converts them to ignored errors — so both branches mark
     // hydrated. The setTimeout backstop covers the nastier case: an
@@ -84,6 +98,7 @@ export function ensureLocalPersistence(): void {
       // Best-effort: drops queued persister actions so a late-resolving load
       // can't clobber post-timeout in-memory writes. Never awaited.
       void persister.destroy();
+      activePersister = null;
     }, HYDRATION_TIMEOUT_MS);
   } catch {
     markHydrated();

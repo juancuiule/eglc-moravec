@@ -97,26 +97,29 @@ export function stashPendingRows(
   return write(stash);
 }
 
-export function takeStashedRows(email: string): StashedTrialRow[] {
-  const stash = read();
-  const entry = stash[keyFor(email)];
-  if (!entry || entry.rows.length === 0) return [];
-  delete stash[keyFor(email)];
-  write(stash);
-  return entry.rows;
+// Non-destructive read — the park is only released once the rows are
+// durable elsewhere (a confirmed IndexedDB write or a server push ACK; see
+// dropStashedRowIds). Deleting on restore would leave a window where
+// neither store holds them.
+export function readStashedRows(email: string): StashedTrialRow[] {
+  return read()[keyFor(email)]?.rows ?? [];
 }
 
-// The dying-token push landed — the parked copies are redundant (server
-// dedup would eat them anyway, but there's no reason to keep them at rest).
-export function dropStashedRows(email: string, ids: readonly string[]): void {
+// Rows confirmed durable — server-acked push, or a committed persist —
+// are redundant in the stash. Dropped by id across every parked entry:
+// delivery is delivery, whichever identity carried it.
+export function dropStashedRowIds(ids: readonly string[]): void {
   if (ids.length === 0) return;
   const stash = read();
-  const key = keyFor(email);
-  const entry = stash[key];
-  if (!entry) return;
   const gone = new Set(ids);
-  const remaining = entry.rows.filter((r) => !gone.has(r.id));
-  if (remaining.length > 0) stash[key] = { ...entry, rows: remaining };
-  else delete stash[key];
-  write(stash);
+  let dirty = false;
+  for (const [key, entry] of Object.entries(stash)) {
+    const remaining = entry.rows.filter((r) => !gone.has(r.id));
+    if (remaining.length !== entry.rows.length) {
+      dirty = true;
+      if (remaining.length > 0) stash[key] = { ...entry, rows: remaining };
+      else delete stash[key];
+    }
+  }
+  if (dirty) write(stash);
 }

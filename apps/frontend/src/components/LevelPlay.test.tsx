@@ -54,7 +54,7 @@ beforeEach(() => {
   // The engine isn't running in tests — default to "first pull settled" so
   // the locked-redirect gate resolves immediately; tests that exercise the
   // pending state set it explicitly.
-  syncStatus.setState({ firstPullSettled: true });
+  syncStatus.setState({ pullSettledToken: "test-token" });
   gameStore.getState().reset();
   // persistFinishedLevel's push needs a session token — every real player
   // has one automatically (see AuthBoot), so tests simulate that same
@@ -228,7 +228,7 @@ test("a better record learned from the pull corrects the record baseline", async
 test("a locked-looking level holds the redirect until the first pull settles", async () => {
   // Fresh device: store hydrated but empty, server seed failed (stats={}) —
   // the boot pull hasn't landed yet.
-  syncStatus.setState({ firstPullSettled: false });
+  syncStatus.setState({ pullSettledToken: null });
   renderWithQueryClient(
     <LevelPlay nextLevelNumber={3} stats={{}} levelNumber={2} level={level2} />,
   );
@@ -237,12 +237,12 @@ test("a locked-looking level holds the redirect until the first pull settles", a
   expect(replaceMock).not.toHaveBeenCalled();
 
   // The pull settles with nothing to merge — NOW the locked verdict holds.
-  act(() => syncStatus.setState({ firstPullSettled: true }));
+  act(() => syncStatus.setState({ pullSettledToken: "test-token" }));
   expect(replaceMock).toHaveBeenCalledWith("/");
 });
 
 test("a pull landing during the wait can still unlock the deep link", async () => {
-  syncStatus.setState({ firstPullSettled: false });
+  syncStatus.setState({ pullSettledToken: null });
   renderWithQueryClient(
     <LevelPlay nextLevelNumber={3} stats={{}} levelNumber={2} level={level2} />,
   );
@@ -268,7 +268,7 @@ test("a pull landing during the wait can still unlock the deep link", async () =
         playedAt: 1_700_000_000_000 + i * 100,
       })),
     );
-    syncStatus.setState({ firstPullSettled: true });
+    syncStatus.setState({ pullSettledToken: "test-token" });
   });
 
   expect(replaceMock).not.toHaveBeenCalled();
@@ -344,6 +344,25 @@ test("a same-mount Replay's New record badge reflects the just-finished run, not
 
   expect(gameStore.getState().state.type).toBe("finished");
   expect(queryByText("New record!")).toBeNull();
+});
+
+test("a token change re-arms the pull gate — a new session's deep link waits for ITS pull", () => {
+  // An earlier session settled its pull; Alice then signed in. With no
+  // server seed and empty local store, level 3 looks locked — but the gate
+  // must wait for the pull under ALICE's token, not the previous one.
+  syncStatus.setState({ pullSettledToken: "previous-anon-token" });
+  renderWithQueryClient(
+    <LevelPlay
+      nextLevelNumber={null}
+      stats={{}}
+      levelNumber={3}
+      level={level1}
+    />,
+  );
+  expect(replaceMock).not.toHaveBeenCalled(); // still waiting on this session's pull
+
+  act(() => syncStatus.setState({ pullSettledToken: "test-token" }));
+  expect(replaceMock).toHaveBeenCalledWith("/"); // settled + empty → locked
 });
 
 test("a session wipe drops the server seed — an open level re-gates as locked for the next user", () => {

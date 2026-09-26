@@ -48,7 +48,7 @@ vi.mock("../auth/store", async (importOriginal) => {
 import { ApiError } from "../api/utils";
 import { localStore, TRIALS_TABLE } from "./store";
 import { enqueueRun, mergeServerTrials } from "./trials";
-import { takeStashedRows } from "./accountStash";
+import { readStashedRows, stashPendingRows } from "./accountStash";
 import { startSyncEngine, kickSync, flushSettled } from "./syncEngine";
 import { Addition, type TrialResult, type TrialResultInput } from "engine";
 
@@ -319,7 +319,7 @@ describe("flush", () => {
     // wiped; nothing is left for the next browser user to see or claim.
     expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
     // The pending run was parked under the account's email, not dropped.
-    expect(takeStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
+    expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
   });
 
   it("re-login to the same account restores parked trials and pushes them under the new token", async () => {
@@ -373,6 +373,50 @@ describe("flush", () => {
     expect(api.syncResults).toHaveBeenLastCalledWith("acct3", [
       expect.objectContaining({ id: input.id }),
     ]);
+  });
+
+  it("restored rows keep their parked copy until durable — a push ACK releases it", async () => {
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+
+    // Alice's parked run from a dead session — restored on her sign-in.
+    const rowId = crypto.randomUUID();
+    stashPendingRows("a@b.com", [
+      {
+        id: rowId,
+        runId: crypto.randomUUID(),
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 2,
+        operands: "[3,4]",
+        answer: 12,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 900,
+        hintShown: false,
+        playedAt: 1_700_000_000_000,
+        synced: false,
+      },
+    ]);
+
+    // Restore writes the rows but the push hasn't landed — a reload here
+    // must still find the stash (no persister in tests → persistNow can't
+    // confirm durability, so only the ACK releases it).
+    let resolvePush: (v: unknown) => void = () => {};
+    api.syncResults.mockImplementation(
+      () => new Promise((res) => (resolvePush = res)),
+    );
+    setAuth({ type: "logged-in", token: "acct2", email: "a@b.com" });
+    await tick();
+    expect(localStore.getCell(TRIALS_TABLE, rowId, "synced")).toBe(false);
+    expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(rowId);
+
+    resolvePush({});
+    await flushSettled();
+    await tick();
+    expect(localStore.getCell(TRIALS_TABLE, rowId, "synced")).toBe(true);
+    expect(readStashedRows("a@b.com")).toEqual([]);
   });
 
   it("a pull resolving after logout's wipe cannot resurrect old rows", async () => {
@@ -484,7 +528,7 @@ describe("logout", () => {
     );
     expect(pullCalls).toHaveLength(0);
     // The durable parked copy is dropped once the push is acknowledged.
-    expect(takeStashedRows("a@b.com")).toEqual([]);
+    expect(readStashedRows("a@b.com")).toEqual([]);
   });
 
   it("a run enqueued after logout's snapshot survives the wipe and stays pending", async () => {
@@ -531,7 +575,7 @@ describe("logout", () => {
     // Shared store stays wiped for the next browser user, but the rows are
     // parked under the account's email — restored on re-login, never lost.
     expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
-    expect(takeStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
+    expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("undelivered"));
     warn.mockRestore();
   });
