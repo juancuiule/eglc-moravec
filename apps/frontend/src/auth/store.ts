@@ -38,7 +38,22 @@ export type AuthStore = {
   loginAnonymous: (session: { token: string }) => void;
   login: (session: { token: string; email: string }) => void;
   logout: () => void;
+  // Drop the current session without calling Api.logout — used when the
+  // backend has already rejected the token (401). The next ensureSession
+  // re-mints an anonymous session against the stable device id.
+  invalidateSession: () => void;
 };
+
+// Registered by the local-first sync engine (local/syncEngine.ts) so logout
+// can give the outbox a bounded dying-token push and wipe local data —
+// without auth importing sync code (cycle). Called with the pre-clear
+// token; resolves once the wipe and push attempt have settled, so logout
+// can revoke the token only after the push had its shot. (Internal order
+// is snapshot → wipe → push-from-memory; see the engine's comment.)
+let logoutHook: ((token: string, email: string) => Promise<void>) | null = null;
+export function setLogoutHook(hook: typeof logoutHook): void {
+  logoutHook = hook;
+}
 
 function stateFromPersisted(session: PersistedSession | null): AuthState {
   if (!session) return { type: "logged-out" };
@@ -91,12 +106,28 @@ export function createAuthStore() {
     logout() {
       const { state } = get();
       if (state.type !== "logged-in") return;
-      void Api.logout(state.token).catch(() => {
-        // best-effort; local logout proceeds regardless of network state
-      });
+      const token = state.token;
+      // The hook fires first and synchronously arms the wipe — before the
+      // anonymous re-mint below can possibly kick a flush under it.
+      const settled = logoutHook?.(token, state.email);
       clearSession();
       set({ state: { type: "logged-out" } });
       void get().ensureSession();
+      // Sequenced in the background: the outbox gets a bounded shot at
+      // pushing pending rows under the account token, then the token is
+      // revoked server-side. Firing Api.logout concurrently would let the
+      // revoke race ahead of the push and 401 it — discarding runs that
+      // never left the device.
+      void Promise.resolve(settled).finally(() => {
+        void Api.logout(token).catch(() => {
+          // best-effort; local logout proceeds regardless of network state
+        });
+      });
+    },
+
+    invalidateSession() {
+      clearSession();
+      set({ state: { type: "logged-out" } });
     },
   }));
 }

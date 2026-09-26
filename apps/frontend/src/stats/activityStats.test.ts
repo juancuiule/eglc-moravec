@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   activityCalendar,
   countsPerDay,
-  daysInMonth,
   daysTrainedThisMonth,
   localDayKey,
   weeklyCategoryTrend,
@@ -46,7 +45,7 @@ describe("localDayKey / countsPerDay", () => {
   });
 });
 
-describe("daysTrainedThisMonth / daysInMonth", () => {
+describe("daysTrainedThisMonth", () => {
   it("counts distinct days in the current month only", () => {
     const n = daysTrainedThisMonth(
       [
@@ -58,17 +57,6 @@ describe("daysTrainedThisMonth / daysInMonth", () => {
       NOW,
     );
     expect(n).toBe(2);
-  });
-
-  it("does the same over pre-bucketed server day strings", () => {
-    const n = daysInMonth(
-      [
-        { day: "2026-08-03", trials: 4 },
-        { day: "2026-07-30", trials: 1 },
-      ],
-      NOW,
-    );
-    expect(n).toBe(1);
   });
 });
 

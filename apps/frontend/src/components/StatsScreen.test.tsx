@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatsScreen } from "./StatsScreen";
 import { authStore } from "@/auth/store";
+import { localStore, resetLocalData, TRIALS_TABLE } from "@/local/store";
 import { IntlTestProvider } from "@/testUtils/renderWithIntl";
 import type { SyncedTrial } from "../api/Api";
 
@@ -13,6 +14,10 @@ vi.mock("@/api/Api", () => ({
 import { Api } from "@/api/Api";
 
 beforeEach(() => {
+  // The read model is the local store: hydrated and empty each test; the
+  // mocked fetchTrials still exercises the pull-merge path.
+  localStore.delTable(TRIALS_TABLE);
+  localStore.setValue("hydrated", true);
   vi.mocked(Api.fetchTrials).mockResolvedValue([]);
   // Every real player has a session by the time this renders (see
   // AuthBoot) — the trials fetch needs a token to run at all.
@@ -150,11 +155,47 @@ test("shows an error message when the trial fetch fails, with a retry", async ()
   renderWithQueryClient();
 
   expect(await screen.findByText(/Couldn't load stats/)).toBeDefined();
+  // The error and the empty state are mutually exclusive — a failed pull
+  // over an empty local store must not show both at once.
+  expect(screen.queryByText(/complete some levels/)).toBeNull();
 
   vi.mocked(Api.fetchTrials).mockResolvedValue([]);
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
   expect(await screen.findByText(/No data yet/)).toBeDefined();
+});
+
+test("a pull resolving after a logout wipe does not repopulate the store", async () => {
+  let resolvePull: (v: SyncedTrial[]) => void = () => {};
+  vi.mocked(Api.fetchTrials).mockImplementation(
+    () => new Promise((res) => (resolvePull = res)),
+  );
+  renderWithQueryClient();
+
+  // Logout's wipe lands while this screen's fetch is still in flight.
+  act(() => resetLocalData());
+  await act(async () => {
+    resolvePull([
+      {
+        id: crypto.randomUUID(),
+        runId: crypto.randomUUID(),
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 1,
+        operands: [2, 3],
+        answer: 6,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 900,
+        hintShown: false,
+        playedAt: 1_700_000_000_000,
+      },
+    ]);
+  });
+
+  // The wiped store stays empty — the previous session's rows never
+  // re-enter through the stale response.
+  expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
 });
 
 test("renders the activity calendar and days-trained caption once trials exist", async () => {

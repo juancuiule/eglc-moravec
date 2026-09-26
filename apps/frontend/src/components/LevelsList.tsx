@@ -1,6 +1,10 @@
-import { type LevelStats } from "@/api/Api";
+"use client";
+
 import { formatDuration } from "@/formatTime";
+import type { LevelStats } from "@/api/Api";
 import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
+import { useLocalLevelStats, useSessionSeedStats } from "@/local/hooks";
+import { mergeLevelStats } from "@/local/trials";
 import { backLink, panel } from "@/styles";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -33,10 +37,22 @@ function RowStars({
 }
 
 export function LevelsList(props: {
-  stats: Record<string, LevelStats>;
   levelKeys: number[];
+  stats?: Record<string, LevelStats>;
 }) {
-  const { stats, levelKeys } = props;
+  const { levelKeys } = props;
+  // Records (and therefore unlock state) come from the local-first store —
+  // correct offline and immediately after a run, even before a push lands.
+  // The server seed only fills first paint and the failed-pull case; local
+  // rows win wherever they exist, and the seed dies with its session.
+  const seedStats = useSessionSeedStats(props.stats ?? {});
+  const localStats = useLocalLevelStats();
+  const stats =
+    localStats === undefined
+      ? Object.keys(seedStats).length > 0
+        ? seedStats
+        : undefined
+      : mergeLevelStats(seedStats, localStats);
   const t = useTranslations("Levels");
   const tCommon = useTranslations("Common");
 
@@ -53,17 +69,19 @@ export function LevelsList(props: {
         <h1 className="text-xl font-bold tracking-tight">{t("heading")}</h1>
       </div>
 
-      {completedCount > 0 && levelKeys && (
+      {stats === undefined ? (
+        <p className="py-8 text-center text-sm text-muted">{t("loading")}</p>
+      ) : completedCount > 0 ? (
         <p className="text-center text-xs text-muted">
           {t("completedCount", {
             completed: completedCount,
             total: levelKeys.length,
           })}
         </p>
-      )}
+      ) : null}
 
-      {levelKeys && stats && (
-        <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto">
+      {stats !== undefined && (
+        <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto overflow-x-hidden">
           {levelKeys.map((n) => {
             const levelStats = stats[String(n)];
             const unlocked = isLevelUnlocked(n, stats);
@@ -73,12 +91,12 @@ export function LevelsList(props: {
               return (
                 <div
                   key={n}
-                  className="flex items-center justify-between px-6 py-3 border-b border-subtle text-disabled"
+                  className="flex items-center justify-between gap-2 px-6 py-3 border-b border-subtle text-disabled"
                 >
-                  <span className="font-semibold">
+                  <span className="font-semibold min-w-0 truncate">
                     {t("level", { number: n })}
                   </span>
-                  <span>🔒</span>
+                  <span className="shrink-0">🔒</span>
                 </div>
               );
             }
@@ -90,13 +108,13 @@ export function LevelsList(props: {
                   href={`/level/${n}`}
                   className="flex flex-col items-center gap-1 px-6 py-3 bg-accent text-white"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="font-bold">
+                  <div className="flex items-center justify-between gap-2 w-full">
+                    <span className="font-bold min-w-0 truncate">
                       {t("level", { number: n })}
                     </span>
                     <RowStars stars={0} light />
                   </div>
-                  <span className="text-sm font-semibold tracking-wide">
+                  <span className="text-sm font-semibold tracking-wide whitespace-nowrap">
                     {t("play")}
                   </span>
                 </Link>
@@ -109,10 +127,10 @@ export function LevelsList(props: {
                 href={`/level/${n}`}
                 className="flex items-center justify-between gap-2 px-6 py-3 border-b border-subtle hover:bg-base transition-color *:flex-1 *:flex"
               >
-                <span className="font-semibold text-muted justify-start">
+                <span className="font-semibold text-muted justify-start min-w-0 truncate">
                   {t("level", { number: n })}
                 </span>
-                <span className="text-teal font-mono text-xs justify-center">
+                <span className="text-teal font-mono text-xs justify-center whitespace-nowrap">
                   {formatDuration(levelStats.totalTime)}
                 </span>
                 <RowStars className="justify-end" stars={levelStats.stars} />

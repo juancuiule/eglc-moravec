@@ -4,8 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 
-const { isBetterLevelRecordMock } = vi.hoisted(() => ({
+const { isBetterLevelRecordMock, replaceMock } = vi.hoisted(() => ({
   isBetterLevelRecordMock: vi.fn(),
+  replaceMock: vi.fn(),
 }));
 
 vi.mock("engine", async (importOriginal) => {
@@ -23,14 +24,17 @@ import type { Level } from "@/level";
 // useRouter() itself — unrelated to LevelPlay's own logic, but still needs
 // a router context to render in this test environment.
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: replaceMock }),
 }));
 
 vi.mock("@/api/Api", () => ({
-  Api: { fetchLevelStats: vi.fn(), syncResults: vi.fn() },
+  Api: { fetchLevelStats: vi.fn(), syncResults: vi.fn(), fetchTrials: vi.fn() },
 }));
 
 import { Api, type LevelStats } from "@/api/Api";
+import { localStore, resetLocalData, TRIALS_TABLE } from "@/local/store";
+import { mergeServerTrials } from "@/local/trials";
+import { syncStatus } from "@/local/syncEngine";
 import { TRIALS_PER_LEVEL } from "engine";
 
 // Fixtures, not the real catalog's levels — tests shouldn't depend on
@@ -42,6 +46,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(Api.fetchLevelStats).mockResolvedValue({});
   vi.mocked(Api.syncResults).mockResolvedValue({ trials: [] });
+  vi.mocked(Api.fetchTrials).mockResolvedValue([]);
+  // LevelPlay reads unlock state + records from the local-first store —
+  // hydrated and empty unless a test seeds it.
+  localStore.delTable(TRIALS_TABLE);
+  localStore.setValue("hydrated", true);
+  // The engine isn't running in tests — default to "first pull settled" so
+  // the locked-redirect gate resolves immediately; tests that exercise the
+  // pending state set it explicitly.
+  syncStatus.setState({ pullSettledToken: "test-token" });
   gameStore.getState().reset();
   // persistFinishedLevel's push needs a session token — every real player
   // has one automatically (see AuthBoot), so tests simulate that same
@@ -157,29 +170,45 @@ test("revisiting the same level after finishing it starts a fresh run, not the s
   }
 });
 
-test("a missing refreshed level stat leaves the current record unchanged without comparing undefined", async () => {
+test("the flush settles into a locally-derived record — never a falsy comparison", async () => {
   renderWithQueryClient(
     <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );
 
   finishCurrentRun();
 
-  await waitFor(() => expect(Api.fetchLevelStats).toHaveBeenCalledOnce());
+  // The post-finish refresh path pulls server trials and re-derives locally.
+  await waitFor(() => expect(Api.fetchTrials).toHaveBeenCalled());
   expect(
     isBetterLevelRecordMock.mock.calls.filter(([candidate]) => !candidate),
   ).toHaveLength(0);
-  expect(isBetterLevelRecordMock.mock.calls[0]?.[0]).toMatchObject({
-    stars: 0,
-  });
+  expect(
+    isBetterLevelRecordMock.mock.calls.some(([candidate]) =>
+      candidate ? candidate.stars === 0 : false,
+    ),
+  ).toBe(true);
 });
 
-test("an existing refreshed level stat still corrects the current record", async () => {
-  const fresh: LevelStats = {
-    stars: 3,
-    totalTime: 1234,
-    completedAt: "2026-01-01T00:00:00.000Z",
-  };
-  vi.mocked(Api.fetchLevelStats).mockResolvedValue({ "1": fresh });
+test("a better record learned from the pull corrects the record baseline", async () => {
+  // A 3-star level-1 run made on another device — merged into the store by
+  // the post-finish pull, then into the record baseline.
+  const otherRunId = crypto.randomUUID();
+  vi.mocked(Api.fetchTrials).mockResolvedValue(
+    Array.from({ length: TRIALS_PER_LEVEL }, (_, i) => ({
+      id: crypto.randomUUID(),
+      runId: otherRunId,
+      runType: "level",
+      categoryCodename: "1dx1d",
+      levelNumber: 1,
+      operands: [2, 3],
+      answer: 6,
+      correct: true,
+      timeExceeded: false,
+      timeTaken: 100,
+      hintShown: false,
+      playedAt: 1_700_000_000_000 + i * 100,
+    })),
+  );
   renderWithQueryClient(
     <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );
@@ -189,14 +218,97 @@ test("an existing refreshed level stat still corrects the current record", async
   await waitFor(() =>
     expect(
       isBetterLevelRecordMock.mock.calls.some(
-        ([candidate]) => candidate === fresh,
+        ([candidate]) =>
+          candidate?.stars === 3 && candidate?.totalTime === 2000,
       ),
     ).toBe(true),
   );
-  const correctionCall = isBetterLevelRecordMock.mock.calls.find(
-    ([candidate]) => candidate === fresh,
+});
+
+test("a locked-looking level holds the redirect until the first pull settles", async () => {
+  // Fresh device: store hydrated but empty, server seed failed (stats={}) —
+  // the boot pull hasn't landed yet.
+  syncStatus.setState({ pullSettledToken: null });
+  renderWithQueryClient(
+    <LevelPlay nextLevelNumber={3} stats={{}} levelNumber={2} level={level2} />,
   );
-  expect(correctionCall?.[1]).toMatchObject({ stars: 0 });
+
+  // Locked-looking, but unresolved — hold, don't bounce.
+  expect(replaceMock).not.toHaveBeenCalled();
+
+  // The pull settles with nothing to merge — NOW the locked verdict holds.
+  act(() => syncStatus.setState({ pullSettledToken: "test-token" }));
+  expect(replaceMock).toHaveBeenCalledWith("/");
+});
+
+test("a pull landing during the wait can still unlock the deep link", async () => {
+  syncStatus.setState({ pullSettledToken: null });
+  renderWithQueryClient(
+    <LevelPlay nextLevelNumber={3} stats={{}} levelNumber={2} level={level2} />,
+  );
+  expect(replaceMock).not.toHaveBeenCalled();
+
+  // Server history arrives before the pull "settles": a 3-star level-1 run
+  // merges in, level 2 unlocks, and the gate opens without a redirect.
+  const runId = crypto.randomUUID();
+  act(() => {
+    mergeServerTrials(
+      Array.from({ length: TRIALS_PER_LEVEL }, (_, i) => ({
+        id: crypto.randomUUID(),
+        runId,
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 1,
+        operands: [2, 3],
+        answer: 6,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 100,
+        hintShown: false,
+        playedAt: 1_700_000_000_000 + i * 100,
+      })),
+    );
+    syncStatus.setState({ pullSettledToken: "test-token" });
+  });
+
+  expect(replaceMock).not.toHaveBeenCalled();
+  expect(gameStore.getState().state.type).toBe("playing");
+});
+
+test("a better record pulled mid-play becomes the baseline — a worse finish earns no badge", async () => {
+  const { queryByText } = renderWithQueryClient(
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
+  );
+  expect(gameStore.getState().state.type).toBe("playing");
+
+  // Mid-play, another device's 3-star level-1 run arrives via a pull-merge —
+  // e.g. the boot flush landing after mount. The ratchet must follow it
+  // before this device finishes.
+  const otherRunId = crypto.randomUUID();
+  act(() => {
+    mergeServerTrials(
+      Array.from({ length: TRIALS_PER_LEVEL }, (_, i) => ({
+        id: crypto.randomUUID(),
+        runId: otherRunId,
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 1,
+        operands: [2, 3],
+        answer: 6,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 100,
+        hintShown: false,
+        playedAt: 1_700_000_000_000 + i * 100,
+      })),
+    );
+  });
+
+  // This device then finishes a worse run (all timeouts → 0 stars). With a
+  // stale baseline this would wrongly claim a new record.
+  finishCurrentRun();
+  await waitFor(() => expect(gameStore.getState().state.type).toBe("finished"));
+  expect(queryByText("New record!")).toBeNull();
 });
 
 test("a same-mount Replay's New record badge reflects the just-finished run, not a stale stats prop", () => {
@@ -232,4 +344,48 @@ test("a same-mount Replay's New record badge reflects the just-finished run, not
 
   expect(gameStore.getState().state.type).toBe("finished");
   expect(queryByText("New record!")).toBeNull();
+});
+
+test("a token change re-arms the pull gate — a new session's deep link waits for ITS pull", () => {
+  // An earlier session settled its pull; Alice then signed in. With no
+  // server seed and empty local store, level 3 looks locked — but the gate
+  // must wait for the pull under ALICE's token, not the previous one.
+  syncStatus.setState({ pullSettledToken: "previous-anon-token" });
+  renderWithQueryClient(
+    <LevelPlay
+      nextLevelNumber={null}
+      stats={{}}
+      levelNumber={3}
+      level={level1}
+    />,
+  );
+  expect(replaceMock).not.toHaveBeenCalled(); // still waiting on this session's pull
+
+  act(() => syncStatus.setState({ pullSettledToken: "test-token" }));
+  expect(replaceMock).toHaveBeenCalledWith("/"); // settled + empty → locked
+});
+
+test("a session wipe drops the server seed — an open level re-gates as locked for the next user", () => {
+  // Levels 1+2 starred in the server seed → level 3 plays under Alice's
+  // session. Logout wipes → the seed belonged to a dead session and must
+  // not keep unlocking for whoever picks up this browser.
+  const seed: Record<string, LevelStats> = {
+    "1": { stars: 3, totalTime: 5_000, completedAt: "2025-01-01T00:00:00Z" },
+    "2": { stars: 3, totalTime: 5_000, completedAt: "2025-01-01T00:00:00Z" },
+  };
+  renderWithQueryClient(
+    <LevelPlay
+      nextLevelNumber={null}
+      stats={seed}
+      levelNumber={3}
+      level={level1}
+    />,
+  );
+  expect(replaceMock).not.toHaveBeenCalled();
+  expect(gameStore.getState().state.type).toBe("playing");
+
+  act(() => resetLocalData()); // the logout/expiry boundary
+
+  // Empty local store + dropped seed → locked → the gate redirects.
+  expect(replaceMock).toHaveBeenCalledWith("/");
 });

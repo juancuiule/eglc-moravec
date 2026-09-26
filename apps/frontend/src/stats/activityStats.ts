@@ -40,16 +40,6 @@ export function daysTrainedThisMonth(
   return days.size;
 }
 
-/** Same counter over the server's pre-bucketed /sync/activity days —
- *  those "day" strings are already in the viewer's local timezone. */
-export function daysInMonth(
-  days: { day: string; trials: number }[],
-  now = new Date(),
-): number {
-  const month = localDayKey(now.getTime()).slice(0, 7);
-  return days.filter((d) => d.day.startsWith(month)).length;
-}
-
 function mondayOfWeek(epochMs: number): Date {
   const d = new Date(epochMs);
   const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());

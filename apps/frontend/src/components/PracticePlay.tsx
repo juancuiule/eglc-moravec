@@ -20,7 +20,7 @@ export function PracticePlay({ categoryCodename }: Props) {
       (s) => s.state.type === "stopped",
       (s) => {
         if (s.state.type !== "stopped") return;
-        persistStoppedPractice(s.state, authStore.getState().state);
+        persistStoppedPractice(s.state);
       },
     );
   }, []);

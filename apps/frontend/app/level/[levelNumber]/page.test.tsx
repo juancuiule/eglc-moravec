@@ -64,25 +64,26 @@ describe("LevelPage", () => {
     ).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
-  it("redirects home when the level is locked — no session at all reads as no progress", async () => {
-    await expect(
-      LevelPage({ params: Promise.resolve({ levelNumber: "2" }) }),
-    ).rejects.toThrow("NEXT_REDIRECT");
-    expect(redirectMock).toHaveBeenCalledWith("/");
+  it("renders without a session — unlock gating is client-side now (LevelPlay consults the local store)", async () => {
+    const result = await LevelPage({
+      params: Promise.resolve({ levelNumber: "2" }),
+    });
+    expect(result.props).toMatchObject({ levelNumber: 2 });
     expect(Api.fetchLevelStats).not.toHaveBeenCalled();
   });
 
-  it("redirects home when the level is locked — a session exists but the predecessor has no stars", async () => {
+  it("renders for a locked-for-the-server level too — a local-only run may unlock what the server hasn't seen", async () => {
     cookiesMock.mockResolvedValue(cookieStore(sessionCookieValue("tok-abc")));
     vi.mocked(Api.fetchLevelStats).mockResolvedValue({});
 
-    await expect(
-      LevelPage({ params: Promise.resolve({ levelNumber: "2" }) }),
-    ).rejects.toThrow("NEXT_REDIRECT");
+    const result = await LevelPage({
+      params: Promise.resolve({ levelNumber: "2" }),
+    });
     expect(Api.fetchLevelStats).toHaveBeenCalledWith("tok-abc");
+    expect(result.props.stats).toEqual({});
   });
 
-  it("renders the level when unlocked via the session's stats", async () => {
+  it("passes the session's stats through as the seed", async () => {
     cookiesMock.mockResolvedValue(cookieStore(sessionCookieValue("tok-abc")));
     vi.mocked(Api.fetchLevelStats).mockResolvedValue({
       "1": { stars: 1, totalTime: 1000, completedAt: "x" },
@@ -121,12 +122,13 @@ describe("LevelPage", () => {
     });
   });
 
-  it("fails safe to locked, not open, when the stats fetch itself fails", async () => {
+  it("still renders when the stats fetch fails — the seed is empty and the local store decides", async () => {
     cookiesMock.mockResolvedValue(cookieStore(sessionCookieValue("tok-abc")));
     vi.mocked(Api.fetchLevelStats).mockRejectedValue(new Error("network down"));
 
-    await expect(
-      LevelPage({ params: Promise.resolve({ levelNumber: "2" }) }),
-    ).rejects.toThrow("NEXT_REDIRECT");
+    const result = await LevelPage({
+      params: Promise.resolve({ levelNumber: "2" }),
+    });
+    expect(result.props.stats).toEqual({});
   });
 });

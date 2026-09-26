@@ -20,6 +20,9 @@ import {
 } from "../stats/exportTrials";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
 import { formatSeconds } from "../formatTime";
+import { useLocalTrials } from "../local/hooks";
+import { mergeServerTrials } from "../local/trials";
+import { localEpoch } from "../local/store";
 import { panel, backLink, button, textLink } from "../styles";
 
 type Tab = "level" | "practice";
@@ -109,15 +112,26 @@ export function StatsScreen() {
   const [selected, setSelected] = useState<string | null>(null);
 
   const token = useAuth((s) => authToken(s.state));
-  const {
-    data: allTrials,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ["trials", token],
-    queryFn: () => (token ? Api.fetchTrials(token) : Promise.resolve([])),
+
+  // The local-first store is the read model — stats render offline and
+  // immediately after a run, before its push lands. Visiting Stats also
+  // triggers a pull that merges server trials into the store, keeping
+  // multi-device histories honest until cursor sync arrives.
+  const allTrials = useLocalTrials();
+  const { isError, refetch } = useQuery({
+    queryKey: ["trialsPull", token],
+    queryFn: async () => {
+      if (!token) return 0;
+      // Epoch-guarded: a pull that resolves after a logout wipe must not
+      // repopulate the store with the previous session's rows.
+      const gen = localEpoch();
+      const trials = await Api.fetchTrials(token);
+      if (gen === localEpoch()) mergeServerTrials(trials);
+      return trials.length;
+    },
   });
+
+  const isLoading = allTrials === undefined;
 
   // Level and Practice trials are never merged — separate histories, separate numbers.
   const trials = useMemo(
@@ -174,7 +188,7 @@ export function StatsScreen() {
         <p className="text-center text-sm text-muted py-8">{t("loading")}</p>
       )}
 
-      {isError && (
+      {isError && !isLoading && !hasAnyData && (
         <div className="flex flex-col items-center gap-2 py-8">
           <p className="text-center text-sm text-danger">{t("loadError")}</p>
           <button onClick={() => refetch()} className={`${textLink} underline`}>
@@ -209,11 +223,9 @@ export function StatsScreen() {
         </p>
       )}
 
-      {!isLoading && !isError && hasAnyData && (
-        <ActivityCalendar trials={trials} />
-      )}
+      {!isLoading && hasAnyData && <ActivityCalendar trials={trials} />}
 
-      {!isLoading && !isError && hasAnyData && (
+      {!isLoading && hasAnyData && (
         <div className="flex flex-col gap-1">
           {/* Header */}
           <div className="grid grid-cols-[6rem_1fr_4rem] gap-2 px-2 pb-1 text-xs text-muted-2 font-medium uppercase tracking-wider">
@@ -279,7 +291,7 @@ export function StatsScreen() {
         </div>
       )}
 
-      {!isLoading && !isError && (allTrials?.length ?? 0) > 0 && (
+      {!isLoading && (allTrials?.length ?? 0) > 0 && (
         <div className="border-t border-subtle pt-4 flex flex-col gap-2">
           <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">
             {t("exportTitle")}

@@ -192,10 +192,21 @@ Triggers:
 5. **Backoff loop** — reschedules itself while pending rows exist or the
    last attempt failed; stops after a successful flush that empties the
    queue.
-6. **Logout** — best-effort flush, then `resetLocalStore()` (clear tables
-   and Values): pending trials must not survive into a different account on
-   a shared browser. A failed flush there accepts loss rather than leaking
-   rows across identities.
+6. **Logout** — snapshot the pending rows, park them in the account stash
+   (localStorage, hashed-email key, 30-day TTL — durable before the wipe so
+   a mid-window reload loses nothing), `resetLocalData()` immediately
+   (wipe the trials table, bump the epoch), then push the snapshot under
+   the dying token (bounded, best-effort). Wipe-first ordering: emptying
+   the queue before the push means the re-minted anonymous session's own
+   flush can't claim account rows, mid-flight pull-merges can't resurrect
+   them (epoch guard), and rows enqueued by the next session land post-wipe
+   untouched. Retention: a delivered push drops the parked copy; an
+   undelivered one stays parked until that same account signs back in on
+   this device — rows are never pushed under a different identity, so
+   nothing leaks across accounts and nothing is silently dropped. If the
+   park itself fails, the wipe still runs (privacy) and the loss is logged.
+   Expired sessions take the same path: a 401 on a current logged-in
+   session stashes pending rows, then invalidates and wipes.
 
 Non-goal: closed-tab background sync (Background Sync API) — sync runs only
 while a tab is open.
@@ -226,9 +237,13 @@ Level/Practice stats stay unmerged (filter by `runType` on read) — an
 unchanged presentation rule, not a storage decision.
 
 `GET /sync/level-stats`, `GET /sync/trials`, and `GET /sync/activity`
-remain for the SSR paths (`/level/[n]` page gating, `/levels` first paint)
-that still fetch server-side — nothing removes them; the UI just stops
-_depending_ on them.
+remain on the wire, but their roles changed: `GET /sync/trials` is the
+pull-merge source on every flush (it _is_ the sync read path);
+`GET /sync/level-stats` is a session-scoped first-paint seed for
+`/level/[n]` and the `/levels` menu (also covers the failed-pull case —
+the real unlock gate is always client-side against merged stats, and the
+seed is dropped on session boundary); `GET /sync/activity` is superseded
+by local `playedAt` computation and unused by the client.
 
 ## Phase 4 — Level catalog snapshot + offline app shell
 

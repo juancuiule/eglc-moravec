@@ -1,7 +1,7 @@
-import { isBetterLevelRecord } from "engine";
-import { Api, type LevelStats } from "../api/Api";
-import { authStore, type AuthState } from "../auth/store";
-import { pushResults } from "../sync/pushResults";
+import { isBetterLevelRecord, toTrialResultInputs } from "engine";
+import type { LevelStats } from "../api/Api";
+import { flushSettled } from "../local/syncEngine";
+import { enqueueRun, localLevelStats } from "../local/trials";
 import type { Finished } from "./index";
 
 export type PersistFinishedLevelResult = {
@@ -11,26 +11,26 @@ export type PersistFinishedLevelResult = {
 };
 
 /**
- * Syncs a finished Level to the backend for any session at all — anonymous
- * or logged in. If the supplied snapshot is logged out, one anonymous-session
- * establishment attempt is made before giving up. Nothing is persisted locally
- * as a fallback (the backend is the only store of record).
+ * Persists a finished Level into the local-first outbox — unconditionally,
+ * for any session state and any network state. Trial inputs (ids + playedAt)
+ * are minted here at the finish edge, where Date.now() is still the true
+ * completion instant, then written to the durable store. The sync engine is
+ * kicked to flush in the background; it owns session establishment and
+ * retries. Nothing about rendering waits on the network.
  *
  * Returns two things:
  * - `isNewRecord`/`record`: an immediate, local comparison against
  *   `previousRecord` — for this render's badge, and as the caller's
  *   ratchet value for a same-mount Replay. Never blocks.
- * - `refreshed`: resolves to the server-confirmed record once the push
- *   has actually landed and a fresh fetch confirms it — covers a record
- *   set on another device mid-session, which the local comparison alone
- *   can't see. Fire-and-forget, same as the push itself: callers should
- *   never await this before rendering, only use it to correct state
- *   later. If session establishment fails (nothing was pushed), resolves to
- *   `record` unchanged rather than rejecting.
+ * - `refreshed`: resolves to the locally-derived record once the next flush
+ *   pass settles — by then the store holds this run plus anything the pull
+ *   merged, so it covers a record set on another device mid-session, which
+ *   the immediate comparison can't see. Fire-and-forget: callers should
+ *   never await this before rendering, only use it to correct state later.
+ *   If the flush can't push (offline), resolves to the local record anyway.
  */
 export function persistFinishedLevel(
   state: Finished,
-  authState: AuthState,
   previousRecord: LevelStats | undefined,
 ): PersistFinishedLevelResult {
   const { config, results, stars } = state;
@@ -44,18 +44,21 @@ export function persistFinishedLevel(
   };
   const record = isNewRecord ? thisRun : (previousRecord ?? thisRun);
 
-  const syncAndRefresh = (token: string) =>
-    pushResults(token, config.levelNumber, results, state.runId)
-      .then(() => Api.fetchLevelStats(token))
-      .then((levelStats) => levelStats[String(config.levelNumber)]);
+  const inputs = toTrialResultInputs(
+    results,
+    {
+      runType: "level",
+      levelNumber: config.levelNumber,
+      runId: state.runId,
+    },
+    Date.now(),
+  );
+  enqueueRun(inputs, results);
 
-  const refreshed =
-    authState.type !== "logged-out"
-      ? syncAndRefresh(authState.token)
-      : authStore
-          .getState()
-          .ensureSessionToken()
-          .then((token) => (token ? syncAndRefresh(token) : record));
+  const refreshed = flushSettled().then(
+    () => localLevelStats()[String(config.levelNumber)] ?? record,
+    () => record,
+  );
 
   return { isNewRecord, record, refreshed };
 }
