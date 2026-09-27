@@ -53,6 +53,43 @@ export const TrialResultsSchema = z.object({
 
 export type TrialResultInput = z.infer<typeof TrialResultSchema>;
 
+// The pull-side wire shape (GET /sync/trials): a stored trial plus the
+// server's evaluation. Clients validate every pulled row against this
+// before it enters their local read model — a malformed response must not
+// persist as truth. Deliberately NOT TrialResultSchema: that one enforces
+// today's playable catalog (supported category, operands matching it),
+// which is a rule for new submissions. Historical rows may reference
+// categories since retired — still valid research data, and computeStats
+// already renders them — so an unknown codename is accepted as-is. A
+// codename that IS still supported keeps its operand rules: today's rules
+// are the only ones we can check, and a supported-category row that breaks
+// them is malformed, not historical.
+const SyncedTrialFields = {
+  ...TrialResultFields,
+  categoryCodename: z.string().min(1),
+  correct: z.boolean(),
+  timeExceeded: z.boolean(),
+};
+
+export const SyncedTrialSchema = z
+  .discriminatedUnion("runType", [
+    z.object({
+      ...SyncedTrialFields,
+      runType: z.literal("level"),
+      levelNumber: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+    }),
+    z.object({
+      ...SyncedTrialFields,
+      runType: z.literal("practice"),
+      levelNumber: z.null(),
+    }),
+  ])
+  .refine(
+    ({ categoryCodename, operands }) =>
+      !isSupportedCategoryCodename(categoryCodename) ||
+      operandsMatchCategory(categoryCodename, operands),
+  );
+
 export function parseTrialResults(body: unknown): TrialResultInput[] | null {
   const parsed = TrialResultsSchema.safeParse(body);
   return parsed.success ? parsed.data.trials : null;

@@ -14,6 +14,17 @@ export async function errorFrom(res: Response): Promise<string> {
   );
 }
 
+// Carries the HTTP status so callers can distinguish a dead session (401)
+// from a generic failure without parsing message strings.
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 /** Every backend call goes through this — the one place headers get built. */
 export async function request(
   path: string,
@@ -36,7 +47,7 @@ export async function requestJson<T>(
   options: RequestOptions,
 ): Promise<T> {
   const res = await request(path, options);
-  if (!res.ok) throw new Error(await errorFrom(res));
+  if (!res.ok) throw new ApiError(await errorFrom(res), res.status);
   return (await res.json()) as T;
 }
 
@@ -46,5 +57,5 @@ export async function requestVoid(
   options: RequestOptions,
 ): Promise<void> {
   const res = await request(path, options);
-  if (!res.ok) throw new Error(await errorFrom(res));
+  if (!res.ok) throw new ApiError(await errorFrom(res), res.status);
 }

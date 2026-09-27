@@ -11,6 +11,13 @@ vi.mock("./store", () => ({
   },
 }));
 
+// The local-first engine starts from AuthBoot too — its own suite covers it;
+// here it's a no-op so the session-recovery assertions stay isolated.
+vi.mock("../local/store", () => ({ ensureLocalPersistence: vi.fn() }));
+vi.mock("../local/syncEngine", () => ({
+  startSyncEngine: vi.fn(() => () => {}),
+}));
+
 import { AuthBoot } from "./AuthBoot";
 
 describe("AuthBoot", () => {

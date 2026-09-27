@@ -1,28 +1,25 @@
+import { toTrialResultInputs } from "engine";
+import { kickSync } from "../local/syncEngine";
+import { enqueueRun } from "../local/trials";
 import type { PracticeStopped } from "./index";
-import { authStore, type AuthState } from "../auth/store";
-import { pushPracticeResults } from "../sync/pushPracticeResults";
 
 /**
- * Syncs a stopped Practice session to the backend for any session at all —
- * anonymous or logged in — mirroring persistFinishedLevel.ts's Level
- * equivalent. If the supplied snapshot is logged out, one anonymous-session
- * establishment attempt is made before giving up. Practice was local-only by
- * earlier design (see CONTEXT.md's Sync entry); that's since been reversed,
- * and there's no local fallback anymore either.
+ * Persists a stopped Practice session into the local-first outbox —
+ * unconditionally, mirroring persistFinishedLevel.ts's Level equivalent.
+ * Trial inputs are minted at the stop edge (ids/playedAt frozen at the true
+ * instant), written to the durable store, then the sync engine is kicked.
+ * Session establishment and retries live in the engine, not here.
  */
-export function persistStoppedPractice(
-  state: PracticeStopped,
-  authState: AuthState,
-): void {
-  if (authState.type !== "logged-out") {
-    pushPracticeResults(authState.token, state.results, state.runId);
-    return;
-  }
-
-  void authStore
-    .getState()
-    .ensureSessionToken()
-    .then((token) => {
-      if (token) pushPracticeResults(token, state.results, state.runId);
-    });
+export function persistStoppedPractice(state: PracticeStopped): void {
+  const inputs = toTrialResultInputs(
+    state.results,
+    {
+      runType: "practice",
+      levelNumber: null,
+      runId: state.runId,
+    },
+    Date.now(),
+  );
+  enqueueRun(inputs, state.results);
+  kickSync();
 }

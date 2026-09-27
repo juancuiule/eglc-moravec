@@ -1,21 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { ensureSessionToken } = vi.hoisted(() => ({
-  ensureSessionToken: vi.fn<() => Promise<string | null>>(),
-}));
-
-vi.mock("../auth/store", () => ({
-  authStore: { getState: () => ({ ensureSessionToken }) },
-}));
-vi.mock("../sync/pushPracticeResults", () => ({
-  pushPracticeResults: vi.fn(),
-}));
+// The flush is the sync engine's job — these tests only assert persist hands
+// it inputs and kicks it, not that the network call happens.
+const { kickSync } = vi.hoisted(() => ({ kickSync: vi.fn() }));
+vi.mock("../local/syncEngine", () => ({ kickSync, flushSettled: vi.fn() }));
 
 import { persistStoppedPractice } from "./persistStoppedPractice";
-import { pushPracticeResults } from "../sync/pushPracticeResults";
+import { pendingInputs } from "../local/trials";
+import { localStore, TRIALS_TABLE } from "../local/store";
 import { Addition, type TrialResult } from "engine";
 import type { PracticeStopped } from "./index";
-import type { AuthState } from "../auth/store";
 
 function makeResult(): TrialResult {
   const op = Addition.create({
@@ -38,70 +32,44 @@ function makeStopped(): PracticeStopped {
   return {
     type: "stopped",
     config: { categoryCodename: "1d+1d" },
-    runId: "practice-run-abc",
+    runId: crypto.randomUUID(),
     results: [makeResult(), makeResult()],
   };
 }
 
-const loggedOut: AuthState = { type: "logged-out" };
-const anonymous: AuthState = { type: "anonymous", token: "anon-tok" };
-const loggedIn: AuthState = {
-  type: "logged-in",
-  token: "tok123",
-  email: "a@b.com",
-};
-
 describe("persistStoppedPractice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    ensureSessionToken.mockResolvedValue(null);
+    localStore.delTable(TRIALS_TABLE);
+    localStore.setValue("hydrated", true);
   });
 
-  it("makes one session-establishment attempt and syncs a completion that started logged out", async () => {
-    ensureSessionToken.mockResolvedValue("fresh-anon-token");
+  it("enqueues fully-formed practice inputs and kicks the flush — session or not", () => {
+    const before = Date.now();
     const state = makeStopped();
+    persistStoppedPractice(state);
+    const after = Date.now();
 
-    persistStoppedPractice(state, loggedOut);
-
-    await vi.waitFor(() => {
-      expect(pushPracticeResults).toHaveBeenCalledWith(
-        "fresh-anon-token",
-        state.results,
-        state.runId,
-      );
+    const pending = pendingInputs();
+    expect(pending).toHaveLength(state.results.length);
+    pending.forEach((input) => {
+      expect(input.id).toBeTruthy();
+      expect(input.runId).toBe(state.runId);
+      expect(input.runType).toBe("practice");
+      expect(input.levelNumber).toBeNull();
+      // playedAt is back-computed from the stop instant minus cumulative
+      // timeTaken — earlier trials legitimately predate `before`.
+      expect(input.playedAt).toBeLessThanOrEqual(after);
+      expect(input.playedAt).toBeGreaterThan(before - 60_000);
     });
-    expect(ensureSessionToken).toHaveBeenCalledTimes(1);
-    expect(pushPracticeResults).toHaveBeenCalledTimes(1);
+    expect(kickSync).toHaveBeenCalledTimes(1);
   });
 
-  it("does not sync when session establishment fails", async () => {
-    persistStoppedPractice(makeStopped(), loggedOut);
-
-    await vi.waitFor(() => {
-      expect(ensureSessionToken).toHaveBeenCalledTimes(1);
-    });
-    expect(pushPracticeResults).not.toHaveBeenCalled();
-  });
-
-  it("syncs results when logged in", () => {
-    const state = makeStopped();
-    persistStoppedPractice(state, loggedIn);
-
-    expect(pushPracticeResults).toHaveBeenCalledWith(
-      "tok123",
-      state.results,
-      state.runId,
-    );
-  });
-
-  it("also syncs results when anonymous — every session gets pushed, not just logged-in ones", () => {
-    const state = makeStopped();
-    persistStoppedPractice(state, anonymous);
-
-    expect(pushPracticeResults).toHaveBeenCalledWith(
-      "anon-tok",
-      state.results,
-      state.runId,
-    );
+  it("practice rows carry no levelNumber cell — rehydrated to null", () => {
+    persistStoppedPractice(makeStopped());
+    const table = localStore.getTable(TRIALS_TABLE);
+    const [rowId, row] = Object.entries(table)[0];
+    expect(row.levelNumber).toBeUndefined(); // absent cell
+    expect(pendingInputs().find((i) => i.id === rowId)?.levelNumber).toBeNull();
   });
 });

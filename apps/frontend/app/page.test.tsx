@@ -1,8 +1,8 @@
 import { screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import HomePage from "./page";
 import { authStore } from "@/auth/store";
+import { localStore, TRIALS_TABLE } from "@/local/store";
 import { renderWithIntl } from "@/testUtils/renderWithIntl";
 
 // The home page header now renders LocaleSwitcher, which calls useRouter()
@@ -10,12 +10,6 @@ import { renderWithIntl } from "@/testUtils/renderWithIntl";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
-
-// Home fetches the cheap per-day activity aggregate for its days-trained line.
-vi.mock("@/api/Api", () => ({
-  Api: { fetchActivity: vi.fn() },
-}));
-import { Api } from "@/api/Api";
 
 // Minimal localStorage mock, matching the convention used elsewhere in this
 // codebase — the auth store reads it at module/mount time.
@@ -36,30 +30,20 @@ const localStorageMock = {
 beforeEach(() => {
   localStorageMock.clear();
   vi.stubGlobal("localStorage", localStorageMock);
-  vi.mocked(Api.fetchActivity).mockResolvedValue([]);
+  // Tests seed the singleton store directly — hydrated, empty, in-memory.
+  localStore.delTable(TRIALS_TABLE);
+  localStore.setValue("hydrated", true);
 });
 
-// Home now runs a useQuery — needs a QueryClient ancestor in addition to intl.
-function renderHome() {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return renderWithIntl(
-    <QueryClientProvider client={client}>
-      <HomePage />
-    </QueryClientProvider>,
-  );
-}
-
 test("shows the Log in link when logged out", () => {
-  renderHome();
+  renderWithIntl(<HomePage />);
   expect(screen.getByRole("link", { name: "Log in" })).toBeDefined();
 });
 
 test("also shows the Log in link when anonymous — an anonymous session isn't a logged-in one", () => {
   authStore.setState({ state: { type: "anonymous", token: "anon-tok" } });
   try {
-    renderHome();
+    renderWithIntl(<HomePage />);
     expect(screen.getByRole("link", { name: "Log in" })).toBeDefined();
     expect(screen.queryByRole("button", { name: "Log out" })).toBeNull();
   } finally {
@@ -68,7 +52,7 @@ test("also shows the Log in link when anonymous — an anonymous session isn't a
 });
 
 test("links to Play, Practice, Stats, and Tutorials routes", () => {
-  renderHome();
+  renderWithIntl(<HomePage />);
   expect(screen.getByRole("link", { name: "Play" }).getAttribute("href")).toBe(
     "/levels",
   );
@@ -83,26 +67,28 @@ test("links to Play, Practice, Stats, and Tutorials routes", () => {
   ).toBe("/tutorials");
 });
 
-test("shows days trained this month once activity arrives — hidden without data", async () => {
-  authStore.setState({ state: { type: "anonymous", token: "anon-tok" } });
-  const today = new Date();
-  const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  vi.mocked(Api.fetchActivity).mockResolvedValue([{ day, trials: 3 }]);
-  try {
-    renderHome();
-    expect(await screen.findByText("1 day trained this month")).toBeDefined();
-    expect(Api.fetchActivity).toHaveBeenCalledWith(
-      "anon-tok",
-      expect.any(Number),
-    );
-  } finally {
-    authStore.setState({ state: { type: "logged-out" } });
-  }
+test("shows days trained this month for locally-stored trials — even ones not yet synced", () => {
+  const noon = new Date();
+  noon.setHours(12, 0, 0, 0);
+  localStore.setRow(TRIALS_TABLE, "t1", {
+    categoryCodename: "1dx1d",
+    operands: "[6,7]",
+    answer: 42,
+    timeTaken: 800,
+    playedAt: noon.getTime(),
+    hintShown: false,
+    runType: "level",
+    levelNumber: 1,
+    runId: "run-1",
+    synced: false,
+    correct: true,
+    timeExceeded: false,
+  });
+  renderWithIntl(<HomePage />);
+  expect(screen.getByText("1 day trained this month")).toBeDefined();
 });
 
-test("hides the days-trained line when the activity fetch fails or is empty", async () => {
-  renderHome();
-  // Let the query settle; the line must never appear for an empty history.
-  await vi.waitFor(() => expect(Api.fetchActivity).toHaveBeenCalled());
+test("hides the days-trained line when there is no history", () => {
+  renderWithIntl(<HomePage />);
   expect(screen.queryByText(/trained this month/)).toBeNull();
 });
