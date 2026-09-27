@@ -209,7 +209,10 @@ Triggers:
    the still-armed wipe flag keeps every other flush from claiming the
    outbox, the dying-token push runs, and the park is re-attempted before
    the final wipe — rows are lost only when push and both parks fail, and
-   that is logged as an error. Runs finished while IndexedDB was still
+   that is logged as an error. That deferred wipe is targeted (the
+   snapshot's ids plus any synced mirror), never a table drop: the next
+   anonymous session is live throughout the window and its own runs share
+   the table. Runs finished while IndexedDB was still
    loading sit in an explicit deferred queue that the hook drains before
    snapshotting, so the snapshot never depends on hydration-listener order.
    A restored stash entry is released only once a durable copy exists

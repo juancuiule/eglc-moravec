@@ -771,4 +771,69 @@ describe("logout", () => {
     expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
     expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
   });
+
+  describe("park-failure branch keeps the next session's runs", () => {
+    async function logoutWithParkFailure(settle: "deliver" | "fail") {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      teardown = startSyncEngine();
+      await flushSettled();
+      await tick();
+      let settlePush: (v: unknown) => void = () => {};
+      let failPush: (e: unknown) => void = () => {};
+      api.syncResults.mockImplementation(
+        () =>
+          new Promise((res, rej) => {
+            settlePush = res;
+            failPush = rej;
+          }),
+      );
+      const setItem = vi
+        .spyOn(Storage.prototype, "setItem")
+        .mockImplementation(() => {
+          throw new Error("quota exceeded");
+        });
+
+      const old = makeInput();
+      enqueueRun([old], [makeResult()]);
+      const hook = auth.logoutHook?.("dying-tok", "a@b.com");
+      await tick();
+      // Bob (the re-minted anonymous session) finishes a run while Alice's
+      // dying-token push is still in flight — same table, post-snapshot.
+      setAuth({ type: "anonymous", token: "bob-anon" });
+      const newcomer = makeInput();
+      enqueueRun([newcomer], [makeResult()]);
+
+      if (settle === "deliver") settlePush({});
+      else failPush(new Error("offline"));
+      await hook;
+      await tick();
+      setItem.mockRestore();
+      return { old, newcomer };
+    }
+
+    it("delivered push: the deferred wipe removes only the old outbox", async () => {
+      const { old, newcomer } = await logoutWithParkFailure("deliver");
+      expect(localStore.getRow(TRIALS_TABLE, old.id)).toEqual({});
+      expect(localStore.getRow(TRIALS_TABLE, newcomer.id)).not.toEqual({});
+    });
+
+    it("failed push: newcomer survives, old rows are gone from the table (re-parked if storage recovered)", async () => {
+      const { old, newcomer } = await logoutWithParkFailure("fail");
+      expect(localStore.getRow(TRIALS_TABLE, old.id)).toEqual({});
+      expect(localStore.getRow(TRIALS_TABLE, newcomer.id)).not.toEqual({});
+      // And the newcomer proceeds to sync under its own identity now that
+      // the wipe flag is cleared.
+      api.syncResults.mockResolvedValue({});
+      kickSync();
+      await flushSettled();
+      await tick();
+      expect(
+        api.syncResults.mock.calls.some(
+          ([t, batch]) =>
+            t === "bob-anon" &&
+            (batch as { id: string }[]).some((i) => i.id === newcomer.id),
+        ),
+      ).toBe(true);
+    });
+  });
 });

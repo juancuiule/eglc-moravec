@@ -161,9 +161,14 @@ export function isWipePending(): boolean {
 // overwrite a mid-load bump — both only matter for scheduling a re-render.
 export const EPOCH_VALUE = "localEpoch";
 
-export function resetLocalData(): void {
+// `only` narrows the wipe to specific row ids — for a wipe that had to be
+// deferred (the logout hook's park-failure branch), where rows the NEXT
+// session enqueued meanwhile share the table and must survive. The epoch
+// still advances: the old session is over either way.
+export function resetLocalData(only?: readonly string[]): void {
   epoch += 1;
   wipePending = false;
   localStore.setValue(EPOCH_VALUE, epoch);
-  localStore.delTable(TRIALS_TABLE);
+  if (only === undefined) localStore.delTable(TRIALS_TABLE);
+  else only.forEach((id) => localStore.delRow(TRIALS_TABLE, id));
 }

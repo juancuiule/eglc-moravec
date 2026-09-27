@@ -354,7 +354,12 @@ export function startSyncEngine(): () => void {
                 console.error(
                   `localFirst: logout lost ${snapshotRows.length} pending trial(s) — push and park both failed`,
                 );
-              resetLocalData();
+              // The next anonymous session has been live throughout this
+              // window and may have enqueued its own runs into the shared
+              // table — the deferred wipe removes only the old outbox (and
+              // any mirror a stale pull re-merged), never the newcomers.
+              dropSyncedRows();
+              resetLocalData(snapshotIds);
             } else if (!delivered) {
               console.warn(
                 `localFirst: logout push undelivered — ${snapshotRows.length} trial(s) stay parked for ${email}'s next sign-in`,
