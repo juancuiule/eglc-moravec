@@ -174,8 +174,8 @@ describe("flush", () => {
   it("pull-merges even with an empty outbox — keeps multi-device honest", async () => {
     api.fetchTrials.mockResolvedValue([
       {
-        id: "srv-9",
-        runId: "r",
+        id: "99999999-9999-4999-8999-999999999999",
+        runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         runType: "level",
         categoryCodename: "1dx1d",
         levelNumber: 2,
@@ -193,7 +193,10 @@ describe("flush", () => {
     await tick();
 
     expect(api.syncResults).not.toHaveBeenCalled();
-    expect(localStore.getRow(TRIALS_TABLE, "srv-9").synced).toBe(true);
+    expect(
+      localStore.getRow(TRIALS_TABLE, "99999999-9999-4999-8999-999999999999")
+        .synced,
+    ).toBe(true);
   });
 
   it("leaves rows pending and schedules a retry when the push fails", async () => {
@@ -321,8 +324,8 @@ describe("flush", () => {
     // One synced history row + one still-pending run, both the account's.
     mergeServerTrials([
       {
-        id: "srv-1",
-        runId: "r",
+        id: "11111111-1111-4111-8111-111111111111",
+        runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         runType: "level",
         categoryCodename: "1dx1d",
         levelNumber: 2,
@@ -460,8 +463,8 @@ describe("flush", () => {
     await auth.logoutHook?.("dying-tok", "a@b.com"); // wipe + epoch bump
     resolvePull([
       {
-        id: "srv-1",
-        runId: "r",
+        id: "11111111-1111-4111-8111-111111111111",
+        runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         runType: "level",
         categoryCodename: "1dx1d",
         levelNumber: 2,
@@ -618,8 +621,8 @@ describe("logout", () => {
     // The synced mirror must still go at logout even when parking fails.
     mergeServerTrials([
       {
-        id: "srv-synced",
-        runId: "r",
+        id: "55555555-5555-4555-8555-555555555555",
+        runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         runType: "level",
         categoryCodename: "1dx1d",
         levelNumber: 1,
@@ -650,7 +653,9 @@ describe("logout", () => {
 
     // Park failed → the outbox is the only copy: still there, mirror gone.
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(false);
-    expect(localStore.getRow(TRIALS_TABLE, "srv-synced")).toEqual({});
+    expect(
+      localStore.getRow(TRIALS_TABLE, "55555555-5555-4555-8555-555555555555"),
+    ).toEqual({});
     expect(error).toHaveBeenCalledWith(
       expect.stringContaining("could not park"),
     );

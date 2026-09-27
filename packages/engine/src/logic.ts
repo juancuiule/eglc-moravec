@@ -53,6 +53,14 @@ export const TrialResultsSchema = z.object({
 
 export type TrialResultInput = z.infer<typeof TrialResultSchema>;
 
+// The pull-side wire shape (GET /sync/trials): a pushed trial plus the
+// server's evaluation. Clients validate every pulled row against this
+// before it enters their local read model — a malformed response must not
+// persist as truth.
+export const SyncedTrialSchema = TrialResultSchema.and(
+  z.object({ correct: z.boolean(), timeExceeded: z.boolean() }),
+);
+
 export function parseTrialResults(body: unknown): TrialResultInput[] | null {
   const parsed = TrialResultsSchema.safeParse(body);
   return parsed.success ? parsed.data.trials : null;

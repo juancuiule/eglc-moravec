@@ -56,8 +56,8 @@ function makeResult(overrides: Partial<TrialResult> = {}): TrialResult {
 
 function makeSynced(overrides: Partial<SyncedTrial> = {}): SyncedTrial {
   return {
-    id: "srv-1",
-    runId: "run-srv",
+    id: "11111111-1111-4111-8111-111111111111",
+    runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     runType: "level",
     categoryCodename: "1dx1d",
     levelNumber: 2,
@@ -153,9 +153,25 @@ describe("pendingInputs / markSynced", () => {
 });
 
 describe("mergeServerTrials", () => {
+  it("drops malformed pulled rows and keeps the valid ones", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const good = makeSynced();
+    const badAnswer = { ...makeSynced(), answer: "12" as unknown as number };
+    const badLevel = { ...makeSynced(), levelNumber: -1 };
+    const badId = { ...makeSynced(), id: "not-a-uuid" };
+    mergeServerTrials([good, badAnswer, badLevel, badId]);
+
+    expect(Object.keys(localStore.getTable(TRIALS_TABLE))).toEqual([good.id]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("3 malformed"));
+    warn.mockRestore();
+  });
+
   it("upserts server rows as synced, with server-authoritative fields", () => {
     mergeServerTrials([makeSynced()]);
-    const row = localStore.getRow(TRIALS_TABLE, "srv-1");
+    const row = localStore.getRow(
+      TRIALS_TABLE,
+      "11111111-1111-4111-8111-111111111111",
+    );
     expect(row.synced).toBe(true);
     expect(row.correct).toBe(true);
     expect(pendingInputs()).toHaveLength(0);
@@ -179,11 +195,13 @@ describe("mergeServerTrials", () => {
   });
 
   it("allLocalTrials returns trials sorted by playedAt", () => {
+    const a = crypto.randomUUID();
+    const b = crypto.randomUUID();
     mergeServerTrials([
-      makeSynced({ id: "b", playedAt: 2000 }),
-      makeSynced({ id: "a", playedAt: 1000 }),
+      makeSynced({ id: b, playedAt: 2000 }),
+      makeSynced({ id: a, playedAt: 1000 }),
     ]);
-    expect(allLocalTrials().map((t) => t.id)).toEqual(["a", "b"]);
+    expect(allLocalTrials().map((t) => t.id)).toEqual([a, b]);
   });
 });
 

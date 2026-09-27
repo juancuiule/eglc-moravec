@@ -1,4 +1,5 @@
 import {
+  SyncedTrialSchema,
   TrialResultSchema,
   deriveLevelStats,
   isBetterLevelRecord,
@@ -217,7 +218,15 @@ export function mergeServerTrials(trials: readonly SyncedTrial[]): void {
     afterHydration(() => mergeServerTrials(trials));
     return;
   }
-  trials.forEach((t) => {
+  // Same per-row validation as the push side: a malformed pulled row is
+  // dropped (and counted), never persisted as local truth.
+  const valid = trials.filter((t) => SyncedTrialSchema.safeParse(t).success);
+  if (valid.length < trials.length) {
+    console.warn(
+      `localFirst: dropped ${trials.length - valid.length} malformed pulled trial(s)`,
+    );
+  }
+  valid.forEach((t) => {
     localStore.setRow(TRIALS_TABLE, t.id, trialCells(t, true));
   });
 }

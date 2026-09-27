@@ -34,6 +34,7 @@ export {
 export {
   MAX_DATE_TIMESTAMP,
   MAX_SYNC_TRIALS,
+  SyncedTrialSchema,
   TrialResultSchema,
   TrialResultsSchema,
   evaluateTrialResult,
