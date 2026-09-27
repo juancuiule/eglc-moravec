@@ -176,6 +176,18 @@ describe("mergeServerTrials", () => {
     expect(allLocalTrials()[0]?.categoryCodename).toBe("9dx9d-retired");
   });
 
+  it("still rejects a supported-category row whose operands break that category's rules", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const malformed = makeSynced({
+      categoryCodename: "1dx1d",
+      operands: [123456789, 987654321],
+    });
+    mergeServerTrials([malformed]);
+    expect(allLocalTrials()).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("1 malformed"));
+    warn.mockRestore();
+  });
+
   it("upserts server rows as synced, with server-authoritative fields", () => {
     mergeServerTrials([makeSynced()]);
     const row = localStore.getRow(

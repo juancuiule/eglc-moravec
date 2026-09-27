@@ -60,7 +60,10 @@ export type TrialResultInput = z.infer<typeof TrialResultSchema>;
 // today's playable catalog (supported category, operands matching it),
 // which is a rule for new submissions. Historical rows may reference
 // categories since retired — still valid research data, and computeStats
-// already renders them — so here the category is just a non-empty string.
+// already renders them — so an unknown codename is accepted as-is. A
+// codename that IS still supported keeps its operand rules: today's rules
+// are the only ones we can check, and a supported-category row that breaks
+// them is malformed, not historical.
 const SyncedTrialFields = {
   ...TrialResultFields,
   categoryCodename: z.string().min(1),
@@ -68,18 +71,24 @@ const SyncedTrialFields = {
   timeExceeded: z.boolean(),
 };
 
-export const SyncedTrialSchema = z.discriminatedUnion("runType", [
-  z.object({
-    ...SyncedTrialFields,
-    runType: z.literal("level"),
-    levelNumber: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
-  }),
-  z.object({
-    ...SyncedTrialFields,
-    runType: z.literal("practice"),
-    levelNumber: z.null(),
-  }),
-]);
+export const SyncedTrialSchema = z
+  .discriminatedUnion("runType", [
+    z.object({
+      ...SyncedTrialFields,
+      runType: z.literal("level"),
+      levelNumber: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+    }),
+    z.object({
+      ...SyncedTrialFields,
+      runType: z.literal("practice"),
+      levelNumber: z.null(),
+    }),
+  ])
+  .refine(
+    ({ categoryCodename, operands }) =>
+      !isSupportedCategoryCodename(categoryCodename) ||
+      operandsMatchCategory(categoryCodename, operands),
+  );
 
 export function parseTrialResults(body: unknown): TrialResultInput[] | null {
   const parsed = TrialResultsSchema.safeParse(body);
