@@ -204,7 +204,17 @@ Triggers:
    undelivered one stays parked until that same account signs back in on
    this device — rows are never pushed under a different identity, so
    nothing leaks across accounts and nothing is silently dropped. If the
-   park itself fails, the wipe still runs (privacy) and the loss is logged.
+   park itself fails (storage rejected the write), the pending rows are the
+   only copy, so the wipe is deferred: only the synced mirror is dropped,
+   the still-armed wipe flag keeps every other flush from claiming the
+   outbox, the dying-token push runs, and the park is re-attempted before
+   the final wipe — rows are lost only when push and both parks fail, and
+   that is logged as an error. Runs finished while IndexedDB was still
+   loading sit in an explicit deferred queue that the hook drains before
+   snapshotting, so the snapshot never depends on hydration-listener order.
+   A restored stash entry is released only once a durable copy exists
+   elsewhere: a push ACK, or an IndexedDB save that resolves under the same
+   local epoch it started in (a logout mid-save re-parks and keeps its copy).
    Expired sessions take the same path: a 401 on a current logged-in
    session stashes pending rows, then invalidates and wipes.
 

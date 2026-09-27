@@ -3,7 +3,12 @@ import { createStore } from "zustand/vanilla";
 import { Api } from "../api/Api";
 import { ApiError } from "../api/utils";
 import { authStore, authToken, setLogoutHook } from "../auth/store";
-import { markSynced, mergeServerTrials, pendingInputs } from "./trials";
+import {
+  drainDeferredEnqueues,
+  markSynced,
+  mergeServerTrials,
+  pendingInputs,
+} from "./trials";
 import {
   dropStashedRowIds,
   readStashedRows,
@@ -177,6 +182,35 @@ function pendingRowSnapshot(): StashedTrialRow[] {
     .map(([id, row]) => ({ id, ...row }));
 }
 
+// Privacy half of a wipe without the retention half: removes the server-
+// acknowledged mirror (re-pullable by its owner) and keeps the pending
+// outbox. Used only when the durable park failed and the outbox is the
+// last copy.
+function dropSyncedRows(): void {
+  Object.entries(localStore.getTable(TRIALS_TABLE))
+    .filter(([, row]) => row.synced === true)
+    .forEach(([id]) => localStore.delRow(TRIALS_TABLE, id));
+}
+
+// Push the snapshot under the dying token, resolving true only when every
+// batch was acknowledged before the budget expired. A timed-out request may
+// still land server-side, where trial ids dedup safely.
+function pushWithinBudget(
+  token: string,
+  snapshot: readonly TrialResultInput[],
+): Promise<boolean> {
+  const push = (async () => {
+    for (let i = 0; i < snapshot.length; i += MAX_SYNC_TRIALS) {
+      await Api.syncResults(token, snapshot.slice(i, i + MAX_SYNC_TRIALS));
+    }
+    return true;
+  })().catch(() => false);
+  const budget = new Promise<boolean>((r) =>
+    setTimeout(() => r(false), LOGOUT_FLUSH_BUDGET_MS),
+  );
+  return Promise.race([push, budget]);
+}
+
 function flush(): Promise<void> {
   // Never read or write the store before IndexedDB has loaded — an early
   // pass would see an empty queue and the load would clobber merged rows.
@@ -248,8 +282,11 @@ export function startSyncEngine(): () => void {
         }
         if (rows.length > 0) {
           const ids = rows.map((r) => r.id);
+          // Release the parked copy only if the save that lands is one that
+          // still contains these rows — a logout wiping the store while the
+          // save is pending bumps the epoch, and its own re-park must stay.
           void persistNow().then((ok) => {
-            if (ok) dropStashedRowIds(ids);
+            if (ok && localEpoch() === gen) dropStashedRowIds(ids);
           });
         }
       });
@@ -277,47 +314,52 @@ export function startSyncEngine(): () => void {
         // Armed synchronously — even when hydration defers the wipe itself,
         // no flush may start pushing the dying session's rows meanwhile
         // (a flush deferred earlier would otherwise beat the wipe in the
-        // hydration listener chain).
+        // hydration listener chain). Stays armed until resetLocalData runs.
         markWipePending();
         afterHydration(() => {
+          // Runs that finished mid-hydration are still queued — land them
+          // first so the snapshot below is the complete outbox.
+          drainDeferredEnqueues();
           const snapshot = pendingInputs();
           const snapshotRows = pendingRowSnapshot();
           const snapshotIds = snapshotRows.map((r) => r.id);
           // Durable before destructive — both synchronous, so no reload can
-          // land between park and wipe. If the park fails, wiping erases the
-          // only copy: say so loudly.
+          // land between park and wipe. resetLocalData also bumps the local
+          // epoch — in-flight pushes' markSynced and pending pull-merges from
+          // the old session are epoch-guarded and can't resurrect the wipe.
           const parked = stashPendingRows(email, snapshotRows);
-          if (!parked) {
+          if (parked) {
+            resetLocalData();
+          } else {
+            // The park failed, so the outbox is the only copy: keep it
+            // through the push (the armed wipe still blocks every other
+            // flush, so nothing can claim it under the next identity) and
+            // drop only the synced mirror now. Wiped for good below.
             console.error(
-              "localFirst: logout could not park pending trials — a failed push now loses them",
+              "localFirst: logout could not park pending trials — holding them for the dying-token push",
             );
+            dropSyncedRows();
           }
-          // resetLocalData also bumps the local epoch — in-flight pushes'
-          // markSynced and pending pull-merges from the old session are
-          // epoch-guarded and can't resurrect what we're wiping.
-          resetLocalData();
-          let delivered = false;
-          void Promise.race([
-            (async () => {
-              for (let i = 0; i < snapshot.length; i += MAX_SYNC_TRIALS) {
-                await Api.syncResults(
-                  token,
-                  snapshot.slice(i, i + MAX_SYNC_TRIALS),
-                );
-              }
-            })().then(
-              () => {
-                delivered = true;
-              },
-              () => {},
-            ),
-            new Promise((r) => setTimeout(r, LOGOUT_FLUSH_BUDGET_MS)),
-          ]).finally(() => {
+          void pushWithinBudget(token, snapshot).then((delivered) => {
             if (delivered) dropStashedRowIds(snapshotIds);
-            else if (parked)
+            if (!parked) {
+              // Retention rides on the push, or a second park attempt —
+              // storage may have recovered. Only a double failure loses
+              // rows, and it says so.
+              const retained =
+                delivered ||
+                snapshotRows.length === 0 ||
+                stashPendingRows(email, snapshotRows);
+              if (!retained)
+                console.error(
+                  `localFirst: logout lost ${snapshotRows.length} pending trial(s) — push and park both failed`,
+                );
+              resetLocalData();
+            } else if (!delivered) {
               console.warn(
                 `localFirst: logout push undelivered — ${snapshotRows.length} trial(s) stay parked for ${email}'s next sign-in`,
               );
+            }
             resolve();
           });
         });

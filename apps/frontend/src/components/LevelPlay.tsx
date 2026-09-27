@@ -7,6 +7,7 @@ import { gameStore, useGame } from "@/game/store";
 import type { Level } from "@/level";
 import {
   useFirstPullSettled,
+  useLocalEpoch,
   useLocalHydrated,
   useLocalLevelStats,
   useSessionSeedStats,
@@ -110,14 +111,36 @@ export function LevelPlay({
     };
   }, [levelNumber]);
 
+  // The run starts only once the gate below will actually show it — the
+  // machine stamps the first trial's start time at `start`, so starting
+  // behind the loading panel (slow IndexedDB load, pending unlock pull)
+  // would burn the first question's solve window invisibly. A later unlock
+  // on the same mount doesn't restart a run already started for this level.
+  const ready = hydrated && unlocked;
+  const startedFor = useRef<number | null>(null);
   useEffect(() => {
+    if (!ready || startedFor.current === levelNumber) return;
+    startedFor.current = levelNumber;
     const state = gameStore.getState().state;
     if (state.type !== "idle") gameStore.getState().reset();
     setPreviousRecord(effectiveStats[String(levelNumber)]);
     start({ levelNumber, level, totalTrials: TRIALS_PER_LEVEL });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `levelNumber`
     // changes reset the machine; `effectiveStats` is read fresh inside.
-  }, [levelNumber, level, start]);
+  }, [ready, levelNumber, level, start]);
+
+  // A wipe (logout) on an open level ends the session whose record this
+  // baseline came from — re-seed from what the new session can see (nothing,
+  // typically) so its first run isn't judged against the old account's best.
+  const epoch = useLocalEpoch();
+  const seenEpoch = useRef(epoch);
+  useEffect(() => {
+    if (seenEpoch.current === epoch) return;
+    seenEpoch.current = epoch;
+    setPreviousRecord(effectiveStats[String(levelNumber)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on epoch
+    // change only; `effectiveStats` is read fresh inside.
+  }, [epoch, levelNumber]);
 
   // A locally-better record ratchets the comparison baseline up (covers
   // offline-completed runs and, importantly, a pull-merge that lands

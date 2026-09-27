@@ -24,6 +24,14 @@ export function useLocalHydrated(): boolean {
 
 const EMPTY_STATS: Record<string, LevelStats> = {};
 
+// The current local session generation — advances on every wipe. Per-mount
+// state derived from a session's data (LevelPlay's record baseline) resets
+// when this changes. EPOCH_VALUE is only the re-render trigger.
+export function useLocalEpoch(): number {
+  useValue(EPOCH_VALUE, localStore);
+  return localEpoch();
+}
+
 // Server-fetched level stats are a first-paint seed fetched under whatever
 // session held the page at render time — after a logout/account wipe they
 // belong to a dead session and must not keep unlocking for the next user

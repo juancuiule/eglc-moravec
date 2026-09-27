@@ -117,11 +117,15 @@ test("switching to a different level mid-play abandons the in-progress run and s
 
   // Still mid-play on level 1 — navigating straight to level 2's URL
   // rerenders this same component with a new levelNumber, no unmount.
+  // Level 2 must be unlocked for a run to start there at all.
+  const unlocking: Record<string, LevelStats> = {
+    "1": { stars: 3, totalTime: 5_000, completedAt: "2025-01-01T00:00:00Z" },
+  };
   act(() => {
     rerenderWithQueryClient(
       <LevelPlay
         nextLevelNumber={2}
-        stats={{}}
+        stats={unlocking}
         levelNumber={2}
         level={level2}
       />,
@@ -388,4 +392,93 @@ test("a session wipe drops the server seed — an open level re-gates as locked 
 
   // Empty local store + dropped seed → locked → the gate redirects.
   expect(replaceMock).toHaveBeenCalledWith("/");
+});
+
+test("the run does not start behind the loading panel — only once hydrated and unlocked", () => {
+  act(() => {
+    localStore.setValue("hydrated", false);
+  });
+  renderWithQueryClient(
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
+  );
+  // Still loading: the machine must not have stamped a first-trial start
+  // time that the hidden question would then time out against.
+  expect(gameStore.getState().state.type).toBe("idle");
+
+  act(() => {
+    localStore.setValue("hydrated", true);
+  });
+  expect(gameStore.getState().state.type).toBe("playing");
+});
+
+test("a locked verdict waiting on the first pull doesn't start the run; the unlock starts it once, without restart", () => {
+  renderWithQueryClient(
+    <LevelPlay nextLevelNumber={3} stats={{}} levelNumber={2} level={level2} />,
+  );
+  expect(gameStore.getState().state.type).toBe("idle");
+
+  const runId = crypto.randomUUID();
+  act(() => {
+    mergeServerTrials(
+      Array.from({ length: TRIALS_PER_LEVEL }, (_, i) => ({
+        id: crypto.randomUUID(),
+        runId,
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 1,
+        operands: [2, 3],
+        answer: 6,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 100,
+        hintShown: false,
+        playedAt: 1_700_000_000_000 + i * 100,
+      })),
+    );
+  });
+  const state = gameStore.getState().state;
+  expect(state.type).toBe("playing");
+  const startedRunId = state.type === "playing" ? state.runId : null;
+
+  // A later settle re-renders; the active run must not be restarted.
+  act(() => {
+    syncStatus.setState({ pullSettledToken: "test-token" });
+  });
+  const after = gameStore.getState().state;
+  expect(after.type === "playing" && after.runId).toBe(startedRunId);
+});
+
+test("a session wipe on an open level resets the record baseline — the next player's first run is a record", () => {
+  vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+  // Alice's record ties exactly what a perfect run under the frozen clock
+  // produces (3 stars, 0ms) — so with her baseline still in place the next
+  // player's perfect run would NOT read as a record.
+  const seed: Record<string, LevelStats> = {
+    "1": { stars: 3, totalTime: 0, completedAt: "2025-01-01T00:00:00Z" },
+  };
+  const { queryByText } = renderWithQueryClient(
+    <LevelPlay
+      nextLevelNumber={2}
+      stats={seed}
+      levelNumber={1}
+      level={level1}
+    />,
+  );
+  expect(gameStore.getState().state.type).toBe("playing");
+
+  // Alice logs out — level 1 is always unlocked, so the mount survives.
+  act(() => {
+    resetLocalData();
+  });
+  expect(gameStore.getState().state.type).toBe("playing");
+
+  for (let i = 0; i < TRIALS_PER_LEVEL; i++) {
+    const state = gameStore.getState().state;
+    if (state.type !== "playing") throw new Error("not playing");
+    act(() => {
+      gameStore.getState().submitAnswer(state.currentOperation.result());
+      gameStore.getState().advance();
+    });
+  }
+  expect(queryByText("New record!")).not.toBeNull();
 });

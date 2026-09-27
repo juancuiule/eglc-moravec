@@ -2,25 +2,52 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // --- Fakes ---------------------------------------------------------------
 
-const { api, auth, ensureSessionToken, invalidateSession } = vi.hoisted(() => {
-  const api = {
-    syncResults: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-    fetchTrials: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-  };
-  const auth = {
-    state: { type: "logged-out" } as
-      | { type: "logged-out" }
-      | { type: "anonymous"; token: string }
-      | { type: "logged-in"; token: string; email: string },
-    subscribers: new Set<(s: never, p: never) => void>(),
-    logoutHook: undefined as
-      undefined | ((token: string, email: string) => Promise<void>),
-  };
-  const ensureSessionToken = vi.fn<() => Promise<string | null>>();
-  const invalidateSession = vi.fn(() => {
-    auth.state = { type: "logged-out" };
+const { api, auth, ensureSessionToken, invalidateSession, persistence } =
+  vi.hoisted(() => {
+    const api = {
+      syncResults: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+      fetchTrials: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+    };
+    const auth = {
+      state: { type: "logged-out" } as
+        | { type: "logged-out" }
+        | { type: "anonymous"; token: string }
+        | { type: "logged-in"; token: string; email: string },
+      subscribers: new Set<(s: never, p: never) => void>(),
+      logoutHook: undefined as
+        undefined | ((token: string, email: string) => Promise<void>),
+    };
+    const ensureSessionToken = vi.fn<() => Promise<string | null>>();
+    const invalidateSession = vi.fn(() => {
+      auth.state = { type: "logged-out" };
+    });
+    // Controllable stand-in for the IndexedDB persister: `loading` gates
+    // afterHydration, `hydrate()` fires the deferred callbacks (in whatever
+    // order a test wants — nothing may depend on it), persistNow is a spy.
+    const persistence = {
+      loading: false,
+      deferred: [] as Array<() => void>,
+      persistNow: vi.fn<() => Promise<boolean>>(() => Promise.resolve(false)),
+      hydrate(order: "registration" | "reverse" = "registration") {
+        persistence.loading = false;
+        const fns = persistence.deferred.splice(0);
+        (order === "reverse" ? fns.reverse() : fns).forEach((fn) => fn());
+      },
+    };
+    return { api, auth, ensureSessionToken, invalidateSession, persistence };
   });
-  return { api, auth, ensureSessionToken, invalidateSession };
+
+vi.mock("./store", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("./store")>();
+  return {
+    ...mod,
+    isPersistenceLoading: () => persistence.loading,
+    afterHydration: (fn: () => void) => {
+      if (persistence.loading) persistence.deferred.push(fn);
+      else fn();
+    },
+    persistNow: () => persistence.persistNow(),
+  };
 });
 
 vi.mock("../api/Api", () => ({ Api: api }));
@@ -108,6 +135,9 @@ beforeEach(() => {
   localStore.delTables();
   localStore.setValue("hydrated", true);
   localStorage.clear();
+  persistence.loading = false;
+  persistence.deferred = [];
+  persistence.persistNow.mockImplementation(() => Promise.resolve(false));
   setAuth({ type: "anonymous", token: "tok" });
   setOnline(true);
   api.syncResults.mockResolvedValue({});
@@ -578,5 +608,167 @@ describe("logout", () => {
     expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("undelivered"));
     warn.mockRestore();
+  });
+
+  it("a failed park does not license the wipe — rows are held for the dying-token push, then wiped", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+    // The synced mirror must still go at logout even when parking fails.
+    mergeServerTrials([
+      {
+        id: "srv-synced",
+        runId: "r",
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 1,
+        operands: [1, 2],
+        answer: 2,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 500,
+        hintShown: false,
+        playedAt: 1_700_000_000_000,
+      },
+    ]);
+    api.syncResults.mockClear();
+    let resolvePush: (v: unknown) => void = () => {};
+    api.syncResults.mockImplementation(
+      () => new Promise((res) => (resolvePush = res)),
+    );
+    const setItem = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota exceeded");
+      });
+
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]);
+    const hook = auth.logoutHook?.("dying-tok", "a@b.com");
+    await tick();
+
+    // Park failed → the outbox is the only copy: still there, mirror gone.
+    expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(false);
+    expect(localStore.getRow(TRIALS_TABLE, "srv-synced")).toEqual({});
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("could not park"),
+    );
+    // And no other flush may claim it under the next identity meanwhile.
+    const kicked = flushSettled();
+    setAuth({ type: "anonymous", token: "next-anon" });
+    await tick();
+    expect(
+      api.syncResults.mock.calls.filter(([t]) => t === "next-anon"),
+    ).toEqual([]);
+
+    resolvePush({});
+    await hook;
+    void kicked;
+    await tick();
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
+    expect(api.syncResults.mock.calls.map(([t]) => t)).toContain("dying-tok");
+    setItem.mockRestore();
+    error.mockRestore();
+  });
+
+  it("park AND push both failing re-attempts the park before the final wipe", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+    let rejectPush: (e: unknown) => void = () => {};
+    api.syncResults.mockImplementation(
+      () => new Promise((_, rej) => (rejectPush = rej)),
+    );
+    const setItem = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota exceeded");
+      });
+
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]);
+    const hook = auth.logoutHook?.("dying-tok", "a@b.com");
+    await tick();
+    setItem.mockRestore(); // storage recovers before the push fails
+    rejectPush(new Error("offline"));
+    await hook;
+
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
+    expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
+    expect(error).not.toHaveBeenCalledWith(expect.stringContaining("lost"));
+    error.mockRestore();
+  });
+
+  it("a restore's durable-write confirmation landing after a logout does not release the re-parked copy", async () => {
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+    const rowId = crypto.randomUUID();
+    stashPendingRows("a@b.com", [
+      {
+        id: rowId,
+        runId: crypto.randomUUID(),
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 2,
+        operands: "[3,4]",
+        answer: 12,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 900,
+        hintShown: false,
+        playedAt: 1_700_000_000_000,
+        synced: false,
+      },
+    ]);
+    let confirmSave: (ok: boolean) => void = () => {};
+    persistence.persistNow.mockImplementation(
+      () => new Promise((res) => (confirmSave = res)),
+    );
+    // Pushes hang until the end of the test — neither the restore's nor
+    // the logout's can land before the save confirmation does.
+    const pushes: Array<(v: unknown) => void> = [];
+    api.syncResults.mockImplementation(
+      () => new Promise((res) => pushes.push(res)),
+    );
+
+    setAuth({ type: "logged-in", token: "acct", email: "a@b.com" });
+    await tick();
+    expect(localStore.getCell(TRIALS_TABLE, rowId, "synced")).toBe(false);
+
+    // Logout before the IndexedDB save resolves: re-parks and wipes.
+    void auth.logoutHook?.("acct", "a@b.com");
+    await tick();
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
+    // The stale save confirmation belongs to the wiped session — the
+    // re-parked copy must survive it.
+    confirmSave(true);
+    await tick();
+    expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(rowId);
+
+    pushes.forEach((res) => res({}));
+    await tick();
+  });
+
+  it("a run finished mid-hydration is drained into the logout snapshot regardless of listener order", async () => {
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+    api.syncResults.mockRejectedValue(new Error("offline at logout"));
+
+    persistence.loading = true;
+    const input = makeInput();
+    enqueueRun([input], [makeResult()]); // queued, not written
+    expect(localStore.getRow(TRIALS_TABLE, input.id)).toEqual({});
+    const hook = auth.logoutHook?.("dying-tok", "a@b.com");
+    // Worst case for the old implementation: the logout callback fires
+    // BEFORE the deferred enqueue's own hydration callback.
+    persistence.hydrate("reverse");
+    await hook;
+
+    expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(input.id);
+    expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
   });
 });

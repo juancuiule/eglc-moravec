@@ -152,15 +152,32 @@ export function markSynced(ids: readonly string[]): void {
 // logged reason instead of poisoning the whole queue. Rows the backend has
 // already acknowledged (same id present, synced) are left untouched — local
 // display fields stay whatever the server last merged.
+// Runs finished while IndexedDB is still loading wait here, in an explicit
+// queue rather than as anonymous hydration listeners — so the logout hook
+// can drain them (drainDeferredEnqueues) before it snapshots the outbox,
+// instead of relying on TinyBase listener registration order to decide
+// whether a practice run stopped mid-hydration gets parked or erased.
+let deferredEnqueues: Array<
+  readonly [readonly TrialResultInput[], readonly TrialResult[]]
+> = [];
+
+export function drainDeferredEnqueues(): void {
+  if (isPersistenceLoading()) return;
+  const batch = deferredEnqueues;
+  deferredEnqueues = [];
+  batch.forEach(([inputs, results]) => enqueueRun(inputs, results));
+}
+
 export function enqueueRun(
   inputs: readonly TrialResultInput[],
   results: readonly TrialResult[],
 ): void {
-  // A persister mid-initial-load would clobber rows written now — replay the
-  // enqueue once hydration lands. In-memory-only environments (tests, SSR)
-  // take the immediate path.
+  // A persister mid-initial-load would clobber rows written now — queue the
+  // enqueue and replay it once hydration lands. In-memory-only environments
+  // (tests, SSR) take the immediate path.
   if (isPersistenceLoading()) {
-    afterHydration(() => enqueueRun(inputs, results));
+    if (deferredEnqueues.length === 0) afterHydration(drainDeferredEnqueues);
+    deferredEnqueues.push([inputs, results]);
     return;
   }
   inputs.forEach((input, i) => {
