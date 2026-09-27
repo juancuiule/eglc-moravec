@@ -53,13 +53,33 @@ export const TrialResultsSchema = z.object({
 
 export type TrialResultInput = z.infer<typeof TrialResultSchema>;
 
-// The pull-side wire shape (GET /sync/trials): a pushed trial plus the
+// The pull-side wire shape (GET /sync/trials): a stored trial plus the
 // server's evaluation. Clients validate every pulled row against this
 // before it enters their local read model — a malformed response must not
-// persist as truth.
-export const SyncedTrialSchema = TrialResultSchema.and(
-  z.object({ correct: z.boolean(), timeExceeded: z.boolean() }),
-);
+// persist as truth. Deliberately NOT TrialResultSchema: that one enforces
+// today's playable catalog (supported category, operands matching it),
+// which is a rule for new submissions. Historical rows may reference
+// categories since retired — still valid research data, and computeStats
+// already renders them — so here the category is just a non-empty string.
+const SyncedTrialFields = {
+  ...TrialResultFields,
+  categoryCodename: z.string().min(1),
+  correct: z.boolean(),
+  timeExceeded: z.boolean(),
+};
+
+export const SyncedTrialSchema = z.discriminatedUnion("runType", [
+  z.object({
+    ...SyncedTrialFields,
+    runType: z.literal("level"),
+    levelNumber: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+  }),
+  z.object({
+    ...SyncedTrialFields,
+    runType: z.literal("practice"),
+    levelNumber: z.null(),
+  }),
+]);
 
 export function parseTrialResults(body: unknown): TrialResultInput[] | null {
   const parsed = TrialResultsSchema.safeParse(body);

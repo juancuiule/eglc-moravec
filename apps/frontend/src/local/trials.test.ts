@@ -166,6 +166,16 @@ describe("mergeServerTrials", () => {
     warn.mockRestore();
   });
 
+  it("keeps historical rows whose category has since been retired — they still count in stats and exports", () => {
+    const retired = makeSynced({
+      categoryCodename: "9dx9d-retired",
+      operands: [123456789, 987654321],
+    });
+    mergeServerTrials([retired]);
+    expect(allLocalTrials().map((t) => t.id)).toEqual([retired.id]);
+    expect(allLocalTrials()[0]?.categoryCodename).toBe("9dx9d-retired");
+  });
+
   it("upserts server rows as synced, with server-authoritative fields", () => {
     mergeServerTrials([makeSynced()]);
     const row = localStore.getRow(
