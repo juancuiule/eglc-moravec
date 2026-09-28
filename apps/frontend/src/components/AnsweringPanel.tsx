@@ -1,16 +1,15 @@
 "use client";
 
-import type { Answering, Operation, TrialResult } from "engine";
+import type { Answering, Operation } from "engine";
+import type { Reviewing } from "../trialSession";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { panel } from "../styles";
 import { HintCard } from "./HintCard";
 
-type ReviewingResult = { type: "reviewing"; result: TrialResult };
-
 type Props = {
   operation: Operation;
-  playingState: Answering | ReviewingResult;
+  playingState: Answering | Reviewing;
   hintVisible: boolean;
   onSubmitAnswer: (answer: number) => void;
   onTimeUp: (answer: number | null) => void;
@@ -43,7 +42,7 @@ export function AnsweringPanel({
   headerRight,
   beforeOperation,
 }: Props) {
-  const t = useTranslations("Practice");
+  const t = useTranslations("Common");
   const KEY_LABELS: Record<string, string> = {
     C: t("clear"),
     "⌫": t("deleteLastDigit"),
@@ -53,7 +52,11 @@ export function AnsweringPanel({
 
   const [answer, setAnswer] = useState("");
   const [pressedKey, setPressedKey] = useState<string | null>(null);
-  const [remaining, setRemaining] = useState(solveTime);
+  // The bar's width/color update imperatively at 10Hz — routing every tick
+  // through state would re-render the whole keypad all trial long. React
+  // state only carries the once-per-second digit.
+  const [seconds, setSeconds] = useState(() => Math.ceil(solveTime / 1000));
+  const barRef = useRef<HTMLDivElement>(null);
   const answerRef = useRef("");
 
   // Countdown timer — only active while answering
@@ -64,7 +67,23 @@ export function AnsweringPanel({
     if (startedAt === null) return;
     const id = setInterval(() => {
       const left = Math.max(0, solveTime - (Date.now() - startedAt));
-      setRemaining(left);
+      const bar = barRef.current;
+      if (bar) {
+        // Referencing the theme's own CSS variables (Tailwind v4 emits one
+        // per @theme color) instead of repeating their hex values here.
+        const ratio = left / solveTime;
+        bar.style.width = `${ratio * 100}%`;
+        bar.style.backgroundColor =
+          ratio > 0.5
+            ? "var(--color-success)"
+            : ratio > 0.25
+              ? "var(--color-warning)"
+              : "var(--color-danger)";
+      }
+      setSeconds((prev) => {
+        const next = Math.ceil(left / 1000);
+        return prev === next ? prev : next;
+      });
       if (left === 0) {
         clearInterval(id);
         onTimeUp(parsedAnswer(answerRef.current));
@@ -84,12 +103,11 @@ export function AnsweringPanel({
   useEffect(() => {
     if (playingState.type !== "answering") return;
     function onKeyDown(e: KeyboardEvent) {
-      if (/^\d$/.test(e.key)) {
-        handleButton(e.key);
-      } else if (e.key === "Backspace") {
-        handleButton("⌫");
-      } else if (e.key === "Delete") {
-        handleButton("C");
+      const key =
+        e.key === "Backspace" ? "⌫" : e.key === "Delete" ? "C" : e.key;
+      if (/^\d$/.test(key) || key === "⌫" || key === "C") {
+        press(key);
+        handleButton(key);
       } else if (e.key === "Enter") {
         doSubmit();
       }
@@ -109,8 +127,9 @@ export function AnsweringPanel({
     setTimeout(() => setPressedKey((k) => (k === key ? null : k)), 150);
   }
 
+  // The press animation lives at the event edge (onPointerDown / keydown) —
+  // not here — so a tap's pointerdown+click pair doesn't fire it twice.
   function handleButton(key: string) {
-    press(key);
     if (key === "C") {
       setAnswer("");
       answerRef.current = "";
@@ -134,17 +153,6 @@ export function AnsweringPanel({
   const isReviewing = playingState.type === "reviewing";
   const result = isReviewing ? playingState.result : null;
 
-  const ratio = remaining / solveTime;
-  // Referencing the theme's own CSS variables (Tailwind v4 emits one per
-  // @theme color) instead of repeating their hex values here in JS.
-  const timerColor =
-    ratio > 0.5
-      ? "var(--color-success)"
-      : ratio > 0.25
-        ? "var(--color-warning)"
-        : "var(--color-danger)";
-  const seconds = Math.ceil(remaining / 1000);
-
   return (
     <div className={`${panel} p-6 gap-5`}>
       {/* Header */}
@@ -163,8 +171,9 @@ export function AnsweringPanel({
         className={`h-1.5 bg-subtle rounded-full overflow-hidden transition-opacity duration-300 ${isReviewing ? "opacity-0" : "opacity-100"}`}
       >
         <div
+          ref={barRef}
           className="h-full rounded-full transition-[width] duration-100 ease-linear"
-          style={{ width: `${ratio * 100}%`, backgroundColor: timerColor }}
+          style={{ width: "100%", backgroundColor: "var(--color-success)" }}
         />
       </div>
 
@@ -219,6 +228,7 @@ export function AnsweringPanel({
 
         {isReviewing && result && (
           <div
+            role="status"
             className={[
               "absolute inset-0 rounded-xl flex flex-col items-center justify-center gap-1 font-semibold",
               result.correct

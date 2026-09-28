@@ -2,15 +2,17 @@
 
 import { canShowHint } from "engine";
 import { useTranslations } from "next-intl";
-import type { Playing } from "../game/index";
+import Link from "next/link";
+import { HINTS_PER_LEVEL, type Playing } from "../game/index";
 import { useGame } from "../game/store";
-import { hintButton } from "../styles";
+import { backLink, hintButton } from "../styles";
 import { AnsweringPanel } from "./AnsweringPanel";
 
 type Props = { state: Playing };
 
 export function AnsweringView({ state }: Props) {
   const t = useTranslations("Levels");
+  const tCommon = useTranslations("Common");
   const submitAnswer = useGame((s) => s.submitAnswer);
   const timeUp = useGame((s) => s.timeUp);
   const advance = useGame((s) => s.advance);
@@ -39,11 +41,22 @@ export function AnsweringView({ state }: Props) {
         </h1>
       }
       headerLeft={
-        <span>
-          {t("trial", {
-            current: state.results.length + 1,
-            total: state.config.totalTrials,
-          })}
+        <span className="flex items-center gap-3">
+          {/* Leaving mid-run abandons it — same as the browser back button,
+              but a visible affordance instead of a 20-trial dead end. */}
+          <Link
+            href="/"
+            className={backLink}
+            aria-label={tCommon("backToMenu")}
+          >
+            ←
+          </Link>
+          <span>
+            {t("trial", {
+              current: state.results.length + 1,
+              total: state.config.totalTrials,
+            })}
+          </span>
         </span>
       }
       headerRight={
@@ -53,7 +66,10 @@ export function AnsweringView({ state }: Props) {
           className={hintButton({ disabled: hintDisabled })}
           title={t("hintTooltip")}
         >
-          {t("hint", { remaining: state.hintsRemaining })}
+          {t("hint", {
+            remaining: state.hintsRemaining,
+            total: HINTS_PER_LEVEL,
+          })}
         </button>
       }
     />

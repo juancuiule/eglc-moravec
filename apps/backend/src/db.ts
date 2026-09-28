@@ -2,7 +2,11 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { cleanupExpiredAuthData } from "./auth/repo.js";
-import { assertLevelsAreContiguous, seedLevelsIfEmpty } from "./levels/repo.js";
+import {
+  assertLevelMixesAreValid,
+  assertLevelsAreContiguous,
+  seedLevelsIfEmpty,
+} from "./levels/repo.js";
 
 const SCHEMA_STATEMENTS: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS users (
@@ -59,7 +63,12 @@ type ColumnMigration = {
 const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [];
 
 const INDEX_STATEMENTS: readonly string[] = [
-  "CREATE INDEX IF NOT EXISTS idx_trial_results_email_hash ON trial_results(email_hash)",
+  // The composite replaces the old single-column index: the leftmost
+  // email_hash still serves per-user lookups, and per-user reads ordered by
+  // played_at (every /sync/trials and /sync/level-stats call) no longer sort
+  // the whole history in memory.
+  "DROP INDEX IF EXISTS idx_trial_results_email_hash",
+  "CREATE INDEX IF NOT EXISTS idx_trial_results_email_played ON trial_results(email_hash, played_at)",
 ];
 
 function tableColumns(db: DatabaseSync, table: string): Set<string> {
@@ -87,6 +96,7 @@ export function openDb(path: string, now: number = Date.now()): DatabaseSync {
   cleanupExpiredAuthData(db, now);
   seedLevelsIfEmpty(db);
   assertLevelsAreContiguous(db);
+  assertLevelMixesAreValid(db);
   return db;
 }
 

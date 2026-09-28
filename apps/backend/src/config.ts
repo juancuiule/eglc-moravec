@@ -1,3 +1,4 @@
+import { SESSION_TTL_MS } from "engine";
 import { isIP } from "node:net";
 
 export type Config = {
@@ -12,6 +13,8 @@ export type Config = {
   otpIpRateLimitWindowMs: number;
   otpGlobalRateLimitMax: number;
   otpGlobalRateLimitWindowMs: number;
+  deviceRateLimitMax: number;
+  deviceRateLimitWindowMs: number;
   trustedProxyIp: string | null;
   sessionTtlMs: number;
   corsOrigin: string | true;
@@ -74,8 +77,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       "OTP_GLOBAL_RATE_LIMIT_WINDOW_MS",
       3_600_000,
     ),
+    // /auth/device mints an anonymous session — unauthenticated, so it gets
+    // its own generous per-IP ceiling (session mints are rare in practice).
+    deviceRateLimitMax: positiveInteger(env, "DEVICE_RATE_LIMIT_MAX", 30),
+    deviceRateLimitWindowMs: positiveInteger(
+      env,
+      "DEVICE_RATE_LIMIT_WINDOW_MS",
+      600_000,
+    ),
     trustedProxyIp,
-    sessionTtlMs: 30 * 24 * 60 * 60 * 1000,
+    sessionTtlMs: SESSION_TTL_MS,
     corsOrigin: nonEmpty(env.CORS_ORIGIN) ?? true,
     prettyPrintLogs: env.NODE_ENV === "development",
   };

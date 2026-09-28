@@ -35,7 +35,7 @@ export function PracticeSummary({ state }: Props) {
         className="text-center animate-fade-in"
         style={{ animationDelay: "150ms", animationFillMode: "backwards" }}
       >
-        <span className="text-5xl font-bold text-accent">{pct}%</span>
+        <span className="text-5xl font-bold font-mono text-accent">{pct}%</span>
         <p className="text-muted text-sm mt-1">
           {t("sessionResult", { correct: correctCount, total })}
         </p>

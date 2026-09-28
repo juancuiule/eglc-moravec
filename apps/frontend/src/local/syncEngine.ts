@@ -6,8 +6,8 @@ import { authStore, authToken, setLogoutHook } from "../auth/store";
 import {
   drainDeferredEnqueues,
   markSynced,
-  mergeServerTrials,
   pendingInputs,
+  pullServerTrials,
 } from "./trials";
 import {
   dropStashedRowIds,
@@ -73,6 +73,11 @@ export const syncStatus = createStore<{ pullSettledToken: string | null }>(
   () => ({ pullSettledToken: null }),
 );
 
+// Sentinel for "the flush settled with no session at all" — distinct from a
+// real token so readers can tell "no session exists (yet)" from "this
+// session's pull settled". A mint that lands later replaces it.
+export const NO_SESSION = "__no-session__";
+
 type PassOutcome = "done" | "unauthorized" | "failed" | "stale-epoch";
 
 // Pending rows as MAX_SYNC_TRIALS-sized batches — a generator so the push
@@ -99,10 +104,7 @@ async function pushThenPull(token: string, gen: number): Promise<PassOutcome> {
       // The server now owns these ids — any parked fallback is redundant.
       dropStashedRowIds(batch.map((i) => i.id));
     }
-    const pulled = await Api.fetchTrials(token);
-    if (localEpoch() !== gen) return "stale-epoch";
-    mergeServerTrials(pulled);
-    return "done";
+    return (await pullServerTrials(token, gen)) ? "done" : "stale-epoch";
   } catch (e) {
     return e instanceof ApiError && e.status === 401
       ? "unauthorized"
@@ -120,7 +122,17 @@ function healDeadSession(failedToken: string): void {
   const current = authStore.getState().state;
   if (authToken(current) !== failedToken) return;
   if (current.type === "logged-in") {
-    stashPendingRows(current.email, pendingRowSnapshot());
+    // Unlike logout's bounded dying-token push, nothing here can deliver
+    // the rows under the correct identity — the token just 401'd — and
+    // letting them ride into the next session would re-key them to whoever
+    // logs in next. Parking is the only safe retention; if localStorage is
+    // unavailable the wipe still happens (privacy wins over retention),
+    // but the loss gets said.
+    if (!stashPendingRows(current.email, pendingRowSnapshot())) {
+      console.error(
+        "localFirst: could not park a dead account's pending trials — wiping the outbox",
+      );
+    }
     authStore.getState().invalidateSession();
     resetLocalData();
   } else {
@@ -138,6 +150,10 @@ async function flushPass(): Promise<void> {
     (await authStore.getState().ensureSessionToken());
   if (!token) {
     if (pendingInputs().length > 0) scheduleRetry();
+    // Session establishment failed outright — there's no pull to wait for.
+    // Settle the gate explicitly or a locked-looking level would sit on its
+    // loading panel forever while the backend is down.
+    syncStatus.setState({ pullSettledToken: NO_SESSION });
     return;
   }
 
@@ -158,6 +174,9 @@ async function flushPass(): Promise<void> {
   if (outcome !== "stale-epoch" && token !== null) {
     syncStatus.setState({ pullSettledToken: token });
   }
+  // A settled pass resets the backoff so an unrelated later failure doesn't
+  // inherit escalated delay; only consecutive failures climb the ladder.
+  if (outcome === "done") failures = 0;
   if (outcome === "failed") scheduleRetry();
 }
 

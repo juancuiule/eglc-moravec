@@ -14,6 +14,23 @@ export async function errorFrom(res: Response): Promise<string> {
   );
 }
 
+// Backend error codes → keys under the Auth.errors namespace. Anything
+// unrecognized (network failures' "Failed to fetch", codes added later)
+// maps to the generic key — a raw machine string must never render to
+// users (an untranslated "invalid_code" is what shipped before this).
+export function authErrorKey(code: string): string {
+  switch (code) {
+    case "rate_limited":
+      return "rateLimited";
+    case "invalid_code":
+      return "invalidCode";
+    case "email_delivery_failed":
+      return "emailDeliveryFailed";
+    default:
+      return "generic";
+  }
+}
+
 // Carries the HTTP status so callers can distinguish a dead session (401)
 // from a generic failure without parsing message strings.
 export class ApiError extends Error {

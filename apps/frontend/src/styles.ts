@@ -15,9 +15,6 @@ import { cva, type VariantProps } from "class-variance-authority";
 export const panel =
   "bg-panel border border-subtle rounded-2xl w-full max-w-[480px] flex flex-col";
 
-/** Same width as `panel`, for the rare surface (FinishedScreen's correct/wrong tinting) that doesn't build on `panel` itself. */
-export const panelMaxWidth = "max-w-[480px]";
-
 /** The four button treatments used across the app. Callers add their own layout classes (block, flex-1, text-center, …). */
 export const button = cva("cursor-pointer rounded-lg touch-manipulation", {
   variants: {
@@ -62,9 +59,12 @@ export const backLink =
 export const textLink =
   "text-muted text-sm hover:text-foreground transition-colors";
 
-/** The in-trial "Hint" button — same disabled/enabled treatment in Level play and Practice. */
+/** The in-trial "Hint" button — same disabled/enabled treatment in Level play and Practice.
+ *  The after: pseudo-element expands the hit area vertically to the 44px
+ *  touch floor without changing the visual size; it only stretches up/down
+ *  so it never overlaps the neighboring Stop button. */
 export const hintButton = cva(
-  "text-xs font-medium px-2 py-1.5 rounded-lg transition-all touch-manipulation",
+  "text-xs font-medium px-2 py-1.5 rounded-lg transition-all touch-manipulation relative after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']",
   {
     variants: {
       disabled: {
@@ -76,4 +76,4 @@ export const hintButton = cva(
 );
 
 export const navLink =
-  "text-sm text-muted hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-subtle";
+  "text-sm text-muted hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-subtle relative after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']";

@@ -5,6 +5,7 @@ export function YouTubeEmbed({ videoId, title }: Props) {
     <div className="aspect-video w-full rounded-xl overflow-hidden bg-base">
       <iframe
         key={videoId}
+        loading="lazy"
         className="w-full h-full"
         src={`https://www.youtube-nocookie.com/embed/${videoId}`}
         title={title}

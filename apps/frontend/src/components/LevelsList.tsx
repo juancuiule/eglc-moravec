@@ -18,20 +18,31 @@ function RowStars({
   light?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("Levels");
   return (
-    <span className={`text-sm shrink-0 ${className || ""}`}>
+    <span
+      role="img"
+      aria-label={t("stars", { count: stars })}
+      className={`text-sm shrink-0 ${className || ""}`}
+    >
       {" "}
-      {[1, 2, 3].map((n) =>
-        n <= stars ? (
-          <span key={n} className={light ? "text-white" : "text-accent-text"}>
-            ★
-          </span>
-        ) : (
-          <span key={n} className={light ? "text-white/70" : "text-disabled"}>
-            ☆
-          </span>
-        ),
-      )}
+      {[1, 2, 3].map((n) => (
+        <span
+          key={n}
+          aria-hidden="true"
+          className={
+            n <= stars
+              ? light
+                ? "text-white"
+                : "text-accent-text"
+              : light
+                ? "text-white/70"
+                : "text-disabled"
+          }
+        >
+          {n <= stars ? "★" : "☆"}
+        </span>
+      ))}
     </span>
   );
 }
@@ -95,8 +106,11 @@ export function LevelsList(props: {
                 >
                   <span className="font-semibold min-w-0 truncate">
                     {t("level", { number: n })}
+                    <span className="sr-only">{t("levelLocked")}</span>
                   </span>
-                  <span className="shrink-0">🔒</span>
+                  <span className="shrink-0" aria-hidden="true">
+                    🔒
+                  </span>
                 </div>
               );
             }
@@ -125,7 +139,7 @@ export function LevelsList(props: {
               <Link
                 key={n}
                 href={`/level/${n}`}
-                className="flex items-center justify-between gap-2 px-6 py-3 border-b border-subtle hover:bg-base transition-color *:flex-1 *:flex"
+                className="flex items-center justify-between gap-2 px-6 py-3 border-b border-subtle hover:bg-base transition-colors *:flex-1 *:flex"
               >
                 <span className="font-semibold text-muted justify-start min-w-0 truncate">
                   {t("level", { number: n })}

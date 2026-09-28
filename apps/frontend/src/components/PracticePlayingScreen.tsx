@@ -4,6 +4,7 @@ import { canShowHint } from "engine";
 import { useTranslations } from "next-intl";
 import type { PracticePlaying } from "../practice/index";
 import { usePractice } from "../practice/store";
+import { CATEGORY_LABELS } from "../categoryLabels";
 import { AnsweringPanel } from "./AnsweringPanel";
 import { hintButton } from "../styles";
 
@@ -36,7 +37,8 @@ export function PracticePlayingScreen({ state }: Props) {
       onAdvance={advance}
       beforeOperation={
         <div className="text-center text-xs text-accent-text font-mono tracking-wider">
-          {state.config.categoryCodename}
+          {CATEGORY_LABELS[state.config.categoryCodename] ??
+            state.config.categoryCodename}
         </div>
       }
       headerLeft={
@@ -59,7 +61,7 @@ export function PracticePlayingScreen({ state }: Props) {
           )}
           <button
             onClick={stop}
-            className="text-muted hover:text-foreground transition-colors text-xs font-medium cursor-pointer touch-manipulation px-2 py-1.5"
+            className="text-muted hover:text-foreground transition-colors text-xs font-medium cursor-pointer touch-manipulation px-2 py-1.5 relative after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']"
           >
             {t("stop")}
           </button>

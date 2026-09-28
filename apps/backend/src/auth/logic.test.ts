@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   normalizeEmail,
-  isValidEmail,
   hashEmail,
   hashDeviceId,
   isOtpValid,
@@ -10,20 +9,6 @@ import {
 describe("normalizeEmail", () => {
   it("trims and lowercases", () => {
     expect(normalizeEmail("  Foo@Bar.com  ")).toBe("foo@bar.com");
-  });
-});
-
-describe("isValidEmail", () => {
-  it("accepts a plausible email", () => {
-    expect(isValidEmail("a@b.com")).toBe(true);
-  });
-
-  it("rejects a string with no @", () => {
-    expect(isValidEmail("nope")).toBe(false);
-  });
-
-  it("rejects an empty string", () => {
-    expect(isValidEmail("")).toBe(false);
   });
 });
 

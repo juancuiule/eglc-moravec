@@ -1,4 +1,10 @@
 {
   "backToMenu": "Volver al menú",
-  "language": "Idioma"
+  "language": "Idioma",
+  "submit": "Enviar",
+  "correct": "Correcto",
+  "wrong": "Incorrecto",
+  "timeUp": "Se acabó el tiempo",
+  "clear": "Borrar todo",
+  "deleteLastDigit": "Borrar el último dígito"
 }

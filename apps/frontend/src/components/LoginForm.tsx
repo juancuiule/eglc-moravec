@@ -1,6 +1,7 @@
 "use client";
 
 import { Api } from "@/api/Api";
+import { authErrorKey } from "@/api/utils";
 import { backLink, button, panel } from "@/styles";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -10,6 +11,7 @@ import { useState } from "react";
 
 export function LoginForm() {
   const t = useTranslations("Auth.login");
+  const tErrors = useTranslations("Auth.errors");
   const tCommon = useTranslations("Common");
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -55,10 +57,8 @@ export function LoginForm() {
           autoFocus
         />
         {requestCode.error && (
-          <p className="text-sm text-danger">
-            {requestCode.error.message === "rate_limited"
-              ? t("rateLimited")
-              : requestCode.error.message}
+          <p role="alert" className="text-sm text-danger">
+            {tErrors(authErrorKey(requestCode.error.message))}
           </p>
         )}
         <button

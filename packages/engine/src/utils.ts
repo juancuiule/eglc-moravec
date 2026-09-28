@@ -40,6 +40,22 @@ export const math = {
   },
 };
 
+// Map.groupBy exists (Node ≥21, Chrome 117, Safari 17.4) but is too new to
+// rely on for a phone-first browser target — same shape, hand-rolled.
+export function groupBy<T, K>(
+  list: readonly T[],
+  key: (item: T) => K,
+): Map<K, T[]> {
+  const groups = new Map<K, T[]>();
+  list.forEach((item) => {
+    const k = key(item);
+    const group = groups.get(k);
+    if (group === undefined) groups.set(k, [item]);
+    else group.push(item);
+  });
+  return groups;
+}
+
 export function getKeys<T extends object>(obj: T): (keyof T)[] {
   return Object.keys(obj) as (keyof T)[];
 }

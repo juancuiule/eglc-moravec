@@ -21,7 +21,6 @@ type Props = {
 
 export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
   const t = useTranslations("Levels");
-  const tCommon = useTranslations("Common");
   const router = useRouter();
   const reset = useGame((s) => s.reset);
   const start = useGame((s) => s.start);
@@ -156,7 +155,7 @@ export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
           {levelCompleted ? t("replay") : t("tryAgain")}
         </button>
         <button className={button({ intent: "ghost" })} onClick={backToMenu}>
-          {tCommon("backToMenu")} (M)
+          {t("backToMenuShortcut")}
         </button>
       </div>
     </div>

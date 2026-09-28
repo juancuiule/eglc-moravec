@@ -82,16 +82,8 @@ function OperationHeatmap({
                   : op.errors / op.attempts;
               return (
                 <div
-                  key={`${row}${col}`}
+                  key={`${row}-${col}`}
                   className="aspect-square rounded-sm"
-                  aria-label={
-                    op
-                      ? `${a} × ${b}: ${t("wrongOfAttempts", {
-                          errors: op.errors,
-                          attempts: op.attempts,
-                        })}`
-                      : `${a} × ${b}`
-                  }
                   style={{
                     backgroundColor:
                       rate < 0
@@ -298,7 +290,7 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
                     attempts: op.attempts,
                   })}
                   {op.avgCorrectTimeMs !== null &&
-                    ` · ${(op.avgCorrectTimeMs / 1000).toFixed(1)}s`}
+                    ` · ${formatSeconds(op.avgCorrectTimeMs)}`}
                 </span>
               </div>
             ))

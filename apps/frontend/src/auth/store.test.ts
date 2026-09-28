@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../api/Api", () => ({
   Api: {
-    checkSession: vi.fn(),
+    sessionStatus: vi.fn(),
     logout: vi.fn(),
     registerDevice: vi.fn(),
   },
@@ -65,7 +65,7 @@ describe("createAuthStore", () => {
     vi.mocked(loadSession).mockReturnValue({ token: "t1", email: "a@b.com" });
     const store = createAuthStore();
     store.getState().hydrate();
-    expect(Api.checkSession).not.toHaveBeenCalled();
+    expect(Api.sessionStatus).not.toHaveBeenCalled();
   });
 
   it("hydrate() restores an anonymous state from a persisted session with a null email", () => {
@@ -131,34 +131,24 @@ describe("createAuthStore", () => {
       });
     });
 
-    it("does not replace an anonymous session established by a concurrent call", async () => {
-      const firstRegistration = deferred<{
-        token: string;
-        expiresAt: number;
-      }>();
-      const secondRegistration = deferred<{
-        token: string;
-        expiresAt: number;
-      }>();
-      vi.mocked(Api.registerDevice)
-        .mockReturnValueOnce(firstRegistration.promise)
-        .mockReturnValueOnce(secondRegistration.promise);
+    it("coalesces concurrent calls into a single anonymous mint — no orphan session", async () => {
+      const registration = deferred<{ token: string; expiresAt: number }>();
+      vi.mocked(Api.registerDevice).mockReturnValue(registration.promise);
       const store = createAuthStore();
 
       const firstEnsureSession = store.getState().ensureSession();
       const secondEnsureSession = store.getState().ensureSession();
-      secondRegistration.resolve({ token: "second-token", expiresAt: 123 });
-      await secondEnsureSession;
-      firstRegistration.resolve({ token: "first-token", expiresAt: 123 });
-      await firstEnsureSession;
+      registration.resolve({ token: "anon-token", expiresAt: 123 });
+      await Promise.all([firstEnsureSession, secondEnsureSession]);
 
+      expect(Api.registerDevice).toHaveBeenCalledTimes(1);
       expect(store.getState().state).toEqual({
         type: "anonymous",
-        token: "second-token",
+        token: "anon-token",
       });
       expect(saveSession).toHaveBeenCalledTimes(1);
       expect(saveSession).toHaveBeenCalledWith({
-        token: "second-token",
+        token: "anon-token",
         email: null,
       });
     });

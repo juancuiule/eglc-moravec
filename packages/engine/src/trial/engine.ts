@@ -36,7 +36,10 @@ export const Trial = {
     base: Omit<BaseTrialResult, "timeTaken">,
     startedAt: number,
   ) => {
-    const timeTaken = Date.now() - startedAt;
+    // Clock rollbacks (NTP correction, manual change) would otherwise yield
+    // a negative timeTaken — which then fails schema validation at enqueue
+    // and silently deletes the trial from both the store and the sync push.
+    const timeTaken = Math.max(0, Date.now() - startedAt);
     const scoredBase: BaseTrialResult = { ...base, timeTaken };
     return Trial.build(scoredBase);
   },
