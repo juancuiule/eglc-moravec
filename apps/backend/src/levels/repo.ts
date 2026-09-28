@@ -35,11 +35,12 @@ export function assertLevelsAreContiguous(db: DatabaseSync): void {
   });
 }
 
-// Every mix must reference only currently-playable categories and carry at
-// least one positive weight — a typo'd or retired codename, or an all-zero
-// mix, otherwise throws mid-play inside pickRandomWeighted/createOperation.
-// Checked at boot: the catalog is operator data, so a bad row fails loudly
-// on deploy instead of in a player's session.
+// Every mix must reference only currently-playable categories and carry
+// non-negative finite weights summing to a finite positive total — a typo'd
+// or retired codename, a negative weight, or an overflowing sum otherwise
+// throws mid-play inside pickRandomWeighted/createOperation. Checked at
+// boot: the catalog is operator data, so a bad row fails loudly on deploy
+// instead of in a player's session.
 export function assertLevelMixesAreValid(db: DatabaseSync): void {
   const rows = db.prepare("SELECT level_number, mix FROM levels").all() as {
     level_number: number;
@@ -55,15 +56,21 @@ export function assertLevelMixesAreValid(db: DatabaseSync): void {
       ([codename, weight]) =>
         !isSupportedCategoryCodename(codename) ||
         typeof weight !== "number" ||
-        !Number.isFinite(weight),
+        !Number.isFinite(weight) ||
+        weight < 0,
     );
     const totalWeight = entries.reduce(
       (sum, [, weight]) => sum + (weight as number),
       0,
     );
-    if (entries.length === 0 || invalid || totalWeight <= 0) {
+    if (
+      entries.length === 0 ||
+      invalid ||
+      !Number.isFinite(totalWeight) ||
+      totalWeight <= 0
+    ) {
       throw new Error(
-        `Level ${level_number} mix is invalid: every category codename must be supported and at least one weight positive`,
+        `Level ${level_number} mix is invalid: every category codename must be supported, weights must be finite and non-negative, and the total must be finite and positive`,
       );
     }
   });

@@ -100,6 +100,26 @@ function OperationHeatmap({
           </Fragment>
         ))}
       </div>
+      {/* role="img" flattens the colored cells to their label — the same
+          data stays reachable as a real (visually hidden) table. */}
+      <table className="sr-only">
+        <caption>{t("errorHeatmap")}</caption>
+        <tbody>
+          {[...byOp.values()]
+            .filter((op) => op.attempts > 0)
+            .map((op) => (
+              <tr key={op.operands.join("|")}>
+                <th scope="row">{op.operands.join(" × ")}</th>
+                <td>
+                  {t("wrongOfAttempts", {
+                    errors: op.errors,
+                    attempts: op.attempts,
+                  })}
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
     </div>
   );
 }

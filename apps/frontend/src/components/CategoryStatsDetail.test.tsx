@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
 import type { StatsTrial } from "../stats/computeStats";
@@ -58,8 +58,8 @@ test("does not offer a confusion for errors that aren't table neighbors", () => 
 
   expect(screen.queryByText(/that's/)).toBeNull();
   // ...but the problem still shows up under Hardest problems.
-  expect(screen.getByText("Hardest problems")).toBeDefined();
-  expect(screen.getByText("6 × 7")).toBeDefined();
+  const hardest = screen.getByText("Hardest problems").parentElement!;
+  expect(within(hardest).getByText("6 × 7")).toBeDefined();
 });
 
 test("renders the per-operation error heatmap for 1dx1d only", () => {

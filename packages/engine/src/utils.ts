@@ -13,9 +13,14 @@ export const math = {
     if (list.length !== weights.length) {
       throw new Error("List and weights must have the same length");
     }
+    if (weights.some((w) => !Number.isFinite(w) || w < 0)) {
+      throw new Error("Weights must be finite and non-negative");
+    }
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-    if (totalWeight <= 0) {
-      throw new Error("Total weight must be greater than zero");
+    // An overflowing total (two 1e308s) is un-samplable just like zero is —
+    // check finiteness, not only sign.
+    if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+      throw new Error("Total weight must be finite and greater than zero");
     }
     let random = Math.random() * totalWeight;
     for (let i = 0; i < list.length; i++) {

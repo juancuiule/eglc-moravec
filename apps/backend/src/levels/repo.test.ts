@@ -114,4 +114,28 @@ describe("openDb catalog validation", () => {
     expect(getLevelNumbers(db)).toEqual([1, 2]);
     db.close();
   });
+
+  describe("mix validation", () => {
+    const setLevel1Mix = (mix: Record<string, number>) => (db: DatabaseSync) =>
+      db
+        .prepare("UPDATE levels SET mix = ? WHERE level_number = 1")
+        .run(JSON.stringify(mix));
+
+    it("rejects a negative weight — it can never be sampled", () => {
+      const path = tamperedDb(
+        setLevel1Mix({ "1d+1d": 10, "1dx1d": -5, "2d+2d": 10 }),
+      );
+      expect(() => openDb(path)).toThrow(/Level 1 mix is invalid/);
+    });
+
+    it("rejects a mix whose total overflows to Infinity", () => {
+      const path = tamperedDb(setLevel1Mix({ "1d+1d": 1e308, "1dx1d": 1e308 }));
+      expect(() => openDb(path)).toThrow(/Level 1 mix is invalid/);
+    });
+
+    it("rejects an all-zero mix", () => {
+      const path = tamperedDb(setLevel1Mix({ "1d+1d": 0, "1dx1d": 0 }));
+      expect(() => openDb(path)).toThrow(/Level 1 mix is invalid/);
+    });
+  });
 });

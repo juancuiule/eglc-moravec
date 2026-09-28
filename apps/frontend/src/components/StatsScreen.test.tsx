@@ -217,7 +217,7 @@ test("renders the activity calendar and days-trained caption once trials exist",
   ]);
   renderWithQueryClient();
 
-  expect(await screen.findByRole("group", { name: "Activity" })).toBeDefined();
+  expect(await screen.findByRole("img", { name: "Activity" })).toBeDefined();
   expect(await screen.findByText("1 day trained this month")).toBeDefined();
 });
 

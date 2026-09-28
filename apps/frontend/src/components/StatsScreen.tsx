@@ -61,22 +61,27 @@ function ActivityCalendar({ trials }: { trials: PlayedTrial[] }) {
           {t("daysThisMonth", { count: daysThisMonth })}
         </span>
       </div>
+      {/* The 10px cells can't each meet the 44px touch floor (13px pitch),
+          so they're not controls — the whole calendar is the tap surface,
+          delegating to the tapped cell's day. Per-day counts stay reachable
+          to screen readers through the hidden list below. */}
       <div
         className="flex justify-center gap-[3px]"
-        role="group"
+        role="img"
         aria-label={t("activity")}
+        onClick={(e) => {
+          const day = (e.target as HTMLElement).dataset.day;
+          if (day) setSelectedDay(day);
+        }}
       >
         {weeks.map((week, wi) => (
           <div key={wi} className="flex flex-col gap-[3px]">
             {week.map((cell) => (
-              <button
+              <div
                 key={cell.day}
-                type="button"
-                disabled={cell.future}
-                onClick={() => setSelectedDay(cell.day)}
-                className="h-2.5 w-2.5 rounded-sm disabled:cursor-default"
+                data-day={cell.future ? undefined : cell.day}
+                className="h-2.5 w-2.5 rounded-sm"
                 title={dayLabel(cell.day, cell.count)}
-                aria-label={dayLabel(cell.day, cell.count)}
                 style={{
                   backgroundColor: cell.future
                     ? "transparent"
@@ -93,6 +98,14 @@ function ActivityCalendar({ trials }: { trials: PlayedTrial[] }) {
           </div>
         ))}
       </div>
+      <ul className="sr-only">
+        {weeks
+          .flat()
+          .filter((c) => !c.future && c.count > 0)
+          .map((c) => (
+            <li key={c.day}>{dayLabel(c.day, c.count)}</li>
+          ))}
+      </ul>
       {/* min-h reserves the line so tapping a cell doesn't shift layout */}
       <p className="min-h-4 text-center text-2xs text-muted-2">
         {selectedDay === null
