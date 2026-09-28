@@ -63,6 +63,10 @@ function stateFromPersisted(session: PersistedSession | null): AuthState {
 }
 
 export function createAuthStore() {
+  // Concurrent ensureSession callers (AuthBoot's boot call + a sync flush's
+  // ensureSessionToken) share one in-flight mint — without this each would
+  // POST /auth/device and leak an orphaned server-side session row.
+  let ensuring: Promise<void> | null = null;
   return createStore<AuthStore>((set, get) => ({
     state: { type: "logged-out" },
 
@@ -72,14 +76,19 @@ export function createAuthStore() {
 
     async ensureSession() {
       if (get().state.type !== "logged-out") return;
-      try {
-        const deviceId = getOrCreateDeviceId();
-        const session = await Api.registerDevice(deviceId);
-        if (get().state.type !== "logged-out") return;
-        get().loginAnonymous({ token: session.token });
-      } catch {
-        // Best-effort. AuthBoot and result persistence can retry later.
-      }
+      ensuring ??= (async () => {
+        try {
+          const deviceId = getOrCreateDeviceId();
+          const session = await Api.registerDevice(deviceId);
+          if (get().state.type !== "logged-out") return;
+          get().loginAnonymous({ token: session.token });
+        } catch {
+          // Best-effort. AuthBoot and result persistence can retry later.
+        } finally {
+          ensuring = null;
+        }
+      })();
+      await ensuring;
     },
 
     async ensureSessionToken() {

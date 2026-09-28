@@ -82,8 +82,8 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 - `textLink`, `navLink`, `hintButton` for their named roles.
 - Row patterns: dense `py-0.5`/`py-1` rows, `hover:bg-base` on
   interactive/scrollable rows.
-- Thin progress bars: 6px track `bg-base`, fill colored by meaning
-  (`EffBar` pattern).
+- Thin progress bars: 6px track `bg-subtle` (the bars sit inside `bg-base`
+  rows — see `EffBar`), fill colored by meaning.
 
 ## Motion
 

@@ -132,7 +132,7 @@ export class Multiplication extends Operation {
   }
 
   humanReadable(): string {
-    return `${this.leftOperand} x ${this.rightOperand}`;
+    return `${this.leftOperand} × ${this.rightOperand}`;
   }
 }
 

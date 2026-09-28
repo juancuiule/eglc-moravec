@@ -19,6 +19,7 @@ export {
 } from "./operations/operation";
 
 export type { Hint } from "./operations/hints/Hint";
+export { AdditionHint } from "./operations/hints/AdditionHint";
 export { MultiplicationHint } from "./operations/hints/MultiplicationHint";
 export { NoHint } from "./operations/hints/NoHint";
 export { SquaringHint } from "./operations/hints/SquaringHint";
@@ -34,13 +35,17 @@ export {
 export {
   MAX_DATE_TIMESTAMP,
   MAX_SYNC_TRIALS,
+  SESSION_TTL_MS,
   SyncedTrialSchema,
   TrialResultSchema,
   TrialResultsSchema,
   evaluateTrialResult,
   toTrialResultInputs,
   deriveLevelStats,
+  levelStatsToWire,
   type LevelStats,
+  type LevelStatsWire,
+  type SyncedTrial,
   type TrialResultInput,
   type TrialResultPolicy,
   type EvaluatedTrialResult,
@@ -55,4 +60,4 @@ export {
   type LevelRecordCandidate,
 } from "./levelScoring";
 
-export { getKeys, getValues, math } from "./utils";
+export { getKeys, getValues, groupBy, math } from "./utils";

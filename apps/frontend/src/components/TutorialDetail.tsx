@@ -137,6 +137,7 @@ export function TutorialDetail({ topic }: Props) {
             <div className="flex gap-4 mt-1">
               <button
                 onClick={() => setRevealed((r) => !r)}
+                aria-expanded={revealed}
                 className="text-xs text-accent-text hover:underline cursor-pointer touch-manipulation px-1 py-2"
               >
                 {revealed ? t("hideAnswer") : t("showAnswer")}

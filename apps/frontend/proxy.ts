@@ -26,11 +26,12 @@ export async function proxy(request: NextRequest) {
   );
   if (!session) return NextResponse.next();
 
-  const valid = await Api.checkSession(session.token).catch(() => true);
-  // A network failure here shouldn't log the player out — fail open and let
-  // the client-side session stand; the next real backend call will surface
-  // an actual auth failure if the token really is bad.
-  if (valid) return NextResponse.next();
+  const status = await Api.sessionStatus(session.token).catch(() => 0);
+  // Only a definitive 401 clears the cookie — a network failure or a
+  // transient backend 5xx must not log the player out: fail open and let
+  // the client-side session stand; the next real backend call surfaces an
+  // actual auth failure if the token really is bad.
+  if (status !== 401) return NextResponse.next();
 
   const response = NextResponse.next();
   response.cookies.delete(SESSION_COOKIE);

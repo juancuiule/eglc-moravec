@@ -55,12 +55,10 @@ function makeResult(overrides: Partial<TrialResult> = {}): TrialResult {
 }
 
 function makeSynced(overrides: Partial<SyncedTrial> = {}): SyncedTrial {
-  return {
+  const base = {
     id: "11111111-1111-4111-8111-111111111111",
     runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-    runType: "level",
     categoryCodename: "1dx1d",
-    levelNumber: 2,
     operands: [3, 4],
     answer: 12,
     correct: true,
@@ -68,8 +66,15 @@ function makeSynced(overrides: Partial<SyncedTrial> = {}): SyncedTrial {
     timeTaken: 900,
     hintShown: false,
     playedAt: 1_700_000_000_000,
-    ...overrides,
   };
+  return overrides.runType === "practice"
+    ? { ...base, ...overrides, runType: "practice", levelNumber: null }
+    : {
+        ...base,
+        ...overrides,
+        runType: "level",
+        levelNumber: overrides.levelNumber ?? 2,
+      };
 }
 
 beforeEach(() => {
@@ -156,9 +161,12 @@ describe("mergeServerTrials", () => {
   it("drops malformed pulled rows and keeps the valid ones", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const good = makeSynced();
-    const badAnswer = { ...makeSynced(), answer: "12" as unknown as number };
-    const badLevel = { ...makeSynced(), levelNumber: -1 };
-    const badId = { ...makeSynced(), id: "not-a-uuid" };
+    const badAnswer = {
+      ...makeSynced(),
+      answer: "12",
+    } as unknown as SyncedTrial;
+    const badLevel = { ...makeSynced(), levelNumber: -1 } as SyncedTrial;
+    const badId = { ...makeSynced(), id: "not-a-uuid" } as SyncedTrial;
     mergeServerTrials([good, badAnswer, badLevel, badId]);
 
     expect(Object.keys(localStore.getTable(TRIALS_TABLE))).toEqual([good.id]);

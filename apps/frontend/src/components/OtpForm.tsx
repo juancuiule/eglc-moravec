@@ -1,6 +1,7 @@
 "use client";
 
 import { Api } from "@/api/Api";
+import { authErrorKey } from "@/api/utils";
 import { useAuth } from "@/auth/store";
 import { backLink, button, panel } from "@/styles";
 import { useMutation } from "@tanstack/react-query";
@@ -9,20 +10,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function OtpForm({
-  email,
-  code: queryCode,
-}: {
-  email: string;
-  code?: string;
-}) {
+export function OtpForm({ email }: { email: string }) {
   const t = useTranslations("Auth.otp");
-  const tCommon = useTranslations("Common");
+  const tErrors = useTranslations("Auth.errors");
   const router = useRouter();
   const authState = useAuth((s) => s.state);
   const login = useAuth((s) => s.login);
 
-  const [code, setCode] = useState(queryCode ?? "");
+  const [code, setCode] = useState("");
 
   const verifyCode = useMutation({
     mutationFn: (vars: { code: string }) =>
@@ -42,7 +37,9 @@ export function OtpForm({
   return (
     <div className={`${panel} p-8 gap-4`}>
       <div className="flex items-center gap-3">
-        <Link href="/" className={backLink} aria-label={tCommon("backToMenu")}>
+        {/* Back goes to the email step, not home — the realistic reason to
+            leave this screen is a mistyped email. */}
+        <Link href="/login" className={backLink} aria-label={t("backToLogin")}>
           ←
         </Link>
         <h1 className="text-xl font-bold tracking-tight">{t("title")}</h1>
@@ -74,7 +71,9 @@ export function OtpForm({
           autoFocus
         />
         {verifyCode.error && (
-          <p className="text-sm text-danger">{verifyCode.error.message}</p>
+          <p role="alert" className="text-sm text-danger">
+            {tErrors(authErrorKey(verifyCode.error.message))}
+          </p>
         )}
         <button
           className={`${button({ intent: "primary" })} disabled:opacity-30 disabled:cursor-not-allowed`}

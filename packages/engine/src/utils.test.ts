@@ -34,6 +34,18 @@ describe("math.pickRandomWeighted", () => {
     expect(() => math.pickRandomWeighted([1], [0])).toThrow();
   });
 
+  it("throws on a negative weight — it can never be sampled", () => {
+    expect(() => math.pickRandomWeighted([1, 2], [10, -5])).toThrow();
+  });
+
+  it("throws on a non-finite weight", () => {
+    expect(() => math.pickRandomWeighted([1], [Infinity])).toThrow();
+  });
+
+  it("throws when the total weight overflows to Infinity", () => {
+    expect(() => math.pickRandomWeighted([1, 2], [1e308, 1e308])).toThrow();
+  });
+
   it("picks first item when random is 0", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     expect(math.pickRandomWeighted(["a", "b"], [50, 50])).toBe("a");

@@ -13,9 +13,14 @@ export const math = {
     if (list.length !== weights.length) {
       throw new Error("List and weights must have the same length");
     }
+    if (weights.some((w) => !Number.isFinite(w) || w < 0)) {
+      throw new Error("Weights must be finite and non-negative");
+    }
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-    if (totalWeight <= 0) {
-      throw new Error("Total weight must be greater than zero");
+    // An overflowing total (two 1e308s) is un-samplable just like zero is —
+    // check finiteness, not only sign.
+    if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+      throw new Error("Total weight must be finite and greater than zero");
     }
     let random = Math.random() * totalWeight;
     for (let i = 0; i < list.length; i++) {
@@ -39,6 +44,22 @@ export const math = {
     return this.sumBy(list, (x) => x);
   },
 };
+
+// Map.groupBy exists (Node ≥21, Chrome 117, Safari 17.4) but is too new to
+// rely on for a phone-first browser target — same shape, hand-rolled.
+export function groupBy<T, K>(
+  list: readonly T[],
+  key: (item: T) => K,
+): Map<K, T[]> {
+  const groups = new Map<K, T[]>();
+  list.forEach((item) => {
+    const k = key(item);
+    const group = groups.get(k);
+    if (group === undefined) groups.set(k, [item]);
+    else group.push(item);
+  });
+  return groups;
+}
 
 export function getKeys<T extends object>(obj: T): (keyof T)[] {
   return Object.keys(obj) as (keyof T)[];

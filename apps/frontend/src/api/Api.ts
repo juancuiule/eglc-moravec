@@ -1,36 +1,20 @@
-import { EvaluatedTrialResult, TrialResultInput } from "engine";
+import {
+  EvaluatedTrialResult,
+  TrialResultInput,
+  type LevelStatsWire,
+  type SyncedTrial,
+} from "engine";
 import { errorFrom, request, requestJson, requestVoid } from "./utils";
 
 export type OtpVerified = { token: string; expiresAt: number };
 
-// Wire shape only: the backend serializes completedAt to an ISO string
-// (see routes/sync.ts) rather than the epoch-ms number engine's own
-// LevelStats uses internally.
-export type LevelStats = {
-  stars: 0 | 1 | 2 | 3;
-  totalTime: number; // ms
-  completedAt: string; // ISO date
-};
+// The /sync/level-stats wire shape lives in engine (levelStatsToWire is its
+// only serializer, on both sides); this alias keeps the shorter local name.
+export type LevelStats = LevelStatsWire;
 
-// What GET /sync/trials actually returns — a flattened PersistedTrial.
-// Not EvaluatedTrialResult: that type belongs to the sync push/validation
-// contract, and the wire restores levelNumber=null for Practice rows.
-export type SyncedTrial = {
-  id: string;
-  categoryCodename: string;
-  operands: number[];
-  answer: number | null; // null = timed out
-  correct: boolean;
-  timeExceeded: boolean;
-  timeTaken: number; // ms
-  playedAt: number; // epoch ms
-  hintShown: boolean;
-  runType: "level" | "practice";
-  runId: string;
-  levelNumber: number | null;
-};
-
-/** One row of GET /sync/activity: a local calendar day plus its trial count. */
+// What GET /sync/trials returns — the engine zod schema the rows are
+// validated against on merge is the type source (SyncedTrialSchema).
+export type { SyncedTrial };
 
 export const Api = {
   requestOtp(email: string): Promise<void> {
@@ -59,9 +43,11 @@ export const Api = {
     });
   },
 
-  async checkSession(token: string): Promise<boolean> {
+  // Returns the HTTP status — callers distinguish "token is dead" (401,
+  // clear the cookie) from "backend unreachable" (5xx, fail open).
+  async sessionStatus(token: string): Promise<number> {
     const res = await request("/auth/me", { method: "GET", token });
-    return res.ok;
+    return res.status;
   },
 
   logout(token: string): Promise<void> {

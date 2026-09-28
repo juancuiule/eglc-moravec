@@ -17,7 +17,7 @@ describe("createRandomOperation", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const op = createRandomOperation({ "1dx1d": 100 });
     // result of 1dx1d with Math.random=0: operand=2, result=4
-    expect(op.humanReadable()).toContain("x");
+    expect(op.humanReadable()).toContain("×");
   });
 
   it("uses addition when level only has addition", () => {

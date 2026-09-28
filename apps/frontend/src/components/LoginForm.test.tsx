@@ -37,13 +37,13 @@ test.each([
     locale: "en",
     messages: en,
     button: "Send code",
-    text: "Too many codes requested. Try again in a few minutes.",
+    text: "Too many attempts. Try again in a few minutes.",
   },
   {
     locale: "es",
     messages: es,
     button: "Enviar código",
-    text: "Pediste demasiados códigos. Volvé a intentar en unos minutos.",
+    text: "Demasiados intentos. Volvé a intentar en unos minutos.",
   },
 ])(
   "shows localized rate-limit copy in $locale",

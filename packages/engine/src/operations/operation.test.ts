@@ -73,7 +73,7 @@ describe("Multiplication", () => {
   it("formats humanReadable correctly", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const op = Multiplication.create(category);
-    expect(op.humanReadable()).toBe("2 x 2");
+    expect(op.humanReadable()).toBe("2 × 2");
   });
 
   it("exposes its operands", () => {

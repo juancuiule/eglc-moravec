@@ -1,6 +1,8 @@
+import { SESSION_TTL_MS } from "engine";
+
 export const SESSION_COOKIE = "moravec_session";
 
-const MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+const MAX_AGE_SECONDS = SESSION_TTL_MS / 1000;
 
 export type PersistedSession = {
   token: string;
@@ -12,7 +14,16 @@ export function parseSessionCookie(
 ): PersistedSession | null {
   if (!raw) return null;
   try {
-    return JSON.parse(decodeURIComponent(raw)) as PersistedSession;
+    const parsed: unknown = JSON.parse(decodeURIComponent(raw));
+    // The cookie is user-editable — valid JSON of the wrong shape (a bare
+    // number, an object without a token) must not reach auth state.
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const candidate = parsed as Record<string, unknown>;
+    if (typeof candidate.token !== "string") return null;
+    if (candidate.email !== null && typeof candidate.email !== "string") {
+      return null;
+    }
+    return { token: candidate.token, email: candidate.email };
   } catch {
     return null;
   }

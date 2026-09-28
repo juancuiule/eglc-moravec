@@ -5,7 +5,7 @@
   "play": "Play",
   "trial": "Trial {current} / {total}",
   "hintTooltip": "Show hint",
-  "hint": "Hint {remaining}/3",
+  "hint": "Hint {remaining}/{total}",
   "levelComplete": "Level Complete!",
   "notQuite": "Not quite…",
   "newRecord": "New record!",
@@ -20,5 +20,8 @@
   "reviewProblem": "Problem",
   "reviewAnswer": "Answer",
   "reviewTime": "Time",
-  "reviewHint": "hint"
+  "reviewHint": "hint",
+  "backToMenuShortcut": "Back to menu (M)",
+  "stars": "{count, plural, =0 {No stars} one {# star} other {# stars}}",
+  "levelLocked": "Locked — complete the previous level to unlock"
 }

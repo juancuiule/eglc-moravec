@@ -106,6 +106,22 @@ describe("Trial.scoreAnswer", () => {
     expect(result.timeExceeded).toBe(true);
   });
 
+  it("caps timeTaken at solveTime — the recorded duration matches what the server would store", () => {
+    const op = makeOp();
+    const startedAt = 1_000_000;
+    vi.spyOn(Date, "now").mockReturnValue(startedAt + op.solveTime() + 500);
+    const result = Trial.scoreAnswer(
+      { operation: op, answer: op.result(), hintShown: false },
+      startedAt,
+    );
+    // Tick slop/a throttled tab can land the measurement over the cap; the
+    // result stores the capped duration so the live record badge, the
+    // outbox row, and the server-side evaluation all agree.
+    expect(result.timeTaken).toBe(op.solveTime());
+    expect(result.timeExceeded).toBe(true);
+    expect(result.correct).toBe(true);
+  });
+
   it("carries through hintShown", () => {
     const op = makeOp();
     vi.spyOn(Date, "now").mockReturnValue(1_000_000);

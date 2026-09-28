@@ -11,10 +11,16 @@ import {
 } from "./operations/category";
 import { computePlayedAtTimestamps } from "./playedAt";
 import { Trial, type TrialResult } from "./trial/engine";
+import { groupBy } from "./utils";
 import * as z from "zod";
 
 export const MAX_SYNC_TRIALS = 1000;
 export const MAX_DATE_TIMESTAMP = 8.64e15;
+
+// One lifetime, three consumers: the backend session row's expires_at, the
+// frontend cookie's max-age, and the account stash's TTL all derive from
+// this so they can't drift apart.
+export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const TrialResultFields = {
   id: z.uuidv4(),
@@ -90,10 +96,7 @@ export const SyncedTrialSchema = z
       operandsMatchCategory(categoryCodename, operands),
   );
 
-export function parseTrialResults(body: unknown): TrialResultInput[] | null {
-  const parsed = TrialResultsSchema.safeParse(body);
-  return parsed.success ? parsed.data.trials : null;
-}
+export type SyncedTrial = z.infer<typeof SyncedTrialSchema>;
 
 export type TrialResultPolicy =
   | { runType: "level"; levelNumber: number; runId: string }
@@ -139,14 +142,19 @@ export function evaluateTrialResult(
     input.categoryCodename,
     input.operands,
   );
+  // A real client can never exceed the solve-time cap — a timeout reports
+  // exactly solveTime — so a larger claimed duration is clamped rather than
+  // stored verbatim (a client clock jump would otherwise pollute every
+  // timing aggregate it flows into).
+  const timeTaken = Math.min(input.timeTaken, operation.solveTime());
   const { correct, timeExceeded } = Trial.evaluate({
     operation,
     answer: input.answer,
-    timeTaken: input.timeTaken,
+    timeTaken,
     hintShown: input.hintShown,
   });
 
-  return { ...input, correct, timeExceeded };
+  return { ...input, timeTaken, correct, timeExceeded };
 }
 
 export type LevelRunSummary = {
@@ -170,10 +178,7 @@ export type TrialForLevelRun = {
 export function deriveLevelRuns(
   trials: readonly TrialForLevelRun[],
 ): LevelRunSummary[] {
-  const byRun = new Map<string, TrialForLevelRun[]>();
-  trials.forEach((t) => {
-    byRun.set(t.runId, [...(byRun.get(t.runId) ?? []), t]);
-  });
+  const byRun = groupBy(trials, (t) => t.runId);
 
   return Array.from(byRun.entries()).flatMap(([levelRunId, runTrials]) => {
     const levelNumber = runTrials[0].levelNumber;
@@ -217,6 +222,31 @@ export type LevelStats = {
   totalTime: number;
   completedAt: number;
 };
+
+// The /sync/level-stats wire shape: keyed by level number, completedAt as an
+// ISO string rather than engine's epoch-ms. Both the backend serializer and
+// the frontend's local read model convert through levelStatsToWire so the
+// two sides can't drift.
+export type LevelStatsWire = {
+  stars: 0 | 1 | 2 | 3;
+  totalTime: number;
+  completedAt: string; // ISO date
+};
+
+export function levelStatsToWire(
+  stats: readonly LevelStats[],
+): Record<string, LevelStatsWire> {
+  return Object.fromEntries(
+    stats.map((s) => [
+      String(s.levelNumber),
+      {
+        stars: s.stars,
+        totalTime: s.totalTime,
+        completedAt: new Date(s.completedAt).toISOString(),
+      },
+    ]),
+  );
+}
 
 export function deriveLevelStats(
   trials: readonly TrialForLevelRun[],

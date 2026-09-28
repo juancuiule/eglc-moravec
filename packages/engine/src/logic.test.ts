@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
-  parseTrialResults,
+  TrialResultsSchema,
   evaluateTrialResult,
   deriveLevelRuns,
   toTrialResultInputs,
@@ -23,7 +23,12 @@ const validTrial = {
   runType: "level" as const,
 };
 
-describe("parseTrialResults", () => {
+const parseTrialResults = (body: unknown) => {
+  const parsed = TrialResultsSchema.safeParse(body);
+  return parsed.success ? parsed.data.trials : null;
+};
+
+describe("TrialResultsSchema", () => {
   it("accepts a well-formed body", () => {
     expect(parseTrialResults({ trials: [validTrial] })).toEqual([validTrial]);
   });

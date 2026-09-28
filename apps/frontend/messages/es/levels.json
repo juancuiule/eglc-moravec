@@ -5,7 +5,7 @@
   "play": "Jugar",
   "trial": "Intento {current} / {total}",
   "hintTooltip": "Mostrar pista",
-  "hint": "Pista {remaining}/3",
+  "hint": "Pista {remaining}/{total}",
   "levelComplete": "¡Nivel completado!",
   "notQuite": "Casi…",
   "newRecord": "¡Nuevo récord!",
@@ -20,5 +20,8 @@
   "reviewProblem": "Problema",
   "reviewAnswer": "Respuesta",
   "reviewTime": "Tiempo",
-  "reviewHint": "pista"
+  "reviewHint": "pista",
+  "backToMenuShortcut": "Volver al menú (M)",
+  "stars": "{count, plural, =0 {Sin estrellas} one {# estrella} other {# estrellas}}",
+  "levelLocked": "Bloqueado — completá el nivel anterior para desbloquearlo"
 }

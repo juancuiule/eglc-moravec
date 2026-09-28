@@ -38,7 +38,7 @@ export function TrialReview({ results }: Props) {
             className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-4 items-baseline px-1 py-0.5 rounded hover:bg-base"
           >
             <span role="cell" className="font-mono text-sm truncate">
-              {r.operation.humanReadable().replace(" x ", " × ")}
+              {r.operation.humanReadable()}
               {r.hintShown && (
                 <span className="text-2xs text-muted-2 ml-1.5">
                   {t("reviewHint")}

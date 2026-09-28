@@ -106,16 +106,16 @@ test("registerDevice throws the backend's error on failure", async () => {
   await expect(Api.registerDevice("")).rejects.toThrow("invalid_request");
 });
 
-test("checkSession resolves true when the session is valid", async () => {
+test("sessionStatus returns 200 when the session is valid", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse({ ok: true }));
-  await expect(Api.checkSession("tok")).resolves.toBe(true);
+  await expect(Api.sessionStatus("tok")).resolves.toBe(200);
 });
 
-test("checkSession resolves false when the session is invalid", async () => {
+test("sessionStatus returns 401 when the session is invalid", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse({ error: "unauthenticated" }, false),
+    jsonResponse({ error: "unauthenticated" }, false, 401),
   );
-  await expect(Api.checkSession("tok")).resolves.toBe(false);
+  await expect(Api.sessionStatus("tok")).resolves.toBe(401);
 });
 
 test("logout resolves on success", async () => {

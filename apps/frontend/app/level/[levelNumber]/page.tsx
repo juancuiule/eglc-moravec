@@ -1,7 +1,6 @@
-import { Api, LevelStats } from "@/api/Api";
+import { Api } from "@/api/Api";
+import { fetchStatsSeed } from "@/api/statsSeed";
 import { LevelPlay } from "@/components/LevelPlay";
-import { SESSION_COOKIE, parseSessionCookie } from "@/storage/session";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 type Props = { params: Promise<{ levelNumber: string }> };
@@ -11,17 +10,12 @@ export default async function LevelPage({ params }: Props) {
   const levelNumber = Number(raw);
   if (!Number.isInteger(levelNumber)) notFound();
 
-  const [mix, catalog] = await Promise.all([
+  const [mix, catalog, stats] = await Promise.all([
     Api.fetchLevel(levelNumber),
     Api.fetchLevelNumbers(),
+    fetchStatsSeed(),
   ]);
   if (mix === null) notFound();
-
-  const cookieStore = await cookies();
-  const session = parseSessionCookie(cookieStore.get(SESSION_COOKIE)?.value);
-  const stats: Record<string, LevelStats> = session
-    ? await Api.fetchLevelStats(session.token).catch(() => ({}))
-    : {};
 
   // Unlock gating happens client-side in LevelPlay against the local-first
   // store — the server snapshot is only a seed; a locally-completed run may

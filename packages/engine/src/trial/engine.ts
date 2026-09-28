@@ -25,9 +25,18 @@ export const Trial = {
     };
   },
   build: (base: BaseTrialResult) => {
-    const { correct, timeExceeded } = Trial.evaluate(base);
-    return {
+    // The timer stops a trial at solveTime, but tick slop or a throttled tab
+    // can land the measurement a few ms over. Cap at construction so the
+    // live record badge, the outbox row, the pushed payload, and the
+    // server's stored value all agree on the same duration — evaluate's
+    // wire-side clamp then only matters for stale clients.
+    const capped: BaseTrialResult = {
       ...base,
+      timeTaken: Math.min(base.timeTaken, base.operation.solveTime()),
+    };
+    const { correct, timeExceeded } = Trial.evaluate(capped);
+    return {
+      ...capped,
       correct,
       timeExceeded,
     };
@@ -36,7 +45,10 @@ export const Trial = {
     base: Omit<BaseTrialResult, "timeTaken">,
     startedAt: number,
   ) => {
-    const timeTaken = Date.now() - startedAt;
+    // Clock rollbacks (NTP correction, manual change) would otherwise yield
+    // a negative timeTaken — which then fails schema validation at enqueue
+    // and silently deletes the trial from both the store and the sync push.
+    const timeTaken = Math.max(0, Date.now() - startedAt);
     const scoredBase: BaseTrialResult = { ...base, timeTaken };
     return Trial.build(scoredBase);
   },

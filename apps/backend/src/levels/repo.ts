@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { isSupportedCategoryCodename } from "engine";
 import { LEVEL_SEED_DATA } from "./seedData.js";
 
 export function seedLevelsIfEmpty(db: DatabaseSync): void {
@@ -29,6 +30,47 @@ export function assertLevelsAreContiguous(db: DatabaseSync): void {
     if (n !== expected) {
       throw new Error(
         `Level catalog is invalid: expected level ${expected}, found ${n} — levels must be contiguous starting at 1`,
+      );
+    }
+  });
+}
+
+// Every mix must reference only currently-playable categories and carry
+// non-negative finite weights summing to a finite positive total — a typo'd
+// or retired codename, a negative weight, or an overflowing sum otherwise
+// throws mid-play inside pickRandomWeighted/createOperation. Checked at
+// boot: the catalog is operator data, so a bad row fails loudly on deploy
+// instead of in a player's session.
+export function assertLevelMixesAreValid(db: DatabaseSync): void {
+  const rows = db.prepare("SELECT level_number, mix FROM levels").all() as {
+    level_number: number;
+    mix: string;
+  }[];
+  rows.forEach(({ level_number, mix }) => {
+    const parsed: unknown = JSON.parse(mix);
+    const entries =
+      typeof parsed === "object" && parsed !== null
+        ? Object.entries(parsed)
+        : [];
+    const invalid = entries.some(
+      ([codename, weight]) =>
+        !isSupportedCategoryCodename(codename) ||
+        typeof weight !== "number" ||
+        !Number.isFinite(weight) ||
+        weight < 0,
+    );
+    const totalWeight = entries.reduce(
+      (sum, [, weight]) => sum + (weight as number),
+      0,
+    );
+    if (
+      entries.length === 0 ||
+      invalid ||
+      !Number.isFinite(totalWeight) ||
+      totalWeight <= 0
+    ) {
+      throw new Error(
+        `Level ${level_number} mix is invalid: every category codename must be supported, weights must be finite and non-negative, and the total must be finite and positive`,
       );
     }
   });

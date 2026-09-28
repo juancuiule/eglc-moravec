@@ -85,35 +85,46 @@ describe("openDb", () => {
     );
   });
 
-  it("creates the named trial_results email_hash index on a fresh database", () => {
+  it("creates the composite trial_results (email_hash, played_at) index on a fresh database", () => {
     const db = openDb(":memory:");
 
-    expect(indexedColumns(db, "idx_trial_results_email_hash")).toEqual([
+    expect(indexedColumns(db, "idx_trial_results_email_played")).toEqual([
       "email_hash",
+      "played_at",
     ]);
   });
 
-  it("adds the trial_results email_hash index to an existing database and reapplies it idempotently", () => {
+  it("adds the composite index to an existing database, replaces the old single-column one, and reapplies idempotently", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
     const dbPath = join(tmpDir, "existing.sqlite");
     const existingDb = new DatabaseSync(dbPath);
     existingDb.exec(
-      "CREATE TABLE trial_results (id TEXT PRIMARY KEY, email_hash TEXT NOT NULL)",
+      `CREATE TABLE trial_results (id TEXT PRIMARY KEY, email_hash TEXT NOT NULL, played_at INTEGER NOT NULL);
+       CREATE INDEX idx_trial_results_email_hash ON trial_results(email_hash)`,
     );
     existingDb.close();
 
     openDb(dbPath).close();
     const db = openDb(dbPath);
 
-    expect(indexedColumns(db, "idx_trial_results_email_hash")).toEqual([
+    expect(indexedColumns(db, "idx_trial_results_email_played")).toEqual([
       "email_hash",
+      "played_at",
     ]);
     const matchingIndexes = db
       .prepare(
         "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?",
       )
-      .all("idx_trial_results_email_hash");
+      .all("idx_trial_results_email_played");
     expect(matchingIndexes).toHaveLength(1);
+    // The replaced single-column index is gone — the composite's leftmost
+    // column already covers those lookups.
+    const oldIndexes = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?",
+      )
+      .all("idx_trial_results_email_hash");
+    expect(oldIndexes).toHaveLength(0);
   });
 
   it("is idempotent — opening the same database twice does not error or duplicate columns", () => {

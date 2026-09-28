@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/api/Api", () => ({
-  Api: { checkSession: vi.fn() },
+  Api: { sessionStatus: vi.fn() },
 }));
 
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
@@ -47,23 +47,23 @@ describe("proxy", () => {
 
   it("passes through with no session cookie, never calling the backend", async () => {
     const res = await proxy(requestWithCookie(null));
-    expect(Api.checkSession).not.toHaveBeenCalled();
+    expect(Api.sessionStatus).not.toHaveBeenCalled();
     expect(res.cookies.get(SESSION_COOKIE)).toBeUndefined();
   });
 
   it("validates a present session cookie against the backend", async () => {
-    vi.mocked(Api.checkSession).mockResolvedValue(true);
+    vi.mocked(Api.sessionStatus).mockResolvedValue(200);
     const raw = encodeURIComponent(
       JSON.stringify({ token: "t1", email: "a@b.com" }),
     );
 
     await proxy(requestWithCookie(raw));
 
-    expect(Api.checkSession).toHaveBeenCalledWith("t1");
+    expect(Api.sessionStatus).toHaveBeenCalledWith("t1");
   });
 
   it("deletes the cookie on the response when the session is invalid", async () => {
-    vi.mocked(Api.checkSession).mockResolvedValue(false);
+    vi.mocked(Api.sessionStatus).mockResolvedValue(401);
     const raw = encodeURIComponent(
       JSON.stringify({ token: "stale", email: "a@b.com" }),
     );
@@ -74,19 +74,19 @@ describe("proxy", () => {
   });
 
   it("validates and clears a stale anonymous session on the OTP page", async () => {
-    vi.mocked(Api.checkSession).mockResolvedValue(false);
+    vi.mocked(Api.sessionStatus).mockResolvedValue(401);
     const raw = encodeURIComponent(
       JSON.stringify({ token: "stale-anonymous", email: null }),
     );
 
     const res = await proxy(requestWithCookie(raw, {}, "/login/otp"));
 
-    expect(Api.checkSession).toHaveBeenCalledWith("stale-anonymous");
+    expect(Api.sessionStatus).toHaveBeenCalledWith("stale-anonymous");
     expect(res.cookies.get(SESSION_COOKIE)?.value).toBe("");
   });
 
   it("leaves the cookie alone when the session is valid", async () => {
-    vi.mocked(Api.checkSession).mockResolvedValue(true);
+    vi.mocked(Api.sessionStatus).mockResolvedValue(200);
     const raw = encodeURIComponent(
       JSON.stringify({ token: "t1", email: "a@b.com" }),
     );
@@ -97,7 +97,18 @@ describe("proxy", () => {
   });
 
   it("fails open (keeps the session) when the backend check itself errors", async () => {
-    vi.mocked(Api.checkSession).mockRejectedValue(new Error("network down"));
+    vi.mocked(Api.sessionStatus).mockRejectedValue(new Error("network down"));
+    const raw = encodeURIComponent(
+      JSON.stringify({ token: "t1", email: "a@b.com" }),
+    );
+
+    const res = await proxy(requestWithCookie(raw));
+
+    expect(res.cookies.get(SESSION_COOKIE)).toBeUndefined();
+  });
+
+  it("keeps the session on a transient backend 5xx — only a 401 is a dead token", async () => {
+    vi.mocked(Api.sessionStatus).mockResolvedValue(500);
     const raw = encodeURIComponent(
       JSON.stringify({ token: "t1", email: "a@b.com" }),
     );
@@ -115,6 +126,6 @@ describe("proxy", () => {
     await proxy(requestWithCookie(raw, { "next-router-prefetch": "1" }));
     await proxy(requestWithCookie(raw, { purpose: "prefetch" }));
 
-    expect(Api.checkSession).not.toHaveBeenCalled();
+    expect(Api.sessionStatus).not.toHaveBeenCalled();
   });
 });

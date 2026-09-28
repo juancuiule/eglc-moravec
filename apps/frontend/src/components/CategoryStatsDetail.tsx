@@ -82,16 +82,8 @@ function OperationHeatmap({
                   : op.errors / op.attempts;
               return (
                 <div
-                  key={`${row}${col}`}
+                  key={`${row}-${col}`}
                   className="aspect-square rounded-sm"
-                  aria-label={
-                    op
-                      ? `${a} × ${b}: ${t("wrongOfAttempts", {
-                          errors: op.errors,
-                          attempts: op.attempts,
-                        })}`
-                      : `${a} × ${b}`
-                  }
                   style={{
                     backgroundColor:
                       rate < 0
@@ -108,6 +100,26 @@ function OperationHeatmap({
           </Fragment>
         ))}
       </div>
+      {/* role="img" flattens the colored cells to their label — the same
+          data stays reachable as a real (visually hidden) table. */}
+      <table className="sr-only">
+        <caption>{t("errorHeatmap")}</caption>
+        <tbody>
+          {[...byOp.values()]
+            .filter((op) => op.attempts > 0)
+            .map((op) => (
+              <tr key={op.operands.join("|")}>
+                <th scope="row">{op.operands.join(" × ")}</th>
+                <td>
+                  {t("wrongOfAttempts", {
+                    errors: op.errors,
+                    attempts: op.attempts,
+                  })}
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -298,7 +310,7 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
                     attempts: op.attempts,
                   })}
                   {op.avgCorrectTimeMs !== null &&
-                    ` · ${(op.avgCorrectTimeMs / 1000).toFixed(1)}s`}
+                    ` · ${formatSeconds(op.avgCorrectTimeMs)}`}
                 </span>
               </div>
             ))

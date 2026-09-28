@@ -3,14 +3,18 @@ import {
   TrialResultSchema,
   deriveLevelStats,
   isBetterLevelRecord,
+  levelStatsToWire,
   type TrialResult,
   type TrialResultInput,
 } from "engine";
 import type { Cell } from "tinybase";
 import type { LevelStats, SyncedTrial } from "../api/Api";
+import { Api } from "../api/Api";
 import {
   afterHydration,
+  EPOCH_VALUE,
   isPersistenceLoading,
+  localEpoch,
   localStore,
   TRIALS_TABLE,
   type LocalTrialCell,
@@ -71,12 +75,10 @@ export function rowToSyncedTrial(
     [cellId: string]: Cell;
   },
 ): SyncedTrial {
-  return {
+  const base = {
     id: rowId,
     runId: String(row.runId ?? ""),
-    runType: row.runType === "practice" ? "practice" : "level",
     categoryCodename: String(row.categoryCodename ?? ""),
-    levelNumber: typeof row.levelNumber === "number" ? row.levelNumber : null,
     operands: parseOperands(row.operands),
     answer: typeof row.answer === "number" ? row.answer : null,
     correct: row.correct === true,
@@ -85,6 +87,16 @@ export function rowToSyncedTrial(
     hintShown: row.hintShown === true,
     playedAt: Number(row.playedAt ?? 0),
   };
+  // Built per runType variant — the wire union. A level row missing
+  // levelNumber decodes to the -1 sentinel (same as rowToInput's), which
+  // downstream schema validation drops rather than misreads.
+  return row.runType === "practice"
+    ? { ...base, runType: "practice", levelNumber: null }
+    : {
+        ...base,
+        runType: "level",
+        levelNumber: typeof row.levelNumber === "number" ? row.levelNumber : -1,
+      };
 }
 
 // Row → wire input, rebuilt per the runType discriminated union. Rows are
@@ -130,8 +142,31 @@ export function trialsFromTable(table: {
     .sort((a, b) => a.playedAt - b.playedAt);
 }
 
+// Decoded-row cache: every table write used to make each reader re-parse
+// and re-sort every row per render. Decode once per write instead —
+// invalidated by a single table listener (row writes, and delTable on
+// wipe), plus the epoch mirror for the partial-wipe path. The returned
+// array is shared — readers must not mutate it.
+let decodedTrials: SyncedTrial[] | null = null;
+let cacheArmed = false;
+
+function ensureDecodedCache(): void {
+  if (cacheArmed) return;
+  cacheArmed = true;
+  localStore.addTableListener(TRIALS_TABLE, () => {
+    decodedTrials = null;
+  });
+  localStore.addValueListener(EPOCH_VALUE, () => {
+    decodedTrials = null;
+  });
+}
+
 export function allLocalTrials(): SyncedTrial[] {
-  return trialsFromTable(localStore.getTable(TRIALS_TABLE));
+  ensureDecodedCache();
+  if (decodedTrials === null) {
+    decodedTrials = trialsFromTable(localStore.getTable(TRIALS_TABLE));
+  }
+  return decodedTrials;
 }
 
 export function pendingInputs(): TrialResultInput[] {
@@ -143,7 +178,12 @@ export function pendingInputs(): TrialResultInput[] {
 }
 
 export function markSynced(ids: readonly string[]): void {
-  ids.forEach((id) => localStore.setCell(TRIALS_TABLE, id, "synced", true));
+  // One transaction for the whole batch — otherwise each setCell is its own
+  // store transaction, firing a listener notification and an auto-persist
+  // IndexedDB save per row.
+  localStore.transaction(() => {
+    ids.forEach((id) => localStore.setCell(TRIALS_TABLE, id, "synced", true));
+  });
 }
 
 // The single write path into the outbox. Runs at the finish/stop edge with
@@ -181,29 +221,33 @@ export function enqueueRun(
     deferredEnqueues.push([inputs, results]);
     return;
   }
-  inputs.forEach((input, i) => {
-    const parsed = TrialResultSchema.safeParse(input);
-    if (!parsed.success) {
-      console.warn("localFirst: dropping invalid trial input", {
-        id: input.id,
-        issues: parsed.error.issues,
-      });
-      return;
-    }
-    if (localStore.getCell(TRIALS_TABLE, input.id, "synced") === true) return;
-    const result = results[i];
-    localStore.setRow(
-      TRIALS_TABLE,
-      input.id,
-      trialCells(
-        {
-          ...input,
-          correct: result?.correct ?? false,
-          timeExceeded: result?.timeExceeded ?? false,
-        },
-        false,
-      ),
-    );
+  // Same batching as markSynced — one transaction for the run, not one
+  // per row.
+  localStore.transaction(() => {
+    inputs.forEach((input, i) => {
+      const parsed = TrialResultSchema.safeParse(input);
+      if (!parsed.success) {
+        console.warn("localFirst: dropping invalid trial input", {
+          id: input.id,
+          issues: parsed.error.issues,
+        });
+        return;
+      }
+      if (localStore.getCell(TRIALS_TABLE, input.id, "synced") === true) return;
+      const result = results[i];
+      localStore.setRow(
+        TRIALS_TABLE,
+        input.id,
+        trialCells(
+          {
+            ...input,
+            correct: result?.correct ?? false,
+            timeExceeded: result?.timeExceeded ?? false,
+          },
+          false,
+        ),
+      );
+    });
   });
 }
 
@@ -226,9 +270,24 @@ export function mergeServerTrials(trials: readonly SyncedTrial[]): void {
       `localFirst: dropped ${trials.length - valid.length} malformed pulled trial(s)`,
     );
   }
-  valid.forEach((t) => {
-    localStore.setRow(TRIALS_TABLE, t.id, trialCells(t, true));
+  localStore.transaction(() => {
+    valid.forEach((t) => {
+      localStore.setRow(TRIALS_TABLE, t.id, trialCells(t, true));
+    });
   });
+}
+
+// One epoch-guarded pull+merge — the merge lands only if the store's epoch
+// is still the caller's (a logout wipe mid-request must not be repopulated
+// by the dead session's response). Returns false on a stale epoch.
+export async function pullServerTrials(
+  token: string,
+  gen: number,
+): Promise<boolean> {
+  const pulled = await Api.fetchTrials(token);
+  if (localEpoch() !== gen) return false;
+  mergeServerTrials(pulled);
+  return true;
 }
 
 // What /sync/level-stats would return, derived from trial rows. Shared by the
@@ -246,16 +305,7 @@ export function levelStatsFromTrials(
       runType: t.runType,
     })),
   );
-  return Object.fromEntries(
-    stats.map((s) => [
-      String(s.levelNumber),
-      {
-        stars: s.stars,
-        totalTime: s.totalTime,
-        completedAt: new Date(s.completedAt).toISOString(),
-      },
-    ]),
-  );
+  return levelStatsToWire(stats);
 }
 
 // Imperative snapshot of the same read model, for non-React callers.

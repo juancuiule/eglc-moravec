@@ -2,9 +2,8 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
-import { Api } from "../api/Api";
 import { authToken, useAuth } from "../auth/store";
 import { computeStats } from "../stats/computeStats";
 import {
@@ -21,19 +20,36 @@ import {
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
 import { formatSeconds } from "../formatTime";
 import { useLocalTrials } from "../local/hooks";
-import { mergeServerTrials } from "../local/trials";
+import { pullServerTrials } from "../local/trials";
 import { localEpoch } from "../local/store";
 import { panel, backLink, button, textLink } from "../styles";
 
 type Tab = "level" | "practice";
 
 /** GitHub-style trailing-weeks calendar of daily trial counts — teal alpha
- *  encodes count, muted for empty days, transparent for future days. */
+ *  encodes count, muted for empty days, transparent for future days. Cells
+ *  are buttons, not hover-only tooltips: per-day counts must be reachable
+ *  on touch, where title never shows. */
 function ActivityCalendar({ trials }: { trials: PlayedTrial[] }) {
   const t = useTranslations("Stats");
+  const format = useFormatter();
   const weeks = useMemo(() => activityCalendar(trials), [trials]);
   const daysThisMonth = useMemo(() => daysTrainedThisMonth(trials), [trials]);
   const maxCount = Math.max(1, ...weeks.flat().map((c) => c.count));
+  const countByDay = useMemo(
+    () => new Map(weeks.flat().map((c) => [c.day, c.count])),
+    [weeks],
+  );
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  const dayLabel = (day: string, count: number) =>
+    t("activityDay", {
+      count,
+      date: format.dateTime(new Date(`${day}T00:00:00`), {
+        month: "short",
+        day: "numeric",
+      }),
+    });
 
   return (
     <div className="flex flex-col gap-2">
@@ -45,21 +61,27 @@ function ActivityCalendar({ trials }: { trials: PlayedTrial[] }) {
           {t("daysThisMonth", { count: daysThisMonth })}
         </span>
       </div>
+      {/* The 10px cells can't each meet the 44px touch floor (13px pitch),
+          so they're not controls — the whole calendar is the tap surface,
+          delegating to the tapped cell's day. Per-day counts stay reachable
+          to screen readers through the hidden list below. */}
       <div
         className="flex justify-center gap-[3px]"
         role="img"
         aria-label={t("activity")}
+        onClick={(e) => {
+          const day = (e.target as HTMLElement).dataset.day;
+          if (day) setSelectedDay(day);
+        }}
       >
         {weeks.map((week, wi) => (
           <div key={wi} className="flex flex-col gap-[3px]">
             {week.map((cell) => (
               <div
                 key={cell.day}
+                data-day={cell.future ? undefined : cell.day}
                 className="h-2.5 w-2.5 rounded-sm"
-                title={t("activityDay", {
-                  count: cell.count,
-                  date: cell.day,
-                })}
+                title={dayLabel(cell.day, cell.count)}
                 style={{
                   backgroundColor: cell.future
                     ? "transparent"
@@ -76,6 +98,20 @@ function ActivityCalendar({ trials }: { trials: PlayedTrial[] }) {
           </div>
         ))}
       </div>
+      <ul className="sr-only">
+        {weeks
+          .flat()
+          .filter((c) => !c.future && c.count > 0)
+          .map((c) => (
+            <li key={c.day}>{dayLabel(c.day, c.count)}</li>
+          ))}
+      </ul>
+      {/* min-h reserves the line so tapping a cell doesn't shift layout */}
+      <p className="min-h-4 text-center text-2xs text-muted-2">
+        {selectedDay === null
+          ? " "
+          : dayLabel(selectedDay, countByDay.get(selectedDay) ?? 0)}
+      </p>
     </div>
   );
 }
@@ -120,14 +156,17 @@ export function StatsScreen() {
   const allTrials = useLocalTrials();
   const { isError, refetch } = useQuery({
     queryKey: ["trialsPull", token],
+    // One pull per visit is plenty — the sync engine's own pushes+merges
+    // keep the store converging; this query exists to surface pull failures
+    // in the UI, not to keep the data fresh.
+    enabled: token !== null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
-      if (!token) return 0;
+      if (!token) return false;
       // Epoch-guarded: a pull that resolves after a logout wipe must not
       // repopulate the store with the previous session's rows.
-      const gen = localEpoch();
-      const trials = await Api.fetchTrials(token);
-      if (gen === localEpoch()) mergeServerTrials(trials);
-      return trials.length;
+      return pullServerTrials(token, localEpoch());
     },
   });
 
@@ -173,7 +212,7 @@ export function StatsScreen() {
             onClick={() => selectTab(tabOption)}
             aria-pressed={tab === tabOption}
             className={[
-              "flex-1 text-sm font-medium py-1.5 rounded-md transition-colors cursor-pointer",
+              "flex-1 text-sm font-medium py-1.5 rounded-md transition-colors cursor-pointer relative after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']",
               tab === tabOption
                 ? "bg-accent text-white"
                 : "text-muted hover:text-foreground",
@@ -190,7 +229,9 @@ export function StatsScreen() {
 
       {isError && !isLoading && !hasAnyData && (
         <div className="flex flex-col items-center gap-2 py-8">
-          <p className="text-center text-sm text-danger">{t("loadError")}</p>
+          <p role="alert" className="text-center text-sm text-danger">
+            {t("loadError")}
+          </p>
           <button onClick={() => refetch()} className={`${textLink} underline`}>
             {t("tryAgain")}
           </button>
@@ -228,7 +269,7 @@ export function StatsScreen() {
       {!isLoading && hasAnyData && (
         <div className="flex flex-col gap-1">
           {/* Header */}
-          <div className="grid grid-cols-[6rem_1fr_4rem] gap-2 px-2 pb-1 text-xs text-muted-2 font-medium uppercase tracking-wider">
+          <div className="grid grid-cols-[6rem_minmax(0,1fr)_4rem] gap-2 px-2 pb-1 text-xs text-muted-2 font-medium uppercase tracking-wider">
             <span>{t("columnCategory")}</span>
             <span>{t("columnEffectiveness")}</span>
             <span className="text-right">{t("columnAvgTime")}</span>
@@ -236,7 +277,7 @@ export function StatsScreen() {
 
           {stats.map((row) => {
             const rowClassName = [
-              "grid grid-cols-[6rem_1fr_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-base w-full text-left",
+              "grid grid-cols-[6rem_minmax(0,1fr)_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-base w-full text-left",
               row.total > 0 ? "cursor-pointer hover:bg-panel-accent" : "",
             ].join(" ");
 

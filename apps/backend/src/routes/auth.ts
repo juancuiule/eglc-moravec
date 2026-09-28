@@ -117,23 +117,34 @@ export function registerAuthRoutes(
     },
   );
 
-  app.post("/auth/device", async (request, reply) => {
-    const { deviceId } = parseBody(
-      request.body,
-      z.object({
-        deviceId: z.uuidv4(),
-      }),
-    );
+  app.post(
+    "/auth/device",
+    {
+      config: {
+        rateLimit: {
+          max: config.deviceRateLimitMax,
+          timeWindow: config.deviceRateLimitWindowMs,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { deviceId } = parseBody(
+        request.body,
+        z.object({
+          deviceId: z.uuidv4(),
+        }),
+      );
 
-    const emailHash = hashDeviceId(deviceId, config.hashSecret);
-    const now = Date.now();
-    upsertUser(db, emailHash, now, true);
-    const token = generateSessionToken();
-    const expiresAt = now + config.sessionTtlMs;
-    createSession(db, token, emailHash, expiresAt);
+      const emailHash = hashDeviceId(deviceId, config.hashSecret);
+      const now = Date.now();
+      upsertUser(db, emailHash, now, true);
+      const token = generateSessionToken();
+      const expiresAt = now + config.sessionTtlMs;
+      createSession(db, token, emailHash, expiresAt);
 
-    return reply.send({ token, expiresAt });
-  });
+      return reply.send({ token, expiresAt });
+    },
+  );
 
   app.post("/auth/otp/verify", async (request, reply) => {
     const { email, code } = parseBody(

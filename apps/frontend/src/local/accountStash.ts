@@ -1,3 +1,4 @@
+import { SESSION_TTL_MS } from "engine";
 import type { Cell } from "tinybase";
 
 // Account-scoped holding pen for unacknowledged trials. When an account
@@ -26,7 +27,7 @@ import type { Cell } from "tinybase";
 
 const STASH_KEY = "moravec.account-pending";
 const STASH_MAX_ROWS = 2000;
-const STASH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // matches the session cookie age
+const STASH_TTL_MS = SESSION_TTL_MS; // the stash outlives nothing the session doesn't
 
 export type StashedTrialRow = { id: string } & Record<string, Cell>;
 

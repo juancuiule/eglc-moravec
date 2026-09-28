@@ -107,6 +107,20 @@ export function LevelPlay({
 
     return () => {
       cancelled = true;
+      // Leaving mid-review of the FINAL trial would strand the whole run:
+      // the result lives in playingState and only advance() appends it and
+      // reaches "finished" — the state persistFinishedLevel persists from.
+      // Flush it while this watcher is still subscribed so the run isn't
+      // silently discarded.
+      const s = gameStore.getState().state;
+      if (
+        s.type === "playing" &&
+        s.config.levelNumber === levelNumber &&
+        s.playingState.type === "reviewing" &&
+        s.results.length + 1 >= s.config.totalTrials
+      ) {
+        gameStore.getState().advance();
+      }
       unsubscribe();
     };
   }, [levelNumber]);
@@ -195,5 +209,7 @@ export function LevelPlay({
     }
   }
 
-  return null; // briefly, while the effect above catches up
+  // Briefly, while the start effect catches up — a blank frame flashes
+  // worse than the panel skeleton every other pending state uses.
+  return <LoadingPanel label={t("loading")} />;
 }
