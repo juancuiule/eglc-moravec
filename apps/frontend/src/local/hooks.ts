@@ -13,6 +13,12 @@ import {
 } from "./store";
 import { authStore, authToken } from "../auth/store";
 import { allLocalTrials, levelStatsFromTrials } from "./trials";
+import {
+  LEVEL_NUMBERS_VALUE,
+  LEVELS_TABLE,
+  localLevelMix,
+  localLevelNumbers,
+} from "./levels";
 import { NO_SESSION, syncStatus } from "./syncEngine";
 
 // undefined while IndexedDB is still loading — callers render the same
@@ -70,6 +76,27 @@ export function useLocalLevelStats(): Record<string, LevelStats> | undefined {
     () => (trials === undefined ? undefined : levelStatsFromTrials(trials)),
     [trials],
   );
+}
+
+// The catalog number list from the local snapshot. undefined until
+// hydrated, null once hydrated-but-never-warmed — the difference between
+// "loading" and "nothing cached" for offline fallbacks.
+export function useLocalLevelNumbers(): number[] | null | undefined {
+  const hydrated = useLocalHydrated();
+  useValue(LEVEL_NUMBERS_VALUE, localStore);
+  if (!hydrated) return undefined;
+  return localLevelNumbers();
+}
+
+// The cached mix for one level — undefined until hydrated, null when the
+// snapshot doesn't have it (or it failed validation).
+export function useLocalLevelMix(
+  levelNumber: number,
+): Record<string, number> | null | undefined {
+  const hydrated = useLocalHydrated();
+  useTable(LEVELS_TABLE, localStore);
+  if (!hydrated) return undefined;
+  return localLevelMix(levelNumber);
 }
 
 // False until the sync engine's first flush attempt settles (success or

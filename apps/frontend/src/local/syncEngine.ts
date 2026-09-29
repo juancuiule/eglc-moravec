@@ -9,6 +9,7 @@ import {
   pendingInputs,
   pullServerTrials,
 } from "./trials";
+import { refreshLevelCatalog } from "./levels";
 import {
   dropStashedRowIds,
   readStashedRows,
@@ -176,7 +177,12 @@ async function flushPass(): Promise<void> {
   }
   // A settled pass resets the backoff so an unrelated later failure doesn't
   // inherit escalated delay; only consecutive failures climb the ladder.
-  if (outcome === "done") failures = 0;
+  if (outcome === "done") {
+    failures = 0;
+    // The level catalog snapshot rides every settled pass — one small public
+    // GET, keeping the offline mix cache fresh with no separate scheduler.
+    void refreshLevelCatalog();
+  }
   if (outcome === "failed") scheduleRetry();
 }
 

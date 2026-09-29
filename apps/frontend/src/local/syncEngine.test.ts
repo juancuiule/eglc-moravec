@@ -7,6 +7,7 @@ const { api, auth, ensureSessionToken, invalidateSession, persistence } =
     const api = {
       syncResults: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
       fetchTrials: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+      fetchAllLevels: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
     const auth = {
       state: { type: "logged-out" } as
@@ -142,6 +143,7 @@ beforeEach(() => {
   setOnline(true);
   api.syncResults.mockResolvedValue({});
   api.fetchTrials.mockResolvedValue([]);
+  api.fetchAllLevels.mockResolvedValue([]);
   ensureSessionToken.mockResolvedValue("minted-tok");
 });
 
@@ -517,6 +519,30 @@ describe("flush", () => {
       expect.objectContaining({ id: input.id }),
     ]);
     expect(api.fetchTrials).toHaveBeenCalledWith("acct-tok");
+  });
+
+  it("a settled pass refreshes the level catalog snapshot", async () => {
+    api.fetchAllLevels.mockResolvedValue([
+      { levelNumber: 1, mix: { "1d+1d": 100 } },
+    ]);
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+
+    expect(api.fetchAllLevels).toHaveBeenCalled();
+    expect(localStore.getRow("levels", "1")).toEqual({
+      mix: '{"1d+1d":100}',
+    });
+    expect(localStore.getValue("levelNumbers")).toBe("[1]");
+  });
+
+  it("a failed pass does not refresh the catalog", async () => {
+    api.fetchTrials.mockRejectedValue(new Error("unreachable"));
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+
+    expect(api.fetchAllLevels).not.toHaveBeenCalled();
   });
 
   it("a token appearing kicks a flush", async () => {

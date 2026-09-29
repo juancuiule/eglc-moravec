@@ -23,6 +23,21 @@ const nextConfig: NextConfig = {
   // trace file dependencies from the monorepo root so the standalone
   // output includes that workspace package, not just this app's own dir.
   outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
+  async headers() {
+    return [
+      {
+        // Browsers already bypass HTTP cache for SW update checks; this
+        // keeps any intermediary cache from pinning an old script anyway.
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);

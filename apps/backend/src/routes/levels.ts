@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { DatabaseSync } from "node:sqlite";
-import { getLevelNumbers, getLevelMix } from "../levels/repo.js";
+import { getLevelNumbers, getLevelMix, getAllLevels } from "../levels/repo.js";
 import { parseBody } from "../parser.js";
 import * as z from "zod";
 
@@ -10,6 +10,13 @@ export function registerLevelsRoutes(
 ): void {
   app.get("/levels", async (_, reply) => {
     return reply.send({ levels: getLevelNumbers(db) });
+  });
+
+  // The whole catalog in one read — for a client warming its offline cache.
+  // Registered before :levelNumber, though find-my-way prefers static over
+  // parametric regardless ("all" would otherwise fail the integer regex).
+  app.get("/levels/all", async (_, reply) => {
+    return reply.send({ levels: getAllLevels(db) });
   });
 
   app.get("/levels/:levelNumber", async (request, reply) => {
