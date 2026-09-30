@@ -1,6 +1,6 @@
 "use client";
 
-import { useTable, useValue } from "tinybase/ui-react";
+import { useCell, useTable, useValue } from "tinybase/ui-react";
 import { useStore } from "zustand";
 import type { LevelStats, SyncedTrial } from "../api/Api";
 import { useMemo, useRef } from "react";
@@ -13,6 +13,12 @@ import {
 } from "./store";
 import { authStore, authToken } from "../auth/store";
 import { allLocalTrials, levelStatsFromTrials } from "./trials";
+import {
+  LEVEL_NUMBERS_VALUE,
+  LEVELS_TABLE,
+  parseLevelMix,
+  parseLevelNumbers,
+} from "./levels";
 import { NO_SESSION, syncStatus } from "./syncEngine";
 
 // undefined while IndexedDB is still loading — callers render the same
@@ -69,6 +75,48 @@ export function useLocalLevelStats(): Record<string, LevelStats> | undefined {
   return useMemo(
     () => (trials === undefined ? undefined : levelStatsFromTrials(trials)),
     [trials],
+  );
+}
+
+// The catalog number list from the local snapshot. undefined until
+// hydrated, null once hydrated-but-never-warmed — the difference between
+// "loading" and "nothing cached" for offline fallbacks.
+export function useLocalLevelNumbers(): number[] | null | undefined {
+  const hydrated = useLocalHydrated();
+  const raw = useValue(LEVEL_NUMBERS_VALUE, localStore);
+  // Memoize on the raw string — parseLevelNumbers allocates a fresh array
+  // per call, which would make the result unstable across renders.
+  return useMemo(
+    () => (hydrated ? parseLevelNumbers(raw) : undefined),
+    [hydrated, raw],
+  );
+}
+
+// The cached mix for one level — undefined until hydrated, null when the
+// snapshot doesn't have it (or it failed validation).
+export function useLocalLevelMix(
+  levelNumber: number,
+): Record<string, number> | null | undefined {
+  const hydrated = useLocalHydrated();
+  const raw = useCell(LEVELS_TABLE, String(levelNumber), "mix", localStore);
+  return useMemo(
+    () => (hydrated ? parseLevelMix(raw) : undefined),
+    [hydrated, raw],
+  );
+}
+
+// Unacknowledged outbox rows — undefined until hydrated (so "0" can't flash
+// while IndexedDB is still loading). O(rows) per table write; trial writes
+// are per-answer, so that's cheap enough for a status chip.
+export function usePendingOutboxCount(): number | undefined {
+  const hydrated = useLocalHydrated();
+  const table = useTable(TRIALS_TABLE, localStore);
+  return useMemo(
+    () =>
+      hydrated
+        ? Object.values(table).filter((row) => row.synced !== true).length
+        : undefined,
+    [hydrated, table],
   );
 }
 

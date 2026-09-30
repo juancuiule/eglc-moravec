@@ -1,6 +1,8 @@
 # Local-first sync design
 
-Status: revised design, pending implementation. This text supersedes the
+Status: phases 1–4 implemented (durable outbox, flush engine, local read
+model, level-catalog snapshot + offline app shell); phases 5–6 pending.
+This text supersedes the
 original 2026-08-28 version, which was written against a codebase that no
 longer exists: `dbbad77` ("Move sync/stats to a backend-authoritative model")
 deleted the localStorage history modules (`storage/trialHistory.ts`,

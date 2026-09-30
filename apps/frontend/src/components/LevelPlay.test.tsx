@@ -448,6 +448,14 @@ test("a locked verdict waiting on the first pull doesn't start the run; the unlo
   expect(after.type === "playing" && after.runId).toBe(startedRunId);
 });
 
+test("a rendered level seeds its mix into the local catalog — offline play survives a failed bulk refresh", () => {
+  renderWithQueryClient(
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
+  );
+
+  expect(localStore.getCell("levels", "1", "mix")).toBe(JSON.stringify(level1));
+});
+
 test("a session wipe on an open level resets the record baseline — the next player's first run is a record", () => {
   vi.spyOn(Date, "now").mockReturnValue(1_000_000);
   // Alice's record ties exactly what a perfect run under the frozen clock

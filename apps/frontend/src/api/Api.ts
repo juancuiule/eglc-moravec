@@ -90,6 +90,17 @@ export const Api = {
     return levels;
   },
 
+  // The whole catalog in one read — the level-list warmup pulls this once
+  // rather than /levels/:n per level.
+  async fetchAllLevels(): Promise<
+    { levelNumber: number; mix: Record<string, number> }[]
+  > {
+    const { levels } = await requestJson<{
+      levels: { levelNumber: number; mix: Record<string, number> }[];
+    }>("/levels/all", { method: "GET" });
+    return levels;
+  },
+
   async fetchLevel(
     levelNumber: number,
   ): Promise<Record<string, number> | null> {

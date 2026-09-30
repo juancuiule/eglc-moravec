@@ -25,6 +25,7 @@ vi.mock("@/api/Api", () => ({
 }));
 
 import LevelPage from "./page";
+import { LocalLevelPlay } from "@/components/LocalLevelPlay";
 import { Api } from "@/api/Api";
 
 function cookieStore(rawSessionCookie?: string) {
@@ -130,5 +131,35 @@ describe("LevelPage", () => {
       params: Promise.resolve({ levelNumber: "2" }),
     });
     expect(result.props.stats).toEqual({});
+  });
+
+  it("renders the local-data fallback when the backend is unreachable", async () => {
+    vi.mocked(Api.fetchLevel).mockRejectedValue(new Error("network down"));
+
+    const result = await LevelPage({
+      params: Promise.resolve({ levelNumber: "2" }),
+    });
+    expect(result.type).toBe(LocalLevelPlay);
+    expect(result.props).toMatchObject({ levelNumber: 2 });
+  });
+
+  it("renders the local-data fallback when only the catalog fetch fails", async () => {
+    vi.mocked(Api.fetchLevelNumbers).mockRejectedValue(
+      new Error("network down"),
+    );
+
+    const result = await LevelPage({
+      params: Promise.resolve({ levelNumber: "2" }),
+    });
+    expect(result.type).toBe(LocalLevelPlay);
+  });
+
+  it("still 404s on a real not-found even when other fetches are healthy", async () => {
+    vi.mocked(Api.fetchLevel).mockResolvedValue(null);
+
+    await expect(
+      LevelPage({ params: Promise.resolve({ levelNumber: "999" }) }),
+    ).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(Api.fetchLevelNumbers).toHaveBeenCalled();
   });
 });

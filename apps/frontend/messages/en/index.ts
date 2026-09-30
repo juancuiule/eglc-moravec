@@ -10,6 +10,7 @@ import levels from "./levels.json";
 import practice from "./practice.json";
 import stats from "./stats.json";
 import tutorials from "./tutorials.json";
+import offline from "./offline.json";
 
 export default {
   Common: common,
@@ -20,4 +21,5 @@ export default {
   Practice: practice,
   Stats: stats,
   Tutorials: tutorials,
+  Offline: offline,
 };

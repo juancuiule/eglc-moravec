@@ -7,6 +7,7 @@ const { api, auth, ensureSessionToken, invalidateSession, persistence } =
     const api = {
       syncResults: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
       fetchTrials: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+      fetchAllLevels: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
     const auth = {
       state: { type: "logged-out" } as
@@ -142,6 +143,7 @@ beforeEach(() => {
   setOnline(true);
   api.syncResults.mockResolvedValue({});
   api.fetchTrials.mockResolvedValue([]);
+  api.fetchAllLevels.mockResolvedValue([]);
   ensureSessionToken.mockResolvedValue("minted-tok");
 });
 
@@ -517,6 +519,43 @@ describe("flush", () => {
       expect.objectContaining({ id: input.id }),
     ]);
     expect(api.fetchTrials).toHaveBeenCalledWith("acct-tok");
+  });
+
+  it("a settled pass refreshes the level catalog snapshot", async () => {
+    api.fetchAllLevels.mockResolvedValue([
+      { levelNumber: 1, mix: { "1d+1d": 100 } },
+    ]);
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+
+    expect(api.fetchAllLevels).toHaveBeenCalled();
+    expect(localStore.getRow("levels", "1")).toEqual({
+      mix: '{"1d+1d":100}',
+    });
+    expect(localStore.getValue("levelNumbers")).toBe("[1]");
+  });
+
+  it("warms the catalog at boot even when session establishment fails — the endpoint is public", async () => {
+    setAuth({ type: "logged-out" });
+    ensureSessionToken.mockResolvedValue(null);
+    teardown = startSyncEngine();
+    await tick();
+
+    expect(api.fetchAllLevels).toHaveBeenCalled();
+  });
+
+  it("warms the catalog on reconnect even if trial sync is failing", async () => {
+    api.fetchTrials.mockRejectedValue(new Error("unreachable"));
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+    api.fetchAllLevels.mockClear();
+
+    window.dispatchEvent(new Event("online"));
+    await tick();
+
+    expect(api.fetchAllLevels).toHaveBeenCalled();
   });
 
   it("a token appearing kicks a flush", async () => {

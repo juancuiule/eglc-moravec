@@ -1,4 +1,5 @@
 import { AuthBoot } from "@/auth/AuthBoot";
+import { SyncChip } from "@/components/SyncChip";
 import { QueryProvider } from "@/providers/QueryProvider";
 import type { Metadata, Viewport } from "next";
 import { Overpass_Mono } from "next/font/google";
@@ -68,6 +69,7 @@ export default async function RootLayout({
             >
               {children}
             </main>
+            <SyncChip />
           </QueryProvider>
         </NextIntlClientProvider>
       </body>

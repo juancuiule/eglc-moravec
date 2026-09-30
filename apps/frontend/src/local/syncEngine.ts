@@ -9,6 +9,7 @@ import {
   pendingInputs,
   pullServerTrials,
 } from "./trials";
+import { refreshLevelCatalog } from "./levels";
 import {
   dropStashedRowIds,
   readStashedRows,
@@ -176,7 +177,12 @@ async function flushPass(): Promise<void> {
   }
   // A settled pass resets the backoff so an unrelated later failure doesn't
   // inherit escalated delay; only consecutive failures climb the ladder.
-  if (outcome === "done") failures = 0;
+  if (outcome === "done") {
+    failures = 0;
+    // The level catalog snapshot rides every settled pass — one small public
+    // GET, keeping the offline mix cache fresh with no separate scheduler.
+    void refreshLevelCatalog();
+  }
   if (outcome === "failed") scheduleRetry();
 }
 
@@ -276,7 +282,11 @@ export function startSyncEngine(): () => void {
   if (started) return () => {};
   started = true;
 
-  const onOnline = () => kickSync();
+  const onOnline = () => {
+    kickSync();
+    // Public endpoint — warm the snapshot even when session/sync can't run.
+    void refreshLevelCatalog();
+  };
   window.addEventListener("online", onOnline);
 
   // A token appearing OR changing — anonymous mint, login, lazy recovery —
@@ -391,6 +401,9 @@ export function startSyncEngine(): () => void {
   );
 
   kickSync(); // boot flush — drains anything persisted from a prior session
+  // Boot catalog warm, independent of the flush — /levels/all is public, so
+  // a device whose session mint or trial sync fails still gets one.
+  void refreshLevelCatalog();
 
   return () => {
     started = false;

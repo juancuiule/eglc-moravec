@@ -1,12 +1,16 @@
+"use client";
+
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { SUPPORTED_CATEGORY_CODENAMES } from "engine";
 import { CATEGORY_LABELS } from "../categoryLabels";
 import { panel, backLink } from "../styles";
 
-export async function PracticeModeSelection() {
-  const t = await getTranslations("Practice");
-  const tCommon = await getTranslations("Common");
+// A client component so the offline app shell can render it inside its
+// location.pathname-routed tree — server components can't mount there.
+export function PracticeModeSelection() {
+  const t = useTranslations("Practice");
+  const tCommon = useTranslations("Common");
 
   return (
     <div className={`${panel} p-6 gap-4`}>

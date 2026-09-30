@@ -26,6 +26,21 @@ describe("GET /levels", () => {
   });
 });
 
+describe("GET /levels/all", () => {
+  it("returns the whole catalog with mixes, unauthenticated", async () => {
+    const { app } = setup();
+    const res = await app.inject({ method: "GET", url: "/levels/all" });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.levels).toHaveLength(150);
+    expect(body.levels[0]).toEqual({
+      levelNumber: 1,
+      mix: { "1d+1d": 50, "1dx1d": 50 },
+    });
+  });
+});
+
 describe("GET /levels/:levelNumber", () => {
   it("returns a known level's mix, unauthenticated", async () => {
     const { app } = setup();

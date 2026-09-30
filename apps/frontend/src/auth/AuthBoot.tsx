@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { ensureLocalPersistence } from "../local/store";
 import { startSyncEngine } from "../local/syncEngine";
+import { registerServiceWorker } from "../serviceWorker";
 import { authStore } from "./store";
 
 const SESSION_RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
@@ -23,6 +24,7 @@ export function AuthBoot() {
   // are idempotent; the teardown only matters for Strict Mode remounts.
   useEffect(() => {
     ensureLocalPersistence();
+    registerServiceWorker();
     return startSyncEngine();
   }, []);
 
