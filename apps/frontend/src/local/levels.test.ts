@@ -79,6 +79,26 @@ describe("refreshLevelCatalog", () => {
     await first;
     expect(localLevelNumbers()).toEqual([1, 2]);
   });
+
+  it("a failed newer refresh does not discard an older successful response", async () => {
+    let resolveOlder!: (v: unknown) => void;
+    api.fetchAllLevels.mockImplementationOnce(
+      () => new Promise((r) => (resolveOlder = r)),
+    );
+    const older = refreshLevelCatalog();
+
+    // The newer request fails outright — that must not veto the older one.
+    api.fetchAllLevels.mockRejectedValueOnce(new Error("flaky"));
+    await refreshLevelCatalog();
+
+    resolveOlder([
+      { levelNumber: 1, mix: { "1d+1d": 100 } },
+      { levelNumber: 2, mix: { "2d+2d": 100 } },
+    ]);
+    await older;
+    expect(localLevelNumbers()).toEqual([1, 2]);
+    expect(localLevelMix(2)).toEqual({ "2d+2d": 100 });
+  });
 });
 
 describe("localLevelMix", () => {

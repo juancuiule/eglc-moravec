@@ -84,9 +84,12 @@ export function localLevelMix(
 // every settled sync pass (the endpoint is public, so it must not wait on
 // session/sync success); never awaited. A failed fetch just means the last
 // snapshot stands; writes defer past IndexedDB hydration like every other
-// store write. Overlapping refreshes are resolved by generation — a stale
-// in-flight response must not overwrite a newer snapshot.
+// store write. Overlapping refreshes race network responses, so ordering is
+// tracked by the last APPLIED generation: a response writes unless a newer
+// successful response already did — a newer fetch that fails never makes a
+// usable older response get discarded.
 let refreshGen = 0;
+let appliedGen = 0;
 
 export async function refreshLevelCatalog(): Promise<void> {
   const gen = ++refreshGen;
@@ -96,7 +99,8 @@ export async function refreshLevelCatalog(): Promise<void> {
   } catch {
     return;
   }
-  if (gen !== refreshGen) return;
+  if (gen <= appliedGen) return;
+  appliedGen = gen;
   const write = () => {
     localStore.transaction(() => {
       levels.forEach(({ levelNumber, mix }) => {

@@ -26,14 +26,15 @@ self.addEventListener("install", (event) => {
 
 // The shell document alone isn't enough — its page chunk and shared bundles
 // are separate requests that a cold offline navigation would fail to load.
-// Parse the HTML and precache every /_next/static asset it references; if any
-// of them fail the install fails too, and the next visit retries it whole.
+// Parse the HTML and precache every /_next/static asset it references. The
+// document is written LAST: the installing worker shares cache names with
+// the active one, so writing the shell before its assets could pair an old
+// active worker with a new shell it can't run — a failed install must leave
+// the previous build's shell fully intact.
 async function installShell() {
   const response = await fetch(SHELL_URL, { cache: "no-cache" });
   if (!response.ok) throw new Error(`shell fetch failed: ${response.status}`);
   const html = await response.clone().text();
-  const pageCache = await caches.open(PAGE_CACHE);
-  await pageCache.put(SHELL_URL, response);
 
   const assets = new Set(
     [...html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+)"/g)].map(
@@ -42,6 +43,9 @@ async function installShell() {
   );
   const staticCache = await caches.open(STATIC_CACHE);
   await staticCache.addAll([...assets]);
+
+  const pageCache = await caches.open(PAGE_CACHE);
+  await pageCache.put(SHELL_URL, response);
 }
 
 self.addEventListener("activate", (event) => {
@@ -90,6 +94,12 @@ async function cacheFirst(request) {
   return response;
 }
 
+// Level URLs prefer the app shell over a per-URL cached document: a cached
+// doc replays the mix frozen at fetch time, while the shell's LocalLevelPlay
+// reads the local catalog snapshot (refreshed on every settled sync). That
+// keeps offline level play uniform — and keeps the server-rendered prop the
+// only online source of truth. Other routes replay their cached document
+// first, the shell as the universal fallback.
 async function navigation(request) {
   const cache = await caches.open(PAGE_CACHE);
   try {
@@ -97,9 +107,14 @@ async function navigation(request) {
     if (response.ok) cache.put(request, response.clone());
     return response;
   } catch {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    const shell = await cache.match(SHELL_URL);
-    return shell ?? Response.error();
+    const { pathname } = new URL(request.url);
+    const candidates = /^\/level\/\d+\/?$/.test(pathname)
+      ? [SHELL_URL, request]
+      : [request, SHELL_URL];
+    for (const candidate of candidates) {
+      const hit = await cache.match(candidate);
+      if (hit) return hit;
+    }
+    return Response.error();
   }
 }
