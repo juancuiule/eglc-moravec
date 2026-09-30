@@ -1,5 +1,7 @@
 {
   "title": "Estás sin conexión",
   "levelUnavailable": "Este nivel todavía no está guardado en este dispositivo — se descarga la primera vez que lo abrís con conexión.",
-  "catalogUnavailable": "La lista de niveles todavía no está guardada en este dispositivo — reconectate una vez para descargarla."
+  "catalogUnavailable": "La lista de niveles todavía no está guardada en este dispositivo — reconectate una vez para descargarla.",
+  "offline": "Sin conexión",
+  "pending": "{count, plural, one {# pendiente} other {# pendientes}}"
 }

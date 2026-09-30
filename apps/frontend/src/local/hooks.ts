@@ -105,6 +105,21 @@ export function useLocalLevelMix(
   );
 }
 
+// Unacknowledged outbox rows — undefined until hydrated (so "0" can't flash
+// while IndexedDB is still loading). O(rows) per table write; trial writes
+// are per-answer, so that's cheap enough for a status chip.
+export function usePendingOutboxCount(): number | undefined {
+  const hydrated = useLocalHydrated();
+  const table = useTable(TRIALS_TABLE, localStore);
+  return useMemo(
+    () =>
+      hydrated
+        ? Object.values(table).filter((row) => row.synced !== true).length
+        : undefined,
+    [hydrated, table],
+  );
+}
+
 // False until the sync engine's first flush attempt settles (success or
 // failure). Gates that judge on local history — like LevelPlay's locked-
 // redirect — hold while it's false, so a fresh device's boot pull gets a
