@@ -56,9 +56,12 @@ function OperationHeatmap({
         {t("errorHeatmap")}
       </p>
       <div
-        className="grid gap-0.5"
+        className="grid gap-0.5 justify-center"
         style={{
-          gridTemplateColumns: `auto repeat(${domain.length}, minmax(0,1fr))`,
+          // Cap the column width — an unbounded 1fr lets a two-operand
+          // history grow ~200px cells (#82). justify-center keeps the grid
+          // balanced when the capped tracks don't fill the panel.
+          gridTemplateColumns: `auto repeat(${domain.length}, minmax(0, 44px))`,
         }}
         role="img"
         aria-label={t("errorHeatmap")}

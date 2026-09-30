@@ -107,6 +107,27 @@ test("renders the per-operation error heatmap for 1dx1d only", () => {
   ).toBeNull();
 });
 
+// Regression test for #82: heatmap columns are capped, so a history that
+// only spans operands {7,8} renders a compact centered grid instead of two
+// ~200px unbounded 1fr cells.
+test("the heatmap caps column width for narrow operand domains", () => {
+  render(
+    <CategoryStatsDetail
+      codename="1dx1d"
+      onBack={vi.fn()}
+      trials={[
+        makeTrial({ operands: [7, 8], answer: 56 }),
+        makeTrial({ operands: [7, 8], correct: false, answer: 54 }),
+      ]}
+    />,
+  );
+
+  const grid = screen.getByRole("img", { name: "Error rate by problem" });
+  expect(grid.style.gridTemplateColumns).toContain("44px");
+  expect(grid.style.gridTemplateColumns).not.toContain("1fr");
+  expect(grid.className).toContain("justify-center");
+});
+
 test("shows a weekly trend once the category spans two weeks", () => {
   const week1 = new Date(2026, 7, 18, 12).getTime(); // week of Aug 17
   const week2 = new Date(2026, 7, 26, 12).getTime(); // week of Aug 24
