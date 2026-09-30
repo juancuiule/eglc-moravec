@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createOperation, type Operation } from "engine";
@@ -26,9 +26,14 @@ export function TutorialDetail({ topic }: Props) {
   const defaultCategory: string | undefined = categories[categories.length - 1];
 
   const [codename, setCodename] = useState(defaultCategory);
-  const [operation, setOperation] = useState<Operation | null>(() =>
-    defaultCategory ? createOperation(defaultCategory) : null,
-  );
+  // Operation starts null and is generated on mount — createOperation is
+  // random, so a lazy initializer would SSR one expression and hydrate a
+  // different one (React hydration mismatch on the expression text).
+  const [operation, setOperation] = useState<Operation | null>(null);
+  useEffect(() => {
+    if (defaultCategory) setOperation(createOperation(defaultCategory));
+    // The mounted topic's category list never changes.
+  }, [defaultCategory]);
   const [revealed, setRevealed] = useState(false);
 
   function newExample(nextCodename: string = codename!) {
@@ -119,36 +124,44 @@ export function TutorialDetail({ topic }: Props) {
             </div>
           )}
 
-          <div className="flex flex-col gap-3 items-center bg-base rounded-xl px-4 py-6">
-            <span
-              data-testid="tutorial-expression"
-              className="font-mono text-2xl font-bold text-foreground"
-            >
-              {operation!.humanReadable()} ={" "}
-              {revealed ? operation!.result() : "?"}
-            </span>
+          <div className="flex flex-col gap-3 items-center bg-base rounded-xl px-4 py-6 min-h-24 justify-center">
+            {operation ? (
+              <>
+                <span
+                  data-testid="tutorial-expression"
+                  className="font-mono text-2xl font-bold text-foreground"
+                >
+                  {operation.humanReadable()} ={" "}
+                  {revealed ? operation.result() : "?"}
+                </span>
 
-            {hint!.hasHint() && (
-              <div data-testid="hint-card" className="w-full">
-                <HintCard steps={hint!.getSteps()} />
-              </div>
+                {hint!.hasHint() && (
+                  <div data-testid="hint-card" className="w-full">
+                    <HintCard steps={hint!.getSteps()} />
+                  </div>
+                )}
+
+                <div className="flex gap-4 mt-1">
+                  <button
+                    onClick={() => setRevealed((r) => !r)}
+                    aria-expanded={revealed}
+                    className="text-xs text-accent-text hover:underline cursor-pointer touch-manipulation px-1 py-2"
+                  >
+                    {revealed ? t("hideAnswer") : t("showAnswer")}
+                  </button>
+                  <button
+                    onClick={() => newExample()}
+                    className="text-xs text-muted hover:text-foreground cursor-pointer touch-manipulation px-1 py-2"
+                  >
+                    {t("newExample")}
+                  </button>
+                </div>
+              </>
+            ) : (
+              // SSR/first render: identical markup on server and client —
+              // the random operation lands one paint later.
+              <span className="font-mono text-2xl font-bold text-muted">?</span>
             )}
-
-            <div className="flex gap-4 mt-1">
-              <button
-                onClick={() => setRevealed((r) => !r)}
-                aria-expanded={revealed}
-                className="text-xs text-accent-text hover:underline cursor-pointer touch-manipulation px-1 py-2"
-              >
-                {revealed ? t("hideAnswer") : t("showAnswer")}
-              </button>
-              <button
-                onClick={() => newExample()}
-                className="text-xs text-muted hover:text-foreground cursor-pointer touch-manipulation px-1 py-2"
-              >
-                {t("newExample")}
-              </button>
-            </div>
           </div>
 
           <Link
