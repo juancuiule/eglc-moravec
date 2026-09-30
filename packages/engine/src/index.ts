@@ -30,10 +30,12 @@ export {
   type BaseTrialResult,
   type TrialResult,
   type Answering,
+  type Keystroke,
 } from "./trial/engine";
 
 export {
   MAX_DATE_TIMESTAMP,
+  MAX_KEYSTROKES_PER_TRIAL,
   MAX_SYNC_TRIALS,
   SESSION_TTL_MS,
   SyncRequestSchema,

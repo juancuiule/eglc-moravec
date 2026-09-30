@@ -8,8 +8,8 @@ export function insertTrialResults(
 ): void {
   const insertTrial = db.prepare(
     `INSERT OR IGNORE INTO trial_results
-       (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at, hint_shown, run_id, run_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at, hint_shown, run_id, run_type, keystrokes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   // One transaction for the whole batch — without it each .run() is its own
   // autocommitted write, i.e. an fsync per row on the Pi's SD card.
@@ -30,6 +30,7 @@ export function insertTrialResults(
         t.hintShown ? 1 : 0,
         t.runId,
         t.runType,
+        t.keystrokes ? JSON.stringify(t.keystrokes) : null,
       );
     });
     db.exec("COMMIT");
@@ -38,6 +39,25 @@ export function insertTrialResults(
     throw error;
   }
 }
+
+// Every pull reads exactly these columns — `keystrokes` is deliberately
+// absent: the trace is evidence stored server-side only, never returned to
+// any device (a locally recorded row keeps its own copy in the outbox).
+const PULL_COLUMNS = [
+  "id",
+  "email_hash",
+  "level_number",
+  "category_codename",
+  "operands",
+  "answer",
+  "correct",
+  "time_exceeded",
+  "time_taken",
+  "played_at",
+  "hint_shown",
+  "run_id",
+  "run_type",
+];
 
 // POST /sync's whole effect in one transaction: push batch + sync_log
 // append + incremental pull. The transaction matters beyond fsync batching
@@ -56,8 +76,8 @@ export function syncTrials(
 ): { cursor: number; rows: TrialResultRow[] } {
   const insertTrial = db.prepare(
     `INSERT OR IGNORE INTO trial_results
-       (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at, hint_shown, run_id, run_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at, hint_shown, run_id, run_type, keystrokes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insertLog = db.prepare(
     `INSERT INTO sync_log (email_hash, trial_id, created_at) VALUES (?, ?, ?)`,
@@ -80,6 +100,7 @@ export function syncTrials(
         t.hintShown ? 1 : 0,
         t.runId,
         t.runType,
+        t.keystrokes ? JSON.stringify(t.keystrokes) : null,
       );
       // A retried push of a known id changes nothing — and must not grow
       // the log, or the device sees its own data as "new" forever.
@@ -102,7 +123,7 @@ export function syncTrials(
     const rows = (
       db
         .prepare(
-          `SELECT t.* FROM sync_log s
+          `SELECT ${PULL_COLUMNS.map((c) => `t.${c}`).join(", ")} FROM sync_log s
            JOIN trial_results t ON t.id = s.trial_id
            WHERE s.email_hash = ? AND s.seq > ?
            ORDER BY s.seq`,
@@ -140,7 +161,7 @@ export function getTrialResultsForUser(
 ): TrialResultRow[] {
   return db
     .prepare(
-      "SELECT * FROM trial_results WHERE email_hash = ? ORDER BY played_at",
+      `SELECT ${PULL_COLUMNS.join(", ")} FROM trial_results WHERE email_hash = ? ORDER BY played_at`,
     )
     .all(emailHash) as TrialResultRow[];
 }

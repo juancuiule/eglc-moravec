@@ -4,6 +4,7 @@ import {
   deriveLevelStats,
   isBetterLevelRecord,
   levelStatsToWire,
+  type Keystroke,
   type TrialResult,
   type TrialResultInput,
 } from "engine";
@@ -31,6 +32,19 @@ function parseOperands(raw: Cell | undefined): number[] {
   }
 }
 
+// The keystrokes cell is loose-typed on the way out — the input schema
+// re-validates it at enqueue, so a malformed stored value just drops the
+// field here rather than the whole row.
+function parseKeystrokes(raw: Cell | undefined): Keystroke[] | undefined {
+  if (typeof raw !== "string") return undefined;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Keystroke[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // The shared flat-cell encoder — one shape for both write paths (enqueue
 // writes synced:false + local display copies; merge writes synced:true +
 // server-authoritative values). Optional cells are absent when null.
@@ -47,6 +61,7 @@ function trialCells(
     runId: string;
     correct: boolean;
     timeExceeded: boolean;
+    keystrokes?: Keystroke[];
   },
   synced: boolean,
 ): LocalTrialCell {
@@ -63,6 +78,7 @@ function trialCells(
     timeExceeded: t.timeExceeded,
     ...(t.answer !== null ? { answer: t.answer } : {}),
     ...(t.levelNumber !== null ? { levelNumber: t.levelNumber } : {}),
+    ...(t.keystrokes ? { keystrokes: JSON.stringify(t.keystrokes) } : {}),
   };
 }
 
@@ -116,6 +132,9 @@ function rowToInput(
     operands: t.operands,
     answer: t.answer,
     hintShown: t.hintShown,
+    ...(parseKeystrokes(row.keystrokes)
+      ? { keystrokes: parseKeystrokes(row.keystrokes) }
+      : {}),
   };
   const input: TrialResultInput =
     t.runType === "level"
@@ -272,7 +291,12 @@ export function mergeServerTrials(trials: readonly SyncedTrial[]): void {
   }
   localStore.transaction(() => {
     valid.forEach((t) => {
-      localStore.setRow(TRIALS_TABLE, t.id, trialCells(t, true));
+      const cells = trialCells(t, true);
+      // Pulled rows never carry keystrokes — the locally recorded trace on
+      // the same id is the only copy, so keep it across the merge.
+      const keystrokes = localStore.getCell(TRIALS_TABLE, t.id, "keystrokes");
+      if (keystrokes !== undefined) cells.keystrokes = String(keystrokes);
+      localStore.setRow(TRIALS_TABLE, t.id, cells);
     });
   });
 }

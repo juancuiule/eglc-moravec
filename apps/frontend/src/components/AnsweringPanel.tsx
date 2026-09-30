@@ -1,6 +1,6 @@
 "use client";
 
-import type { Answering, Operation } from "engine";
+import type { Answering, Keystroke, Operation } from "engine";
 import type { Reviewing } from "../trialSession";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -11,8 +11,8 @@ type Props = {
   operation: Operation;
   playingState: Answering | Reviewing;
   hintVisible: boolean;
-  onSubmitAnswer: (answer: number) => void;
-  onTimeUp: (answer: number | null) => void;
+  onSubmitAnswer: (answer: number, keystrokes?: Keystroke[]) => void;
+  onTimeUp: (answer: number | null, keystrokes?: Keystroke[]) => void;
   onAdvance: () => void;
   headerLeft: ReactNode;
   headerRight: ReactNode;
@@ -58,10 +58,26 @@ export function AnsweringPanel({
   const [seconds, setSeconds] = useState(() => Math.ceil(solveTime / 1000));
   const barRef = useRef<HTMLDivElement>(null);
   const answerRef = useRef("");
+  // Per-trial keystroke trace (#68): {key, t} pairs for every digit, erase,
+  // and submit during the Answering phase. Ref, not state — each press is
+  // fire-and-forget evidence, and routing it through state would re-render
+  // the keypad on every keystroke.
+  const keysRef = useRef<Keystroke[]>([]);
 
   // Countdown timer — only active while answering
   const startedAt =
     playingState.type === "answering" ? playingState.startedAt : null;
+
+  // A new Answering phase (fresh startedAt) starts the trace over.
+  useEffect(() => {
+    keysRef.current = [];
+  }, [startedAt]);
+
+  function recordKey(key: string) {
+    if (startedAt === null) return;
+    // Same clock-rollback clamp as Trial.scoreAnswer's timeTaken.
+    keysRef.current.push({ key, t: Math.max(0, Date.now() - startedAt) });
+  }
 
   useEffect(() => {
     if (startedAt === null) return;
@@ -86,7 +102,7 @@ export function AnsweringPanel({
       });
       if (left === 0) {
         clearInterval(id);
-        onTimeUp(parsedAnswer(answerRef.current));
+        onTimeUp(parsedAnswer(answerRef.current), keysRef.current);
       }
     }, 100);
     return () => clearInterval(id);
@@ -130,6 +146,7 @@ export function AnsweringPanel({
   // The press animation lives at the event edge (onPointerDown / keydown) —
   // not here — so a tap's pointerdown+click pair doesn't fire it twice.
   function handleButton(key: string) {
+    recordKey(key);
     if (key === "C") {
       setAnswer("");
       answerRef.current = "";
@@ -146,8 +163,11 @@ export function AnsweringPanel({
   }
 
   function doSubmit() {
+    // The submit press is evidence too — the same logical key for the
+    // on-screen button and physical Enter.
+    recordKey("⏎");
     const parsed = parsedAnswer(answerRef.current);
-    if (parsed !== null) onSubmitAnswer(parsed);
+    if (parsed !== null) onSubmitAnswer(parsed, keysRef.current);
   }
 
   const isReviewing = playingState.type === "reviewing";

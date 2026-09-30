@@ -8,8 +8,8 @@ The paper's participant table breaks results down by age, gender, and education.
 
 ## Digit-erase / edit signal
 
-The paper excludes trials "in which participants erased a digit" from the RT analysis, on the theory that a correction mid-entry doesn't reflect a clean calculation time. `trial_results` only stores the final submitted `answer` and total `time_taken` — no keystroke or edit history — so that exclusion can't be reproduced here. `features.filter_rt_outliers` (the 4-SD-from-category-mean rule) is the only RT exclusion this dataset can support.
+**Now bridged for new data** (#68): `trial_results.keystrokes` stores the per-trial `{key, t}` trace verbatim (JSON, NULL for anything synced before the column existed), and `features.add_keystroke_fields` derives `erased_digit` — `None` when the trace is absent (pre-#68 rows: unknown, not clean), so `df[df["erased_digit"] == False]` selects only observed-clean trials. The trace is **server-side storage only** — never returned by sync pulls — so the only local copy lives in the recording device's outbox row.
 
 ## What this means for the notebooks
 
-Every effect notebook applies `filter_rt_outliers` as its only cleaning step and calls out in its own markdown where its result should be read as an approximation of the paper's rather than a strict replication. If per-keystroke timing or a digit-erase signal is ever added to the sync payload, this gap — and the resulting notebook caveats — goes away.
+Every effect notebook applies `filter_rt_outliers` as its only cleaning step and calls out in its own markdown where its result should be read as an approximation of the paper's rather than a strict replication. For post-#68 data the erased-digit exclusion is also available (`erased_digit` above) — the approximation caveat only stands for the pre-column rows.

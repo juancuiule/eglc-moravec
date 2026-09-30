@@ -112,12 +112,43 @@ def add_error_classification(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def add_keystroke_fields(df: pd.DataFrame) -> pd.DataFrame:
+    """erased_digit / keystroke_count, from the {key,t} trace stored since #68.
+
+    erased_digit is True iff the trace contains any "⌫" or "C" event — the
+    paper's exclusion criterion ("trials in which participants erased a
+    digit"). Rows predating the column (keystrokes is None) get None —
+    unknown, not clean — so filter with `df[df["erased_digit"] == False]`
+    to keep only observed-clean trials.
+    """
+    df = df.copy()
+    keys = df.get("keystrokes")
+    df["keystroke_count"] = (
+        keys.apply(lambda ks: len(ks) if isinstance(ks, list) else 0)
+        if keys is not None
+        else 0
+    )
+    df["erased_digit"] = (
+        keys.apply(
+            lambda ks: (
+                any(k.get("key") in ("⌫", "C") for k in ks)
+                if isinstance(ks, list)
+                else None
+            )
+        )
+        if keys is not None
+        else None
+    )
+    return df
+
+
 def add_all_derived_fields(df: pd.DataFrame) -> pd.DataFrame:
     """The full derived-column pipeline every notebook runs raw trial rows through."""
     df = add_operation_fields(df)
     df = add_arithmetic_regressors(df)
     df = add_order_fields(df)
     df = add_rhyme_fields(df)
+    df = add_keystroke_fields(df)
     df = add_error_classification(df)
     return df
 

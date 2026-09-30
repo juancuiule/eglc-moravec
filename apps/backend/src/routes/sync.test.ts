@@ -768,6 +768,34 @@ describe("POST /sync cursor pull", () => {
     ).toMatchObject({ n: 1 });
   });
 
+  it("stores pushed keystrokes verbatim but never returns them in a pull", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const traced = {
+      ...trial,
+      keystrokes: [
+        { key: "6", t: 800 },
+        { key: "0", t: 1100 },
+        { key: "⏎", t: 1300 },
+      ],
+    };
+
+    const res = await syncCall(app, token, 0, [traced]);
+    expect(res.statusCode).toBe(200);
+
+    const row = db
+      .prepare("SELECT keystrokes FROM trial_results WHERE id = ?")
+      .get(traced.id) as { keystrokes: string };
+    expect(JSON.parse(row.keystrokes)).toEqual(traced.keystrokes);
+
+    // Evidence is server-side storage only — another session's pull carries
+    // the trial but never the trace.
+    const tokenB = await loginAndGetToken(db, app);
+    const pull = await syncCall(app, tokenB, 0, []);
+    expect(pull.json().trials).toHaveLength(1);
+    expect(pull.json().trials[0]).not.toHaveProperty("keystrokes");
+  });
+
   it.each([-1, 1.5, "0", NaN])(
     "rejects a malformed cursor %s without storing anything",
     async (cursor) => {
