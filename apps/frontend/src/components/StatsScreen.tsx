@@ -288,7 +288,7 @@ export function StatsScreen() {
             // (that's its whole reason to exist; an unreachable empty
             // state is dead code).
             const rowClassName =
-              "grid grid-cols-[6rem_minmax(0,1fr)_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-base w-full text-left cursor-pointer hover:bg-panel-accent touch-manipulation transition-all duration-150 active:scale-96";
+              "grid grid-cols-[6rem_minmax(0,1fr)_4rem] gap-2 items-center px-2 py-2 min-h-11 rounded-lg bg-base w-full text-left cursor-pointer hover:bg-panel-accent touch-manipulation transition-all duration-150 active:scale-96";
 
             const content = (
               <>
