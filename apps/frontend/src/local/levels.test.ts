@@ -58,6 +58,27 @@ describe("refreshLevelCatalog", () => {
     expect(localLevelNumbers()).toEqual([1, 2]);
     expect(localLevelMix(1)).not.toBeNull();
   });
+
+  it("a stale in-flight refresh cannot overwrite a newer snapshot", async () => {
+    let resolveFirst!: (v: unknown) => void;
+    api.fetchAllLevels.mockImplementationOnce(
+      () => new Promise((r) => (resolveFirst = r)),
+    );
+    const first = refreshLevelCatalog();
+
+    // The newer refresh answers first and writes [1,2].
+    api.fetchAllLevels.mockResolvedValueOnce([
+      { levelNumber: 1, mix: { "1d+1d": 100 } },
+      { levelNumber: 2, mix: { "2d+2d": 100 } },
+    ]);
+    await refreshLevelCatalog();
+    expect(localLevelNumbers()).toEqual([1, 2]);
+
+    // The older response lands last — it must be discarded, not written.
+    resolveFirst([{ levelNumber: 1, mix: { "1d+1d": 100 } }]);
+    await first;
+    expect(localLevelNumbers()).toEqual([1, 2]);
+  });
 });
 
 describe("localLevelMix", () => {
@@ -78,6 +99,13 @@ describe("localLevelMix", () => {
       mix: JSON.stringify({ "1d+1d": -5 }),
     });
     expect(localLevelMix(7)).toBeNull();
+  });
+
+  it("rejects a mix whose weights sum to zero — it would throw mid-play", () => {
+    localStore.setRow(LEVELS_TABLE, "8", {
+      mix: JSON.stringify({ "1d+1d": 0, "1dx1d": 0 }),
+    });
+    expect(localLevelMix(8)).toBeNull();
   });
 });
 

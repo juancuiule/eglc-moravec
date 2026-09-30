@@ -1,6 +1,6 @@
 "use client";
 
-import { useTable, useValue } from "tinybase/ui-react";
+import { useCell, useTable, useValue } from "tinybase/ui-react";
 import { useStore } from "zustand";
 import type { LevelStats, SyncedTrial } from "../api/Api";
 import { useMemo, useRef } from "react";
@@ -16,8 +16,8 @@ import { allLocalTrials, levelStatsFromTrials } from "./trials";
 import {
   LEVEL_NUMBERS_VALUE,
   LEVELS_TABLE,
-  localLevelMix,
-  localLevelNumbers,
+  parseLevelMix,
+  parseLevelNumbers,
 } from "./levels";
 import { NO_SESSION, syncStatus } from "./syncEngine";
 
@@ -83,9 +83,13 @@ export function useLocalLevelStats(): Record<string, LevelStats> | undefined {
 // "loading" and "nothing cached" for offline fallbacks.
 export function useLocalLevelNumbers(): number[] | null | undefined {
   const hydrated = useLocalHydrated();
-  useValue(LEVEL_NUMBERS_VALUE, localStore);
-  if (!hydrated) return undefined;
-  return localLevelNumbers();
+  const raw = useValue(LEVEL_NUMBERS_VALUE, localStore);
+  // Memoize on the raw string — parseLevelNumbers allocates a fresh array
+  // per call, which would make the result unstable across renders.
+  return useMemo(
+    () => (hydrated ? parseLevelNumbers(raw) : undefined),
+    [hydrated, raw],
+  );
 }
 
 // The cached mix for one level — undefined until hydrated, null when the
@@ -94,9 +98,11 @@ export function useLocalLevelMix(
   levelNumber: number,
 ): Record<string, number> | null | undefined {
   const hydrated = useLocalHydrated();
-  useTable(LEVELS_TABLE, localStore);
-  if (!hydrated) return undefined;
-  return localLevelMix(levelNumber);
+  const raw = useCell(LEVELS_TABLE, String(levelNumber), "mix", localStore);
+  return useMemo(
+    () => (hydrated ? parseLevelMix(raw) : undefined),
+    [hydrated, raw],
+  );
 }
 
 // False until the sync engine's first flush attempt settles (success or

@@ -282,7 +282,11 @@ export function startSyncEngine(): () => void {
   if (started) return () => {};
   started = true;
 
-  const onOnline = () => kickSync();
+  const onOnline = () => {
+    kickSync();
+    // Public endpoint — warm the snapshot even when session/sync can't run.
+    void refreshLevelCatalog();
+  };
   window.addEventListener("online", onOnline);
 
   // A token appearing OR changing — anonymous mint, login, lazy recovery —
@@ -397,6 +401,9 @@ export function startSyncEngine(): () => void {
   );
 
   kickSync(); // boot flush — drains anything persisted from a prior session
+  // Boot catalog warm, independent of the flush — /levels/all is public, so
+  // a device whose session mint or trial sync fails still gets one.
+  void refreshLevelCatalog();
 
   return () => {
     started = false;

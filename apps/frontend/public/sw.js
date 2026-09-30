@@ -21,13 +21,28 @@ const SHELL_URL = "/offline";
 const STATIC_PATHS = ["/moravec.svg", "/favicon.ico"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(PAGE_CACHE)
-      .then((cache) => cache.add(SHELL_URL))
-      .then(() => self.skipWaiting()),
-  );
+  event.waitUntil(installShell().then(() => self.skipWaiting()));
 });
+
+// The shell document alone isn't enough — its page chunk and shared bundles
+// are separate requests that a cold offline navigation would fail to load.
+// Parse the HTML and precache every /_next/static asset it references; if any
+// of them fail the install fails too, and the next visit retries it whole.
+async function installShell() {
+  const response = await fetch(SHELL_URL, { cache: "no-cache" });
+  if (!response.ok) throw new Error(`shell fetch failed: ${response.status}`);
+  const html = await response.clone().text();
+  const pageCache = await caches.open(PAGE_CACHE);
+  await pageCache.put(SHELL_URL, response);
+
+  const assets = new Set(
+    [...html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+)"/g)].map(
+      (m) => m[1],
+    ),
+  );
+  const staticCache = await caches.open(STATIC_CACHE);
+  await staticCache.addAll([...assets]);
+}
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(

@@ -536,13 +536,26 @@ describe("flush", () => {
     expect(localStore.getValue("levelNumbers")).toBe("[1]");
   });
 
-  it("a failed pass does not refresh the catalog", async () => {
+  it("warms the catalog at boot even when session establishment fails — the endpoint is public", async () => {
+    setAuth({ type: "logged-out" });
+    ensureSessionToken.mockResolvedValue(null);
+    teardown = startSyncEngine();
+    await tick();
+
+    expect(api.fetchAllLevels).toHaveBeenCalled();
+  });
+
+  it("warms the catalog on reconnect even if trial sync is failing", async () => {
     api.fetchTrials.mockRejectedValue(new Error("unreachable"));
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
+    api.fetchAllLevels.mockClear();
 
-    expect(api.fetchAllLevels).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event("online"));
+    await tick();
+
+    expect(api.fetchAllLevels).toHaveBeenCalled();
   });
 
   it("a token appearing kicks a flush", async () => {

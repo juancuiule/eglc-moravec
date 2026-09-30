@@ -12,10 +12,12 @@ import { afterHydration, isPersistenceLoading, localStore } from "./store";
 export const LEVELS_TABLE = "levels";
 export const LEVEL_NUMBERS_VALUE = "levelNumbers";
 
-// null = no catalog snapshot yet (never warmed); distinct from "hydrated
-// but empty" only at the read sites, which gate on hydration anyway.
-export function localLevelNumbers(): number[] | null {
-  const raw = localStore.getValue(LEVEL_NUMBERS_VALUE);
+// Split from the store reads so reactive callers can memoize on the raw
+// cell/value string — JSON.parse allocates a fresh object every call, which
+// would otherwise make hook results unstable across renders.
+
+// null = no catalog snapshot yet (never warmed).
+export function parseLevelNumbers(raw: unknown): number[] | null {
   if (typeof raw !== "string") return null;
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -27,18 +29,26 @@ export function localLevelNumbers(): number[] | null {
   }
 }
 
+export function localLevelNumbers(): number[] | null {
+  return parseLevelNumbers(localStore.getValue(LEVEL_NUMBERS_VALUE));
+}
+
 // The cached mix for one level number, validated on read the same way the
 // backend validates the catalog at boot — a corrupt or hand-edited cell
 // must not reach createOperation mid-play; it reads as "not cached" instead.
-export function localLevelMix(
-  levelNumber: number,
-): Record<string, number> | null {
-  const raw = localStore.getCell(LEVELS_TABLE, String(levelNumber), "mix");
+export function parseLevelMix(raw: unknown): Record<string, number> | null {
   if (typeof raw !== "string") return null;
   try {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) return null;
     const entries = Object.entries(parsed);
+    // Mirrors assertLevelMixesAreValid on the backend: a mix of only
+    // zero-weight entries would pass the per-entry check but throw inside
+    // pickRandomWeighted on the first trial — reject it as not-cached here.
+    const totalWeight = entries.reduce(
+      (sum, [, weight]) => sum + (weight as number),
+      0,
+    );
     const valid =
       entries.length > 0 &&
       entries.every(
@@ -47,10 +57,12 @@ export function localLevelMix(
           typeof weight === "number" &&
           Number.isFinite(weight) &&
           weight >= 0,
-      );
+      ) &&
+      Number.isFinite(totalWeight) &&
+      totalWeight > 0;
     if (!valid) {
       console.warn("localFirst: dropping invalid cached level mix", {
-        levelNumber,
+        raw: String(raw).slice(0, 120),
       });
       return null;
     }
@@ -60,17 +72,31 @@ export function localLevelMix(
   }
 }
 
-// Best-effort background refresh — called after every settled sync pass
-// (which includes the boot flush), never awaited. A failed fetch just means
-// the last snapshot stands; writes defer past IndexedDB hydration like
-// every other store write.
+export function localLevelMix(
+  levelNumber: number,
+): Record<string, number> | null {
+  return parseLevelMix(
+    localStore.getCell(LEVELS_TABLE, String(levelNumber), "mix"),
+  );
+}
+
+// Best-effort background refresh — fired at boot, on `online`, and after
+// every settled sync pass (the endpoint is public, so it must not wait on
+// session/sync success); never awaited. A failed fetch just means the last
+// snapshot stands; writes defer past IndexedDB hydration like every other
+// store write. Overlapping refreshes are resolved by generation — a stale
+// in-flight response must not overwrite a newer snapshot.
+let refreshGen = 0;
+
 export async function refreshLevelCatalog(): Promise<void> {
+  const gen = ++refreshGen;
   let levels: { levelNumber: number; mix: Record<string, number> }[];
   try {
     levels = await Api.fetchAllLevels();
   } catch {
     return;
   }
+  if (gen !== refreshGen) return;
   const write = () => {
     localStore.transaction(() => {
       levels.forEach(({ levelNumber, mix }) => {

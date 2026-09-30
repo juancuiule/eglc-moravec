@@ -9,6 +9,7 @@ import {
   useFirstPullSettled,
   useLocalEpoch,
   useLocalHydrated,
+  useLocalLevelMix,
   useLocalLevelStats,
   useSessionSeedStats,
 } from "@/local/hooks";
@@ -32,7 +33,7 @@ type Props = {
 
 export function LevelPlay({
   levelNumber,
-  level,
+  level: levelProp,
   stats,
   nextLevelNumber,
 }: Props) {
@@ -58,6 +59,15 @@ export function LevelPlay({
   // chance to merge the player's real history. Hold the gate until the
   // engine's first pull settles; a genuinely locked level still redirects.
   const firstPullSettled = useFirstPullSettled();
+
+  // Same convention as the stats seed below: the server-provided prop is a
+  // first-paint snapshot; the local catalog is the live copy, refreshed on
+  // every settled sync. Preferring it post-hydration keeps a cached page
+  // document replayed by the service worker identical to a shell-routed
+  // render — both read the snapshot, not a mix frozen at fetch time. The
+  // prop still wins before hydration and when this level was never cached.
+  const cachedMix = useLocalLevelMix(levelNumber);
+  const level = cachedMix ?? levelProp;
 
   useEffect(() => {
     if (hydrated && firstPullSettled && !unlocked) router.replace("/");
