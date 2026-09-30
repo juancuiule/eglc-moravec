@@ -283,10 +283,12 @@ export function StatsScreen() {
           </div>
 
           {stats.map((row) => {
-            const rowClassName = [
-              "grid grid-cols-[6rem_minmax(0,1fr)_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-base w-full text-left",
-              row.total > 0 ? "cursor-pointer hover:bg-panel-accent" : "",
-            ].join(" ");
+            // Every row is a button — including zero-trial categories,
+            // whose detail view is the empty state with the practice CTA
+            // (that's its whole reason to exist; an unreachable empty
+            // state is dead code).
+            const rowClassName =
+              "grid grid-cols-[6rem_minmax(0,1fr)_4rem] gap-2 items-center px-2 py-2 rounded-lg bg-base w-full text-left cursor-pointer hover:bg-panel-accent touch-manipulation transition-all duration-150 active:scale-96";
 
             const content = (
               <>
@@ -319,10 +321,7 @@ export function StatsScreen() {
               </>
             );
 
-            // Only a row with data is actually navigable to the detail view —
-            // a real <button> for that (keyboard + screen-reader reachable),
-            // a plain <div> for the inert "no data yet" rows.
-            return row.total > 0 ? (
+            return (
               <button
                 key={row.codename}
                 onClick={() => setSelected(row.codename)}
@@ -330,10 +329,6 @@ export function StatsScreen() {
               >
                 {content}
               </button>
-            ) : (
-              <div key={row.codename} className={rowClassName}>
-                {content}
-              </div>
             );
           })}
         </div>
