@@ -48,6 +48,17 @@ export const TrialResultSchema = z
       runType: z.literal("practice"),
       levelNumber: z.null(),
     }),
+    // A Focus session (#66) is a Practice session whose Operation
+    // categories were drawn adaptively — weighted toward the player's
+    // weakest categories — rather than from one chosen category. The
+    // distinct runType lets the research pipeline exclude the biased
+    // category mix; trials are otherwise ordinary Practice trials
+    // (unscored, levelNumber null).
+    z.object({
+      ...TrialResultFields,
+      runType: z.literal("practice_focus"),
+      levelNumber: z.null(),
+    }),
   ])
   .refine(({ categoryCodename, operands }) =>
     operandsMatchCategory(categoryCodename, operands),
@@ -102,6 +113,11 @@ export const SyncedTrialSchema = z
       runType: z.literal("practice"),
       levelNumber: z.null(),
     }),
+    z.object({
+      ...SyncedTrialFields,
+      runType: z.literal("practice_focus"),
+      levelNumber: z.null(),
+    }),
   ])
   .refine(
     ({ categoryCodename, operands }) =>
@@ -113,7 +129,8 @@ export type SyncedTrial = z.infer<typeof SyncedTrialSchema>;
 
 export type TrialResultPolicy =
   | { runType: "level"; levelNumber: number; runId: string }
-  | { runType: "practice"; levelNumber: null; runId: string };
+  | { runType: "practice"; levelNumber: null; runId: string }
+  | { runType: "practice_focus"; levelNumber: null; runId: string };
 
 export function toTrialResultInputs(
   results: TrialResult[],
@@ -139,7 +156,9 @@ export function toTrialResultInputs(
     };
     return policy.runType === "level"
       ? { ...trial, runType: "level", levelNumber: policy.levelNumber }
-      : { ...trial, runType: "practice", levelNumber: null };
+      : policy.runType === "practice_focus"
+        ? { ...trial, runType: "practice_focus", levelNumber: null }
+        : { ...trial, runType: "practice", levelNumber: null };
   });
 }
 

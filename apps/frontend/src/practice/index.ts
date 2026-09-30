@@ -6,10 +6,18 @@ import {
   type TrialSessionPolicy,
   type TrialSessionStore,
 } from "../trialSession";
+import { pickFocusCategory, type FocusWeights } from "./focus";
 
-export type PracticeConfig = {
-  categoryCodename: string;
-};
+/**
+ * What a Practice session draws from. "category" is classic Practice — one
+ * codename for the whole session. "focus" (#66) draws each Trial's category
+ * from a weight map skewed toward the player's weakest categories; the map
+ * is derived from local history at session start and frozen into the
+ * config.
+ */
+export type PracticeConfig =
+  | { mode: "category"; categoryCodename: string }
+  | { mode: "focus"; weights: FocusWeights };
 
 export type PracticeStopped = {
   type: "stopped";
@@ -30,6 +38,15 @@ export type PracticeStore = Omit<
   "state" | "forceComplete"
 > & { state: PracticeState; stop: () => void };
 
+/**
+ * Restart identity for a config — the mode, plus the codename for category
+ * mode. A Focus config gets a fresh weights object whenever history is
+ * re-derived; that's still the same session and must not restart a run.
+ */
+export function practiceConfigKey(config: PracticeConfig): string {
+  return config.mode === "focus" ? "focus" : config.categoryCodename;
+}
+
 export const policy: TrialSessionPolicy<
   PracticeConfig,
   PracticeStopped,
@@ -38,7 +55,11 @@ export const policy: TrialSessionPolicy<
   initialHintsRemaining: () => undefined,
   initialPickState: () => undefined,
   pickNext: (config) => ({
-    operation: createOperation(config.categoryCodename),
+    operation: createOperation(
+      config.mode === "focus"
+        ? pickFocusCategory(config.weights)
+        : config.categoryCodename,
+    ),
     pickState: undefined,
   }),
   isComplete: () => false, // Practice never auto-completes via advance

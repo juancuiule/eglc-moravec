@@ -172,9 +172,16 @@ export function StatsScreen() {
 
   const isLoading = allTrials === undefined;
 
-  // Level and Practice trials are never merged — separate histories, separate numbers.
+  // Level and Practice trials are never merged — separate histories,
+  // separate numbers. Focus sessions count as Practice: they're practice
+  // reps, only their category mix was adaptive.
   const trials = useMemo(
-    () => (allTrials ?? []).filter((t) => t.runType === tab),
+    () =>
+      (allTrials ?? []).filter((t) =>
+        tab === "practice"
+          ? t.runType === "practice" || t.runType === "practice_focus"
+          : t.runType === "level",
+      ),
     [allTrials, tab],
   );
 

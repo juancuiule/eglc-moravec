@@ -149,6 +149,15 @@ describe("TrialResultsSchema", () => {
     expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
   });
 
+  it("accepts a Focus trial with runType practice_focus and a null levelNumber", () => {
+    const trial = {
+      ...validTrial,
+      runType: "practice_focus" as const,
+      levelNumber: null,
+    };
+    expect(parseTrialResults({ trials: [trial] })).toEqual([trial]);
+  });
+
   it.each([null, 0, 3.7, -5, Number.MAX_SAFE_INTEGER + 1])(
     "rejects levelNumber %s for a Level trial",
     (levelNumber) => {
@@ -164,6 +173,15 @@ describe("TrialResultsSchema", () => {
 
   it("rejects a non-null levelNumber for a Practice trial", () => {
     const trial = { ...validTrial, runType: "practice", levelNumber: 3 };
+    expect(parseTrialResults({ trials: [trial] })).toBeNull();
+  });
+
+  it("rejects a non-null levelNumber for a Focus trial", () => {
+    const trial = {
+      ...validTrial,
+      runType: "practice_focus",
+      levelNumber: 3,
+    };
     expect(parseTrialResults({ trials: [trial] })).toBeNull();
   });
 
@@ -437,6 +455,24 @@ describe("toTrialResultInputs", () => {
     expect(input.runType).toBe("practice");
     expect(input.levelNumber).toBeNull();
     expect(input.runId).toBe("practice-run-abc");
+  });
+
+  it("flattens a Focus result as practice_focus with a null levelNumber", () => {
+    const result = makeResult({ timeTaken: 800 });
+    const [input] = toTrialResultInputs(
+      [result],
+      {
+        runType: "practice_focus",
+        levelNumber: null,
+        runId: "focus-run-abc",
+      },
+      NOW,
+      () => "11111111-1111-4111-8111-111111111111",
+    );
+
+    expect(input.runType).toBe("practice_focus");
+    expect(input.levelNumber).toBeNull();
+    expect(input.runId).toBe("focus-run-abc");
   });
 
   it("reconstructs playedAt by working backward from `now` across the batch", () => {

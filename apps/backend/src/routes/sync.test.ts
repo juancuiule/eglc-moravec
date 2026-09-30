@@ -586,6 +586,67 @@ describe("POST /sync with Practice trials", () => {
   });
 });
 
+const focusTrial = {
+  ...practiceTrial,
+  id: randomUUID(),
+  runId: randomUUID(),
+  runType: "practice_focus" as const,
+};
+
+describe("POST /sync with Focus (adaptive practice) trials", () => {
+  it("stores run_type practice_focus and returns it on pull — analysis can filter the biased mix", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/sync",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { cursor: 0, trials: [focusTrial] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      level_number: 0, // same sentinel as practice
+      run_type: "practice_focus",
+    });
+
+    const getRes = await app.inject({
+      method: "GET",
+      url: "/sync/trials",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(getRes.json().trials).toEqual([
+      expect.objectContaining({
+        runType: "practice_focus",
+        levelNumber: null,
+      }),
+    ]);
+  });
+
+  it("rejects a Focus trial carrying a levelNumber", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/sync",
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        cursor: 0,
+        trials: [{ ...focusTrial, id: randomUUID(), levelNumber: 2 }],
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(
+      getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+    ).toHaveLength(0);
+  });
+});
+
 describe("GET /sync/trials", () => {
   it("returns the full stored per-trial shape — operands/answer power per-operation stats on the client", async () => {
     const { db, app } = setup();

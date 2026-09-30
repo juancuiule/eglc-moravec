@@ -31,7 +31,7 @@ function makeResult(): TrialResult {
 function makeStopped(): PracticeStopped {
   return {
     type: "stopped",
-    config: { categoryCodename: "1d+1d" },
+    config: { mode: "category", categoryCodename: "1d+1d" },
     runId: crypto.randomUUID(),
     results: [makeResult(), makeResult()],
   };
@@ -61,6 +61,23 @@ describe("persistStoppedPractice", () => {
       // timeTaken — earlier trials legitimately predate `before`.
       expect(input.playedAt).toBeLessThanOrEqual(after);
       expect(input.playedAt).toBeGreaterThan(before - 60_000);
+    });
+    expect(kickSync).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks Focus-session trials as practice_focus so analysis can filter the adaptive mix", () => {
+    const stopped = makeStopped();
+    persistStoppedPractice({
+      ...stopped,
+      config: { mode: "focus", weights: { "1d+1d": 1 } },
+    });
+
+    const pending = pendingInputs();
+    expect(pending).toHaveLength(stopped.results.length);
+    pending.forEach((input) => {
+      expect(input.runType).toBe("practice_focus");
+      expect(input.levelNumber).toBeNull();
+      expect(input.runId).toBe(stopped.runId);
     });
     expect(kickSync).toHaveBeenCalledTimes(1);
   });

@@ -38,6 +38,10 @@ _Avoid_: Session config, settings.
 An unscored, unlimited sequence of Trials drawn from a single Operation category, with no pass/fail threshold. Ends when the player stops it, producing an in-memory summary that is not persisted.
 _Avoid_: Free play, drill.
 
+**Focus session**:
+A Practice session variant: the same unlimited, unscored flow, but each Trial's Operation category is drawn per pick from weights skewed toward the player's weakest categories (derived from local Trial history, never the network). Its Trials persist with runType `practice_focus` — the adaptive mix biases the category distribution, so analysis filters on it — while classic Practice stays uniformly `practice`.
+_Avoid_: Adaptive mode, smart practice.
+
 **Hint**:
 A step-by-step decomposition an Operation can offer for its current Trial, stopping short of revealing the final numeric answer. Budgeted (3 per Level) or unlimited (Practice session).
 _Avoid_: Answer key, solution, walkthrough.

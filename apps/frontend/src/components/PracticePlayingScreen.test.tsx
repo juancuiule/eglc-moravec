@@ -27,7 +27,7 @@ function buildPlaying(
 ): PracticePlaying {
   return {
     type: "playing",
-    config: { categoryCodename: "2dx1d" },
+    config: { mode: "category", categoryCodename: "2dx1d" },
     runId: "run-1",
     results: [],
     currentOperation: hintOperation,

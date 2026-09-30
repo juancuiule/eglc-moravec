@@ -42,19 +42,26 @@ afterEach(() => {
 });
 
 test("fresh mount starts a Playing run for the given category", () => {
-  render(<PracticePlay categoryCodename="1dx1d" />);
+  render(
+    <PracticePlay config={{ mode: "category", categoryCodename: "1dx1d" }} />,
+  );
 
   const state = practiceStore.getState().state;
   expect(state.type).toBe("playing");
   if (state.type === "playing") {
-    expect(state.config.categoryCodename).toBe("1dx1d");
+    expect(state.config).toEqual({
+      mode: "category",
+      categoryCodename: "1dx1d",
+    });
     expect(state.results).toEqual([]);
     expect(state.trialId).toBe(0);
   }
 });
 
 test("stopping during Reviewing includes the scored trial once in the summary and persistence", () => {
-  render(<PracticePlay categoryCodename="1d+1d" />);
+  render(
+    <PracticePlay config={{ mode: "category", categoryCodename: "1d+1d" }} />,
+  );
   const playing = practiceStore.getState().state;
   if (playing.type !== "playing") throw new Error();
 
@@ -73,7 +80,9 @@ test("stopping during Reviewing includes the scored trial once in the summary an
 });
 
 test("switching to a different category mid-play abandons the in-progress run and starts fresh for the new category", () => {
-  const { rerender } = render(<PracticePlay categoryCodename="1dx1d" />);
+  const { rerender } = render(
+    <PracticePlay config={{ mode: "category", categoryCodename: "1dx1d" }} />,
+  );
   expect(practiceStore.getState().state.type).toBe("playing");
   const firstRunId =
     practiceStore.getState().state.type === "playing"
@@ -83,13 +92,18 @@ test("switching to a different category mid-play abandons the in-progress run an
   // Still mid-play on 1dx1d — navigating straight to another category's URL
   // rerenders this same component with a new categoryCodename, no unmount.
   act(() => {
-    rerender(<PracticePlay categoryCodename="1d+1d" />);
+    rerender(
+      <PracticePlay config={{ mode: "category", categoryCodename: "1d+1d" }} />,
+    );
   });
 
   const state = practiceStore.getState().state;
   expect(state.type).toBe("playing");
   if (state.type === "playing") {
-    expect(state.config.categoryCodename).toBe("1d+1d");
+    expect(state.config).toEqual({
+      mode: "category",
+      categoryCodename: "1d+1d",
+    });
     expect(state.runId).not.toBe(firstRunId);
     expect(state.results).toEqual([]);
     expect(state.trialId).toBe(0);
@@ -97,7 +111,9 @@ test("switching to a different category mid-play abandons the in-progress run an
 });
 
 test("revisiting the same category after stopping starts a fresh run, not the stale Stopped state", () => {
-  const { unmount } = render(<PracticePlay categoryCodename="1dx1d" />);
+  const { unmount } = render(
+    <PracticePlay config={{ mode: "category", categoryCodename: "1dx1d" }} />,
+  );
 
   expect(practiceStore.getState().state.type).toBe("playing");
 
@@ -117,7 +133,9 @@ test("revisiting the same category after stopping starts a fresh run, not the st
 
   // Revisiting the same category remounts it — this should not resume the
   // stale Stopped state from the previous visit.
-  render(<PracticePlay categoryCodename="1dx1d" />);
+  render(
+    <PracticePlay config={{ mode: "category", categoryCodename: "1dx1d" }} />,
+  );
 
   const state = practiceStore.getState().state;
   expect(state.type).toBe("playing");
