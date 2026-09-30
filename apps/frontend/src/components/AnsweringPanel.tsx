@@ -225,8 +225,13 @@ export function AnsweringPanel({
         {operation.humanReadable()}
       </div>
 
-      {/* Hint card — shown when hint is requested */}
-      {hintVisible && !isReviewing && <HintCard steps={hint.getSteps()} />}
+      {/* Hint card — only when requested AND the operation actually has one.
+          NoHint operations (1dx1d is a memorized fact, not a decomposition)
+          otherwise rendered an empty accent-bordered card (#79); same
+          hasHint() gate TutorialDetail uses. */}
+      {hintVisible && !isReviewing && hint.hasHint() && (
+        <HintCard steps={hint.getSteps()} />
+      )}
 
       {/* Calculator section */}
       <div className="relative flex flex-col gap-3">
