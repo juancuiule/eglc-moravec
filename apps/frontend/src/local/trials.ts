@@ -277,16 +277,54 @@ export function mergeServerTrials(trials: readonly SyncedTrial[]): void {
   });
 }
 
-// One epoch-guarded pull+merge — the merge lands only if the store's epoch
-// is still the caller's (a logout wipe mid-request must not be repopulated
-// by the dead session's response). Returns false on a stale epoch.
+// The sync cursor — the highest sync_log.seq this device has seen — stored
+// bound to the token that produced it. sync_log.seq is one global sequence
+// shared across users, so a cursor is only meaningful for the identity that
+// read it: a token change (login transition, session remint, store wipe)
+// makes the owner mismatch and reads as 0, which is exactly the spec's
+// "reset cursor on login" — while a cookie-resumed session keeps its
+// incremental position. Single JSON value so owner and seq move atomically.
+const CURSOR_VALUE = "cursor";
+
+export function syncCursor(token: string): number {
+  const raw = localStore.getValue(CURSOR_VALUE);
+  if (typeof raw !== "string") return 0;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      (parsed as { token: unknown }).token === token
+    ) {
+      const seq = (parsed as { seq: unknown }).seq;
+      if (typeof seq === "number" && Number.isInteger(seq) && seq >= 0)
+        return seq;
+    }
+    return 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function setSyncCursor(token: string, seq: number): void {
+  const write = () =>
+    localStore.setValue(CURSOR_VALUE, JSON.stringify({ token, seq }));
+  if (isPersistenceLoading()) afterHydration(write);
+  else write();
+}
+
+// One epoch-guarded pull+merge — a POST /sync with an empty batch. The merge
+// and the cursor advance land only if the store's epoch is still the
+// caller's (a logout wipe mid-request must not be repopulated by the dead
+// session's response). Returns false on a stale epoch.
 export async function pullServerTrials(
   token: string,
   gen: number,
 ): Promise<boolean> {
-  const pulled = await Api.fetchTrials(token);
+  const res = await Api.sync(token, syncCursor(token), []);
   if (localEpoch() !== gen) return false;
-  mergeServerTrials(pulled);
+  mergeServerTrials(res.trials);
+  setSyncCursor(token, res.cursor);
   return true;
 }
 

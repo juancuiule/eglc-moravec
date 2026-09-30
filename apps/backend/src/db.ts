@@ -45,7 +45,25 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      level_number INTEGER PRIMARY KEY,
      mix TEXT NOT NULL
    )`,
+  // Per-user append log over trial_results — the sequence POST /sync pulls
+  // incrementally against. seq is global (shared across users); client
+  // cursors are per-user ranges within it, so a login transition resets the
+  // device's cursor rather than mapping it.
+  `CREATE TABLE IF NOT EXISTS sync_log (
+     seq INTEGER PRIMARY KEY AUTOINCREMENT,
+     email_hash TEXT NOT NULL,
+     trial_id TEXT NOT NULL,
+     created_at INTEGER NOT NULL
+   )`,
 ];
+
+// History that predates sync_log still needs to be pullable by a fresh
+// device — backfill once, in insertion order so seq preserves it. The NOT
+// EXISTS guard makes it a no-op on any database that already has log rows.
+const SYNC_LOG_BACKFILL = `INSERT INTO sync_log (email_hash, trial_id, created_at)
+  SELECT email_hash, id, played_at FROM trial_results
+  WHERE NOT EXISTS (SELECT 1 FROM sync_log)
+  ORDER BY rowid`;
 
 // `CREATE TABLE IF NOT EXISTS` is a no-op against a table that already
 // exists with an older column set, so a new NOT NULL column needs an
@@ -69,6 +87,7 @@ const INDEX_STATEMENTS: readonly string[] = [
   // the whole history in memory.
   "DROP INDEX IF EXISTS idx_trial_results_email_hash",
   "CREATE INDEX IF NOT EXISTS idx_trial_results_email_played ON trial_results(email_hash, played_at)",
+  "CREATE INDEX IF NOT EXISTS idx_sync_log_email_seq ON sync_log(email_hash, seq)",
 ];
 
 function tableColumns(db: DatabaseSync, table: string): Set<string> {
@@ -91,6 +110,7 @@ export function openDb(path: string, now: number = Date.now()): DatabaseSync {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   SCHEMA_STATEMENTS.forEach((statement) => db.exec(statement));
+  db.exec(SYNC_LOG_BACKFILL);
   applyColumnMigrations(db);
   INDEX_STATEMENTS.forEach((statement) => db.exec(statement));
   cleanupExpiredAuthData(db, now);

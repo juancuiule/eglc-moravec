@@ -8,7 +8,7 @@ import { IntlTestProvider } from "@/testUtils/renderWithIntl";
 import type { SyncedTrial } from "../api/Api";
 
 vi.mock("@/api/Api", () => ({
-  Api: { fetchTrials: vi.fn() },
+  Api: { sync: vi.fn() },
 }));
 
 import { Api } from "@/api/Api";
@@ -18,7 +18,7 @@ beforeEach(() => {
   // mocked fetchTrials still exercises the pull-merge path.
   localStore.delTable(TRIALS_TABLE);
   localStore.setValue("hydrated", true);
-  vi.mocked(Api.fetchTrials).mockResolvedValue([]);
+  vi.mocked(Api.sync).mockResolvedValue({ cursor: 0, trials: [] });
   // Every real player has a session by the time this renders (see
   // AuthBoot) — the trials fetch needs a token to run at all.
   authStore.setState({ state: { type: "anonymous", token: "test-token" } });
@@ -54,7 +54,7 @@ test("a category row with data is a real button, keyboard-reachable and screen-r
       runType: "level",
     },
   ];
-  vi.mocked(Api.fetchTrials).mockResolvedValue(trials);
+  vi.mocked(Api.sync).mockResolvedValue({ cursor: 0, trials });
 
   renderWithQueryClient();
 
@@ -81,7 +81,7 @@ test("a category row with no data is not rendered as an interactive control", as
       runType: "level",
     },
   ];
-  vi.mocked(Api.fetchTrials).mockResolvedValue(trials);
+  vi.mocked(Api.sync).mockResolvedValue({ cursor: 0, trials });
 
   renderWithQueryClient();
 
@@ -106,7 +106,7 @@ test("Level and Practice trials are never merged — a Practice-only trial doesn
       runType: "practice",
     },
   ];
-  vi.mocked(Api.fetchTrials).mockResolvedValue(trials);
+  vi.mocked(Api.sync).mockResolvedValue({ cursor: 0, trials });
 
   renderWithQueryClient();
 
@@ -151,7 +151,7 @@ test("the empty state links to a next action, on both tabs", async () => {
 });
 
 test("shows an error message when the trial fetch fails, with a retry", async () => {
-  vi.mocked(Api.fetchTrials).mockRejectedValue(new Error("network down"));
+  vi.mocked(Api.sync).mockRejectedValue(new Error("network down"));
   renderWithQueryClient();
 
   expect(await screen.findByText(/Couldn't load stats/)).toBeDefined();
@@ -159,15 +159,18 @@ test("shows an error message when the trial fetch fails, with a retry", async ()
   // over an empty local store must not show both at once.
   expect(screen.queryByText(/complete some levels/)).toBeNull();
 
-  vi.mocked(Api.fetchTrials).mockResolvedValue([]);
+  vi.mocked(Api.sync).mockResolvedValue({ cursor: 0, trials: [] });
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
   expect(await screen.findByText(/No data yet/)).toBeDefined();
 });
 
 test("a pull resolving after a logout wipe does not repopulate the store", async () => {
-  let resolvePull: (v: SyncedTrial[]) => void = () => {};
-  vi.mocked(Api.fetchTrials).mockImplementation(
+  let resolvePull: (v: {
+    cursor: number;
+    trials: SyncedTrial[];
+  }) => void = () => {};
+  vi.mocked(Api.sync).mockImplementation(
     () => new Promise((res) => (resolvePull = res)),
   );
   renderWithQueryClient();
@@ -175,22 +178,25 @@ test("a pull resolving after a logout wipe does not repopulate the store", async
   // Logout's wipe lands while this screen's fetch is still in flight.
   act(() => resetLocalData());
   await act(async () => {
-    resolvePull([
-      {
-        id: crypto.randomUUID(),
-        runId: crypto.randomUUID(),
-        runType: "level",
-        categoryCodename: "1dx1d",
-        levelNumber: 1,
-        operands: [2, 3],
-        answer: 6,
-        correct: true,
-        timeExceeded: false,
-        timeTaken: 900,
-        hintShown: false,
-        playedAt: 1_700_000_000_000,
-      },
-    ]);
+    resolvePull({
+      cursor: 1,
+      trials: [
+        {
+          id: crypto.randomUUID(),
+          runId: crypto.randomUUID(),
+          runType: "level",
+          categoryCodename: "1dx1d",
+          levelNumber: 1,
+          operands: [2, 3],
+          answer: 6,
+          correct: true,
+          timeExceeded: false,
+          timeTaken: 900,
+          hintShown: false,
+          playedAt: 1_700_000_000_000,
+        },
+      ],
+    });
   });
 
   // The wiped store stays empty — the previous session's rows never
@@ -199,22 +205,25 @@ test("a pull resolving after a logout wipe does not repopulate the store", async
 });
 
 test("renders the activity calendar and days-trained caption once trials exist", async () => {
-  vi.mocked(Api.fetchTrials).mockResolvedValue([
-    {
-      id: "11111111-1111-4111-8111-111111111111",
-      runId: "22222222-2222-4222-8222-222222222222",
-      levelNumber: 1,
-      categoryCodename: "1d+1d",
-      operands: [1, 1],
-      answer: 2,
-      correct: true,
-      timeExceeded: false,
-      timeTaken: 1000,
-      playedAt: Date.now(),
-      hintShown: false,
-      runType: "level",
-    },
-  ]);
+  vi.mocked(Api.sync).mockResolvedValue({
+    cursor: 1,
+    trials: [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        runId: "22222222-2222-4222-8222-222222222222",
+        levelNumber: 1,
+        categoryCodename: "1d+1d",
+        operands: [1, 1],
+        answer: 2,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 1000,
+        playedAt: Date.now(),
+        hintShown: false,
+        runType: "level",
+      },
+    ],
+  });
   renderWithQueryClient();
 
   expect(await screen.findByRole("img", { name: "Activity" })).toBeDefined();
@@ -236,7 +245,7 @@ test("the export buttons trigger real CSV and JSON downloads", async () => {
     hintShown: false,
     runType: "level",
   };
-  vi.mocked(Api.fetchTrials).mockResolvedValue([trialFixture]);
+  vi.mocked(Api.sync).mockResolvedValue({ cursor: 0, trials: [trialFixture] });
 
   const createUrl = vi.fn((_blob: Blob) => "blob:mock");
   const revokeUrl = vi.fn();

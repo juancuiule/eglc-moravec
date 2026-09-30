@@ -196,6 +196,13 @@ export function completeOtpVerification(
       db.prepare(
         "UPDATE trial_results SET email_hash = ? WHERE email_hash = ?",
       ).run(emailHash, anonymousEmailHash);
+      // The append log follows the rows — without it, merged history would
+      // be invisible to incremental pull (sync_log WHERE email_hash = ?)
+      // even though GET /sync/trials still finds it.
+      db.prepare("UPDATE sync_log SET email_hash = ? WHERE email_hash = ?").run(
+        emailHash,
+        anonymousEmailHash,
+      );
       db.prepare("DELETE FROM sessions WHERE email_hash = ?").run(
         anonymousEmailHash,
       );

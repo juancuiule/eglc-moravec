@@ -59,6 +59,19 @@ export const TrialResultsSchema = z.object({
 
 export type TrialResultInput = z.infer<typeof TrialResultSchema>;
 
+// POST /sync — the unified push+pull request. `cursor` is the highest
+// sync_log.seq this device has seen for its user, 0 on first contact; it
+// must be a plain non-negative integer (Number.isInteger rejects
+// NaN/Infinity — a malformed cursor must fail the request, not silently
+// widen or narrow the pull window).
+export const SyncRequestSchema = z.object({
+  cursor: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  trials: z.array(TrialResultSchema).max(MAX_SYNC_TRIALS),
+});
+
+export type SyncRequest = z.infer<typeof SyncRequestSchema>;
+export type SyncResponse = { cursor: number; trials: SyncedTrial[] };
+
 // The pull-side wire shape (GET /sync/trials): a stored trial plus the
 // server's evaluation. Clients validate every pulled row against this
 // before it enters their local read model — a malformed response must not

@@ -28,7 +28,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/api/Api", () => ({
-  Api: { fetchLevelStats: vi.fn(), syncResults: vi.fn(), fetchTrials: vi.fn() },
+  Api: { fetchLevelStats: vi.fn(), sync: vi.fn() },
 }));
 
 import { Api, type LevelStats } from "@/api/Api";
@@ -45,8 +45,7 @@ const level2: Level = { "1dx1d": 100 };
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(Api.fetchLevelStats).mockResolvedValue({});
-  vi.mocked(Api.syncResults).mockResolvedValue({ trials: [] });
-  vi.mocked(Api.fetchTrials).mockResolvedValue([]);
+  vi.mocked(Api.sync).mockResolvedValue({ cursor: 0, trials: [] });
   // LevelPlay reads unlock state + records from the local-first store —
   // hydrated and empty unless a test seeds it.
   localStore.delTable(TRIALS_TABLE);
@@ -182,7 +181,7 @@ test("the flush settles into a locally-derived record — never a falsy comparis
   finishCurrentRun();
 
   // The post-finish refresh path pulls server trials and re-derives locally.
-  await waitFor(() => expect(Api.fetchTrials).toHaveBeenCalled());
+  await waitFor(() => expect(Api.sync).toHaveBeenCalled());
   expect(
     isBetterLevelRecordMock.mock.calls.filter(([candidate]) => !candidate),
   ).toHaveLength(0);
@@ -197,8 +196,9 @@ test("a better record learned from the pull corrects the record baseline", async
   // A 3-star level-1 run made on another device — merged into the store by
   // the post-finish pull, then into the record baseline.
   const otherRunId = crypto.randomUUID();
-  vi.mocked(Api.fetchTrials).mockResolvedValue(
-    Array.from({ length: TRIALS_PER_LEVEL }, (_, i) => ({
+  vi.mocked(Api.sync).mockResolvedValue({
+    cursor: 1,
+    trials: Array.from({ length: TRIALS_PER_LEVEL }, (_, i) => ({
       id: crypto.randomUUID(),
       runId: otherRunId,
       runType: "level",
@@ -212,7 +212,7 @@ test("a better record learned from the pull corrects the record baseline", async
       hintShown: false,
       playedAt: 1_700_000_000_000 + i * 100,
     })),
-  );
+  });
   renderWithQueryClient(
     <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
   );

@@ -1,7 +1,7 @@
 import {
-  EvaluatedTrialResult,
   TrialResultInput,
   type LevelStatsWire,
+  type SyncResponse,
   type SyncedTrial,
 } from "engine";
 import { errorFrom, request, requestJson, requestVoid } from "./utils";
@@ -54,11 +54,18 @@ export const Api = {
     return requestVoid("/auth/logout", { method: "POST", token });
   },
 
-  syncResults(token: string, trials: TrialResultInput[]) {
-    return requestJson<{ trials: EvaluatedTrialResult[] }>("/sync/results", {
+  // The unified sync path: pushes the batch AND returns this user's
+  // sync_log rows past `cursor` in one round trip. An empty trials array
+  // makes it a pure incremental pull.
+  sync(
+    token: string,
+    cursor: number,
+    trials: TrialResultInput[],
+  ): Promise<SyncResponse> {
+    return requestJson<SyncResponse>("/sync", {
       method: "POST",
       token,
-      body: { trials },
+      body: { cursor, trials },
     });
   },
 
@@ -70,17 +77,6 @@ export const Api = {
       token,
     });
     return levelStats;
-  },
-
-  async fetchTrials(token: string): Promise<SyncedTrial[]> {
-    const { trials } = await requestJson<{ trials: SyncedTrial[] }>(
-      "/sync/trials",
-      {
-        method: "GET",
-        token,
-      },
-    );
-    return trials;
   },
 
   async fetchLevelNumbers(): Promise<number[]> {

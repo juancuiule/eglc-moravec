@@ -33,7 +33,7 @@ function codeFor(db: DatabaseSync, email: string): string {
   return row.code;
 }
 
-// A minimal, valid /sync/results trial — level/category/operands don't
+// A minimal, valid /sync trial — level/category/operands don't
 // matter for these tests, only that the payload is accepted.
 const trial = {
   id: randomUUID(),
@@ -349,15 +349,16 @@ describe("POST /auth/device", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token1}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token2}` },
       payload: {
+        cursor: 0,
         trials: [{ ...trial, id: randomUUID(), runId: randomUUID() }],
       },
     });
@@ -386,11 +387,12 @@ describe("anonymous → email upgrade merge", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${anonToken}` },
       // 20 correct → completes the level; each needs its own id, since id is
       // now the PK trial_results dedupes on.
       payload: {
+        cursor: 0,
         trials: Array.from({ length: 20 }, () => ({
           ...trial,
           id: randomUUID(),
@@ -416,6 +418,17 @@ describe("anonymous → email upgrade merge", () => {
     const anonymousEmailHash = hashDeviceId(DEVICE_ID, TEST_SECRET);
     expect(getTrialResultsForUser(db, realEmailHash)).toHaveLength(20);
     expect(getTrialResultsForUser(db, anonymousEmailHash)).toHaveLength(0);
+
+    // The append log re-keys too — an incremental pull under the new
+    // account identity must see the merged rows.
+    const syncRes = await app.inject({
+      method: "POST",
+      url: "/sync",
+      headers: { authorization: `Bearer ${realToken}` },
+      payload: { cursor: 0, trials: [] },
+    });
+    expect(syncRes.json().trials).toHaveLength(20);
+    expect(syncRes.json().cursor).toBeGreaterThan(0);
 
     // The merged trials are what level-stats derives from, so the new
     // account sees the anonymous identity's completed level.
@@ -466,9 +479,9 @@ describe("anonymous → email upgrade merge", () => {
     const existingToken = existingVerify.json().token as string;
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${existingToken}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     const deviceRes = await app.inject({
@@ -479,9 +492,10 @@ describe("anonymous → email upgrade merge", () => {
     const anonToken = deviceRes.json().token as string;
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${anonToken}` },
       payload: {
+        cursor: 0,
         trials: [{ ...trial, id: randomUUID(), runId: randomUUID() }],
       },
     });
@@ -520,9 +534,9 @@ describe("anonymous → email upgrade merge", () => {
     const anonToken = deviceRes.json().token as string;
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${anonToken}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     await app.inject({
@@ -569,9 +583,9 @@ describe("anonymous → email upgrade merge", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${tokenA}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     // A second login (a different email) arrives carrying A's still-valid

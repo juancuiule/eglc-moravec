@@ -146,10 +146,10 @@ test("syncResults resolves with the server's evaluated trials on success", async
     timeExceeded: false,
   };
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse({ ok: true, trials: [evaluatedTrial] }),
+    jsonResponse({ cursor: 7, trials: [evaluatedTrial] }),
   );
   await expect(
-    Api.syncResults("tok", [
+    Api.sync("tok", 3, [
       {
         id: "trial-1",
         runType: "level",
@@ -163,14 +163,14 @@ test("syncResults resolves with the server's evaluated trials on success", async
         answer: 5,
       },
     ]),
-  ).resolves.toEqual({ ok: true, trials: [evaluatedTrial] });
+  ).resolves.toEqual({ cursor: 7, trials: [evaluatedTrial] });
 });
 
-test("syncResults throws on failure", async () => {
+test("sync throws on failure", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse({ error: "unauthenticated" }, false),
   );
-  await expect(Api.syncResults("tok", [])).rejects.toThrow("unauthenticated");
+  await expect(Api.sync("tok", 0, [])).rejects.toThrow("unauthenticated");
 });
 
 test("fetchLevelStats resolves with the remote LevelStats map on success", async () => {
