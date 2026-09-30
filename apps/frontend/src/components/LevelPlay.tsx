@@ -12,6 +12,7 @@ import {
   useLocalLevelStats,
   useSessionSeedStats,
 } from "@/local/hooks";
+import { cacheLevelMix } from "@/local/levels";
 import { mergeLevelStats } from "@/local/trials";
 import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
 import { watchStoreTransition } from "@/storeWatch";
@@ -58,6 +59,15 @@ export function LevelPlay({
   // chance to merge the player's real history. Hold the gate until the
   // engine's first pull settles; a genuinely locked level still redirects.
   const firstPullSettled = useFirstPullSettled();
+
+  // Every successfully rendered level seeds the local catalog with its own
+  // mix — the bulk /levels/all refresh is best-effort, so without this a
+  // level visited while that refresh kept failing would have a cached page
+  // document but no snapshot row for the offline shell to play. Skips a
+  // redundant write when the cached mix already matches.
+  useEffect(() => {
+    cacheLevelMix(levelNumber, level);
+  }, [levelNumber, level]);
 
   useEffect(() => {
     if (hydrated && firstPullSettled && !unlocked) router.replace("/");

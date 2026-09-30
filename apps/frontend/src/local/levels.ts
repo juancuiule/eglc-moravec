@@ -80,6 +80,28 @@ export function localLevelMix(
   );
 }
 
+// Per-visit complement to the bulk refresh: a successfully rendered level
+// caches its own mix — prior art's cacheLevel behavior. Without it, a level
+// visited while /levels/all kept failing would exist as a cached document
+// but have no snapshot row, and the shell's LocalLevelPlay couldn't play it
+// offline. The number list is NOT touched here — it tracks the server's
+// answer wholesale, and a missing one only costs the "next level" affordance.
+export function cacheLevelMix(
+  levelNumber: number,
+  mix: Record<string, number>,
+): void {
+  const write = () => {
+    const encoded = JSON.stringify(mix);
+    if (
+      localStore.getCell(LEVELS_TABLE, String(levelNumber), "mix") !== encoded
+    ) {
+      localStore.setRow(LEVELS_TABLE, String(levelNumber), { mix: encoded });
+    }
+  };
+  if (isPersistenceLoading()) afterHydration(write);
+  else write();
+}
+
 // Best-effort background refresh — fired at boot, on `online`, and after
 // every settled sync pass (the endpoint is public, so it must not wait on
 // session/sync success); never awaited. A failed fetch just means the last
