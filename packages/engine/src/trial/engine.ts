@@ -5,11 +5,17 @@ export type Answering = {
   startedAt: number;
 };
 
+// One key press during the Answering phase: the logical key (a digit, "⌫",
+// "C", or "⏎") and ms since the phase's startedAt. Research evidence only —
+// never re-derived by the server, never pulled back to other devices.
+export type Keystroke = { key: string; t: number };
+
 export type BaseTrialResult = {
   operation: Operation;
   answer: number | null; // null = timed out
   timeTaken: number; // ms
   hintShown: boolean;
+  keystrokes?: Keystroke[];
 };
 
 export type TrialResult = BaseTrialResult & {

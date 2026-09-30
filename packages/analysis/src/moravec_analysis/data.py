@@ -25,6 +25,11 @@ def load_trial_results(db_path: Path | str = DEFAULT_DB_PATH) -> pd.DataFrame:
     with _connect(db_path) as con:
         df = pd.read_sql_query("SELECT * FROM trial_results ORDER BY played_at", con)
     df["operands"] = df["operands"].apply(json.loads)
+    if "keystrokes" in df.columns:
+        # JSON list of {key, t} or NULL for rows written before #68.
+        df["keystrokes"] = df["keystrokes"].apply(
+            lambda raw: json.loads(raw) if isinstance(raw, str) else None
+        )
     df["correct"] = df["correct"].astype(bool)
     df["time_exceeded"] = df["time_exceeded"].astype(bool)
     df["hint_shown"] = df["hint_shown"].astype(bool)

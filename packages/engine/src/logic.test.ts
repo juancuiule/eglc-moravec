@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  MAX_KEYSTROKES_PER_TRIAL,
+  TrialResultSchema,
   TrialResultsSchema,
   evaluateTrialResult,
   deriveLevelRuns,
@@ -517,5 +519,61 @@ describe("toTrialResultInputs", () => {
 
     expect(input.id).toBe("22222222-2222-4222-8222-222222222222");
     vi.restoreAllMocks();
+  });
+});
+
+describe("keystrokes on TrialResultSchema (#68)", () => {
+  const baseInput = {
+    id: "11111111-1111-4111-8111-111111111111",
+    runId: "22222222-2222-4222-8222-222222222222",
+    categoryCodename: "1d+1d",
+    timeTaken: 800,
+    playedAt: 1_700_000_000_000,
+    operands: [3, 4],
+    answer: 7,
+    hintShown: false,
+    runType: "level" as const,
+    levelNumber: 2,
+  };
+
+  it("accepts a bounded {key,t} trace and passes it through", () => {
+    const parsed = TrialResultSchema.safeParse({
+      ...baseInput,
+      keystrokes: [
+        { key: "7", t: 1200 },
+        { key: "⏎", t: 1500 },
+      ],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success)
+      expect(parsed.data.keystrokes).toEqual([
+        { key: "7", t: 1200 },
+        { key: "⏎", t: 1500 },
+      ]);
+  });
+
+  it("accepts its absence — outbox rows written before #68 still flush", () => {
+    const parsed = TrialResultSchema.safeParse(baseInput);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.keystrokes).toBeUndefined();
+  });
+
+  it("rejects a trace over the per-trial bound", () => {
+    const parsed = TrialResultSchema.safeParse({
+      ...baseInput,
+      keystrokes: Array.from({ length: MAX_KEYSTROKES_PER_TRIAL + 1 }, () => ({
+        key: "1",
+        t: 0,
+      })),
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects negative t", () => {
+    const parsed = TrialResultSchema.safeParse({
+      ...baseInput,
+      keystrokes: [{ key: "1", t: -1 }],
+    });
+    expect(parsed.success).toBe(false);
   });
 });

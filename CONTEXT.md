@@ -77,7 +77,7 @@ The authentication flow: the player enters their email, receives a one-time nume
 _Avoid_: Magic link, passwordless login, sign-in.
 
 **Sync**:
-Reconciling a User's progress with the backend — active for any session, anonymous or logged in. A Level finish or Practice stop pushes the final answer and total timing for each Trial without blocking play; no per-keystroke or edit history is collected. LevelStats pulls read the User's remote best runs for the Levels page, Level access, and the post-finish record refresh. Level and Practice trials share one backend table (`trial_results`, discriminated by a `run_type` column) but stay isolated everywhere it matters: only Level Trial rows feed LevelStats or the Levels unlock view — a Practice Trial is only a raw synced Trial row.
+Reconciling a User's progress with the backend — active for any session, anonymous or logged in. A Level finish or Practice stop pushes the final answer, total timing, and a per-trial keystroke trace (`{key, t}` pairs recorded in `AnsweringPanel`, stored verbatim in `trial_results.keystrokes`) — research evidence only: the server never re-derives anything from it and pull responses never return it. LevelStats pulls read the User's remote best runs for the Levels page, Level access, and the post-finish record refresh. Level and Practice trials share one backend table (`trial_results`, discriminated by a `run_type` column) but stay isolated everywhere it matters: only Level Trial rows feed LevelStats or the Levels unlock view — a Practice Trial is only a raw synced Trial row.
 _Avoid_: Backup, save, upload.
 
 ### Research background

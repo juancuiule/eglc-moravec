@@ -41,7 +41,7 @@ test("keypad and Submit respond to a plain click, not only a pointerdown", () =>
   fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
   expect(onSubmitAnswer).toHaveBeenCalledTimes(1);
-  expect(onSubmitAnswer).toHaveBeenCalledWith(53);
+  expect(onSubmitAnswer).toHaveBeenCalledWith(53, expect.any(Array));
 });
 
 test("backspace removes the last digit on click", () => {
@@ -52,7 +52,7 @@ test("backspace removes the last digit on click", () => {
   fireEvent.click(screen.getByRole("button", { name: "Delete last digit" }));
   fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-  expect(onSubmitAnswer).toHaveBeenCalledWith(5);
+  expect(onSubmitAnswer).toHaveBeenCalledWith(5, expect.any(Array));
 });
 
 test("the clear and backspace keys have a descriptive accessible name, not just their glyph", () => {
@@ -62,4 +62,76 @@ test("the clear and backspace keys have a descriptive accessible name, not just 
   expect(
     screen.getByRole("button", { name: "Delete last digit" }),
   ).toBeDefined();
+});
+
+test("records {key,t} per press — digits, erases, and the submit — passed to onSubmitAnswer", () => {
+  const { onSubmitAnswer } = renderPanel();
+
+  fireEvent.click(screen.getByRole("button", { name: "5" }));
+  fireEvent.click(screen.getByRole("button", { name: "3" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete last digit" }));
+  fireEvent.click(screen.getByRole("button", { name: "2" }));
+  fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+  const [, keystrokes] = onSubmitAnswer.mock.calls[0] as [
+    number,
+    { key: string; t: number }[],
+  ];
+  expect(keystrokes.map((k) => k.key)).toEqual(["5", "3", "⌫", "2", "⏎"]);
+  expect(keystrokes.every((k) => k.t >= 0)).toBe(true);
+});
+
+test("physical keyboard input records the same trace — Backspace as ⌫, Enter as ⏎", () => {
+  const { onSubmitAnswer } = renderPanel();
+
+  fireEvent.keyDown(window, { key: "4" });
+  fireEvent.keyDown(window, { key: "Backspace" });
+  fireEvent.keyDown(window, { key: "7" });
+  fireEvent.keyDown(window, { key: "Enter" });
+
+  const [answer, keystrokes] = onSubmitAnswer.mock.calls[0] as [
+    number,
+    { key: string; t: number }[],
+  ];
+  expect(answer).toBe(7);
+  expect(keystrokes.map((k) => k.key)).toEqual(["4", "⌫", "7", "⏎"]);
+});
+
+test("no-op presses aren't evidence — backspace on empty and an eleventh digit never enter the trace", () => {
+  const { onSubmitAnswer } = renderPanel();
+
+  fireEvent.keyDown(window, { key: "Backspace" }); // empty answer — no-op
+  fireEvent.keyDown(window, { key: "Delete" }); // C on empty — no-op
+  for (const d of "1234567890") fireEvent.keyDown(window, { key: d });
+  fireEvent.keyDown(window, { key: "5" }); // eleventh digit — rejected
+  fireEvent.keyDown(window, { key: "Enter" });
+
+  const [answer, keystrokes] = onSubmitAnswer.mock.calls[0] as [
+    number,
+    { key: string; t: number }[],
+  ];
+  expect(answer).toBe(1234567890);
+  expect(keystrokes.map((k) => k.key)).toEqual([
+    ..."1234567890".split(""),
+    "⏎",
+  ]);
+});
+
+test("a press burst past the schema bound truncates the trace but never loses the trial", () => {
+  const { onSubmitAnswer } = renderPanel();
+
+  // 280 effective presses (>256) — alternating accepted digit + erase.
+  for (let i = 0; i < 140; i++) {
+    fireEvent.keyDown(window, { key: "1" });
+    fireEvent.keyDown(window, { key: "Backspace" });
+  }
+  fireEvent.keyDown(window, { key: "5" });
+  fireEvent.keyDown(window, { key: "Enter" });
+
+  const [answer, keystrokes] = onSubmitAnswer.mock.calls[0] as [
+    number,
+    { key: string; t: number }[],
+  ];
+  expect(answer).toBe(5);
+  expect(keystrokes).toHaveLength(256);
 });

@@ -7,8 +7,10 @@ import { createIndexedDbPersister } from "tinybase/persisters/persister-indexed-
 //   - `operands` is a JSON-encoded number[]
 //   - `answer` is absent for timed-out trials (rehydrated to null)
 //   - `levelNumber` is absent for practice rows (rehydrated to null)
-//   - `keystrokes` is a reserved JSON string cell — written by nothing yet
-//     (#68), but the row shape already carries the slot.
+//   - `keystrokes` is a JSON string cell — the recorded {key,t} trace (#68).
+//     Pulled rows never carry it (server-side storage only), so a merge
+//     can be the only writer that leaves it absent — enqueue preserves the
+//     locally recorded copy on the same id.
 // `synced` marks whether the backend has acknowledged the row.
 // `correct`/`timeExceeded` are display copies — filled from the local
 // evaluation at finish time so stats/unlocks work offline, then overwritten

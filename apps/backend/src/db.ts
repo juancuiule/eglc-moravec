@@ -78,7 +78,16 @@ type ColumnMigration = {
   backfill?: string;
 };
 
-const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [];
+const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [
+  {
+    // #68 — the {key,t} trace, stored verbatim like operands. Evidence, not
+    // derived data: the server never recomputes from it and pull queries
+    // never return it (see sync/repo.ts's explicit column lists).
+    table: "trial_results",
+    column: "keystrokes",
+    ddl: "ALTER TABLE trial_results ADD COLUMN keystrokes TEXT",
+  },
+];
 
 const INDEX_STATEMENTS: readonly string[] = [
   // The composite replaces the old single-column index: the leftmost

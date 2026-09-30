@@ -16,6 +16,9 @@ import * as z from "zod";
 
 export const MAX_SYNC_TRIALS = 1000;
 export const MAX_DATE_TIMESTAMP = 8.64e15;
+// A real trial is ~10 digits plus a few erases; the bound just keeps a
+// held-down key from turning one row into an unbounded payload.
+export const MAX_KEYSTROKES_PER_TRIAL = 256;
 
 // One lifetime, three consumers: the backend session row's expires_at, the
 // frontend cookie's max-age, and the account stash's TTL all derive from
@@ -31,6 +34,16 @@ const TrialResultFields = {
   operands: z.array(z.number()),
   answer: z.number().nullable(),
   hintShown: z.boolean(),
+  // Optional so outbox rows written before #68 still validate and flush.
+  keystrokes: z
+    .array(
+      z.object({
+        key: z.string().min(1).max(8),
+        t: z.number().finite().nonnegative(),
+      }),
+    )
+    .max(MAX_KEYSTROKES_PER_TRIAL)
+    .optional(),
 };
 
 export const TrialResultSchema = z
@@ -153,6 +166,8 @@ export function toTrialResultInputs(
       playedAt: playedAtTimestamps[i],
       hintShown: r.hintShown,
       runId: policy.runId,
+      // Optional evidence — only serialized when the session recorded any.
+      ...(r.keystrokes ? { keystrokes: r.keystrokes } : {}),
     };
     return policy.runType === "level"
       ? { ...trial, runType: "level", levelNumber: policy.levelNumber }

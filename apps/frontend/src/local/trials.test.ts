@@ -268,3 +268,48 @@ describe("resetLocalData", () => {
     expect(localStore.getValue("hydrated")).toBe(true);
   });
 });
+
+describe("keystrokes round-trip (#68)", () => {
+  it("stores the trace as a JSON cell and rehydrates it into the pending input", () => {
+    const keystrokes = [
+      { key: "4", t: 100 },
+      { key: "⌫", t: 250 },
+      { key: "2", t: 400 },
+      { key: "⏎", t: 500 },
+    ];
+    const input = makeInput({ keystrokes });
+    enqueueRun([input], [makeResult()]);
+
+    const row = localStore.getRow(TRIALS_TABLE, input.id);
+    expect(JSON.parse(String(row.keystrokes))).toEqual(keystrokes);
+    expect(pendingInputs()[0].keystrokes).toEqual(keystrokes);
+  });
+
+  it("a pull merge keeps the local trace — pulled rows never carry it", () => {
+    const input = makeInput({
+      keystrokes: [{ key: "7", t: 100 }],
+    });
+    enqueueRun([input], [makeResult()]);
+
+    mergeServerTrials([
+      {
+        id: input.id,
+        runId: input.runId,
+        runType: "level",
+        categoryCodename: "1dx1d",
+        levelNumber: 3,
+        operands: [6, 7],
+        answer: 42,
+        correct: true,
+        timeExceeded: false,
+        timeTaken: 800,
+        hintShown: false,
+        playedAt: 1_700_000_000_000,
+      },
+    ]);
+
+    const row = localStore.getRow(TRIALS_TABLE, input.id);
+    expect(row.synced).toBe(true);
+    expect(JSON.parse(String(row.keystrokes))).toEqual([{ key: "7", t: 100 }]);
+  });
+});

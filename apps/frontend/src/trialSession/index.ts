@@ -2,6 +2,7 @@ import {
   canShowHint,
   Trial,
   type Answering,
+  type Keystroke,
   type Operation,
   type TrialResult,
 } from "engine";
@@ -73,8 +74,8 @@ export type TrialSessionStore<
 > = {
   state: TrialSessionState<TConfig, TTerminal, TPickState>;
   start: (config: TConfig) => void;
-  submitAnswer: (answer: number) => void;
-  timeUp: (answer: number | null) => void;
+  submitAnswer: (answer: number, keystrokes?: Keystroke[]) => void;
+  timeUp: (answer: number | null, keystrokes?: Keystroke[]) => void;
   advance: () => void;
   requestHint: () => void;
   forceComplete: () => void;
@@ -152,7 +153,7 @@ export function trialSessionActions<
       set({ state: startPlaying(policy, config) });
     },
 
-    submitAnswer(answer) {
+    submitAnswer(answer, keystrokes) {
       const { state } = get();
       if (!isPlaying(state)) return;
       if (state.playingState.type !== "answering") return;
@@ -163,6 +164,7 @@ export function trialSessionActions<
           operation: state.currentOperation,
           answer,
           hintShown: state.hintVisible,
+          keystrokes,
         },
         startedAt,
       );
@@ -170,7 +172,7 @@ export function trialSessionActions<
       set({ state: toReviewing(state, result) });
     },
 
-    timeUp(answer) {
+    timeUp(answer, keystrokes) {
       const { state } = get();
       if (!isPlaying(state)) return;
       if (state.playingState.type !== "answering") return;
@@ -179,6 +181,7 @@ export function trialSessionActions<
         operation: state.currentOperation,
         answer,
         hintShown: state.hintVisible,
+        keystrokes,
       });
 
       set({ state: toReviewing(state, result) });
