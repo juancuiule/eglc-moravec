@@ -1,7 +1,8 @@
 # Local-first sync design
 
-Status: phases 1–4 implemented (durable outbox, flush engine, local read
-model, level-catalog snapshot + offline app shell); phases 5–6 pending.
+Status: phases 1–5 implemented (durable outbox, flush engine, local read
+model, level-catalog snapshot + offline app shell, unified `POST /sync`
+with `sync_log` cursor pull); phase 6 pending.
 This text supersedes the
 original 2026-08-28 version, which was written against a codebase that no
 longer exists: `dbbad77` ("Move sync/stats to a backend-authoritative model")

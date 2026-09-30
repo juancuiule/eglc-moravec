@@ -75,9 +75,9 @@ describe("global error handler", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     expect(response.statusCode).toBe(400);

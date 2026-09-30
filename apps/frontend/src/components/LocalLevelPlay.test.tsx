@@ -10,8 +10,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/api/Api", () => ({
   Api: {
     fetchLevelStats: vi.fn().mockResolvedValue({}),
-    syncResults: vi.fn().mockResolvedValue({}),
-    fetchTrials: vi.fn().mockResolvedValue([]),
+    sync: vi.fn().mockResolvedValue({ cursor: 0, trials: [] }),
     fetchAllLevels: vi.fn().mockResolvedValue([]),
   },
 }));

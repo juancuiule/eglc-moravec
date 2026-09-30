@@ -6,8 +6,11 @@ import { authStore, authToken, setLogoutHook } from "../auth/store";
 import {
   drainDeferredEnqueues,
   markSynced,
+  mergeServerTrials,
   pendingInputs,
   pullServerTrials,
+  setSyncCursor,
+  syncCursor,
 } from "./trials";
 import { refreshLevelCatalog } from "./levels";
 import {
@@ -98,14 +101,26 @@ function* pendingChunks(): Generator<TrialResultInput[]> {
 // an old session's response must never repopulate a wiped store.
 async function pushThenPull(token: string, gen: number): Promise<PassOutcome> {
   try {
+    // Push and pull ride the same endpoint — each batch carries the cursor
+    // and its response returns this user's sync_log rows past it, so
+    // other devices' writes piggyback on every push. The cursor and the
+    // merge apply inside the same epoch check as everything else.
+    let pushed = false;
     for (const batch of pendingChunks()) {
-      await Api.syncResults(token, batch);
+      const res = await Api.sync(token, syncCursor(token), batch);
       if (localEpoch() !== gen) return "stale-epoch";
+      pushed = true;
       markSynced(batch.map((i) => i.id));
       // The server now owns these ids — any parked fallback is redundant.
       dropStashedRowIds(batch.map((i) => i.id));
+      mergeServerTrials(res.trials);
+      setSyncCursor(token, res.cursor);
     }
-    return (await pullServerTrials(token, gen)) ? "done" : "stale-epoch";
+    // Nothing to push still means pull — the same endpoint, empty batch.
+    if (!pushed && !(await pullServerTrials(token, gen))) {
+      return "stale-epoch";
+    }
+    return "done";
   } catch (e) {
     return e instanceof ApiError && e.status === 401
       ? "unauthorized"
@@ -226,7 +241,13 @@ function pushWithinBudget(
 ): Promise<boolean> {
   const push = (async () => {
     for (let i = 0; i < snapshot.length; i += MAX_SYNC_TRIALS) {
-      await Api.syncResults(token, snapshot.slice(i, i + MAX_SYNC_TRIALS));
+      // The response (pull rows + cursor) is deliberately ignored: the
+      // session is ending and its store is being wiped anyway.
+      await Api.sync(
+        token,
+        syncCursor(token),
+        snapshot.slice(i, i + MAX_SYNC_TRIALS),
+      );
     }
     return true;
   })().catch(() => false);

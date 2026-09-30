@@ -53,23 +53,22 @@ const trial = {
   runType: "level" as const,
 };
 
-describe("POST /sync/results", () => {
+describe("POST /sync", () => {
   it("stores trials for the authenticated user", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
     const res = await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({
-      ok: true,
-      trials: [{ ...trial, correct: true, timeExceeded: false }],
-    });
+    // The response echoes the new cursor; this request's own pushed ids are
+    // excluded from the pull rows — the device already has them.
+    expect(res.json()).toEqual({ cursor: 1, trials: [] });
 
     const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(rows).toHaveLength(1);
@@ -92,8 +91,8 @@ describe("POST /sync/results", () => {
     const { app } = setup();
     const res = await app.inject({
       method: "POST",
-      url: "/sync/results",
-      payload: { trials: [trial] },
+      url: "/sync",
+      payload: { cursor: 0, trials: [trial] },
     });
     expect(res.statusCode).toBe(401);
   });
@@ -105,9 +104,9 @@ describe("POST /sync/results", () => {
 
     const res = await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [retiredLevelTrial] },
+      payload: { cursor: 0, trials: [retiredLevelTrial] },
     });
 
     expect(res.statusCode).toBe(200);
@@ -122,9 +121,9 @@ describe("POST /sync/results", () => {
 
     const res = await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [{ oops: true }] },
+      payload: { cursor: 0, trials: [{ oops: true }] },
     });
 
     expect(res.statusCode).toBe(400);
@@ -143,9 +142,9 @@ describe("POST /sync/results", () => {
 
       const res = await app.inject({
         method: "POST",
-        url: "/sync/results",
+        url: "/sync",
         headers: { authorization: `Bearer ${token}` },
-        payload: { trials: [trial, invalidTrial] },
+        payload: { cursor: 0, trials: [trial, invalidTrial] },
       });
 
       expect(res.statusCode).toBe(400);
@@ -175,9 +174,9 @@ describe("POST /sync/results", () => {
 
       const res = await app.inject({
         method: "POST",
-        url: "/sync/results",
+        url: "/sync",
         headers: { authorization: `Bearer ${token}` },
-        payload: { trials: [trial, invalidTrial] },
+        payload: { cursor: 0, trials: [trial, invalidTrial] },
       });
 
       expect(res.statusCode).toBe(400);
@@ -198,9 +197,9 @@ describe("POST /sync/results", () => {
 
     const res = await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials },
+      payload: { cursor: 0, trials },
     });
 
     expect(res.statusCode).toBe(400);
@@ -216,15 +215,15 @@ describe("POST /sync/results", () => {
     // e.g. the client never saw the response and retries the same push.
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
     const retryRes = await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     expect(retryRes.statusCode).toBe(200);
@@ -238,9 +237,9 @@ describe("POST /sync/results", () => {
     const token = await loginAndGetToken(db, app);
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     const otherUserHash = hashEmail("someone-else@example.com", TEST_SECRET);
@@ -256,16 +255,12 @@ describe("POST /sync/results", () => {
 
     const res = await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [mismatchedTrial] },
+      payload: { cursor: 0, trials: [mismatchedTrial] },
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({
-      ok: true,
-      trials: [{ ...mismatchedTrial, correct: false, timeExceeded: false }],
-    });
 
     const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
     expect(rows[0]).toMatchObject({
@@ -318,9 +313,9 @@ async function postResults(
 ) {
   return app.inject({
     method: "POST",
-    url: "/sync/results",
+    url: "/sync",
     headers: { authorization: `Bearer ${token}` },
-    payload: { trials },
+    payload: { cursor: 0, trials },
   });
 }
 
@@ -532,16 +527,16 @@ const practiceTrial = {
   runType: "practice" as const,
 };
 
-describe("POST /sync/results with Practice trials", () => {
+describe("POST /sync with Practice trials", () => {
   it("stores a Practice trial with the level_number sentinel and run_type practice", async () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
     const res = await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [practiceTrial] },
+      payload: { cursor: 0, trials: [practiceTrial] },
     });
 
     expect(res.statusCode).toBe(200);
@@ -561,9 +556,9 @@ describe("POST /sync/results with Practice trials", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [practiceTrial] },
+      payload: { cursor: 0, trials: [practiceTrial] },
     });
 
     const getRes = await app.inject({
@@ -580,9 +575,9 @@ describe("POST /sync/results with Practice trials", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial, practiceTrial] },
+      payload: { cursor: 0, trials: [trial, practiceTrial] },
     });
 
     const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
@@ -598,9 +593,9 @@ describe("GET /sync/trials", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     const getRes = await app.inject({
@@ -635,9 +630,9 @@ describe("GET /sync/trials", () => {
 
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial, practiceTrial] },
+      payload: { cursor: 0, trials: [trial, practiceTrial] },
     });
 
     const getRes = await app.inject({
@@ -670,9 +665,9 @@ describe("GET /sync/trials", () => {
     const token = await loginAndGetToken(db, app);
     await app.inject({
       method: "POST",
-      url: "/sync/results",
+      url: "/sync",
       headers: { authorization: `Bearer ${token}` },
-      payload: { trials: [trial] },
+      payload: { cursor: 0, trials: [trial] },
     });
 
     const otherRes = await app.inject({
@@ -695,4 +690,101 @@ describe("GET /sync/trials", () => {
     const getRes = await app.inject({ method: "GET", url: "/sync/trials" });
     expect(getRes.statusCode).toBe(401);
   });
+});
+
+// The unified endpoint's pull side: sync_log entries past the client's
+// cursor, minus the request's own pushes. seq is one global sequence —
+// per-user cursors are ranges inside it.
+describe("POST /sync cursor pull", () => {
+  const syncCall = (
+    app: FastifyInstance,
+    token: string,
+    cursor: number,
+    trials: unknown[] = [],
+  ) =>
+    app.inject({
+      method: "POST",
+      url: "/sync",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { cursor, trials },
+    });
+
+  it("pulls another session's pushed rows — same account, second login", async () => {
+    const { db, app } = setup();
+    void db;
+    const tokenA = await loginAndGetToken(db, app);
+    const tokenB = await loginAndGetToken(db, app); // same email, new token
+
+    const push = await syncCall(app, tokenA, 0, [trial]);
+    expect(push.json()).toEqual({ cursor: 1, trials: [] });
+
+    const res = await syncCall(app, tokenB, 0, []);
+    expect(res.json().cursor).toBe(1);
+    expect(res.json().trials.map((t: { id: string }) => t.id)).toEqual([
+      trial.id,
+    ]);
+    // The pulled row is the full SyncedTrial — server-evaluated fields
+    // included.
+    expect(res.json().trials[0]).toMatchObject({
+      correct: true,
+      timeExceeded: false,
+      levelNumber: 5,
+      runType: "level",
+    });
+  });
+
+  it("returns only rows past the cursor — incremental, not full-history", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    await syncCall(app, token, 0, [trial]);
+    const second = { ...trial, id: randomUUID() };
+    const res = await syncCall(app, token, 1, [second]);
+    // Own pushes don't echo back; nothing else past seq 1 existed at pull
+    // time — but the cursor still advances past the new insert.
+    expect(res.json()).toEqual({ cursor: 2, trials: [] });
+
+    // A second session pulling from 0 sees both.
+    const tokenB = await loginAndGetToken(db, app);
+    const fresh = await syncCall(app, tokenB, 0, []);
+    expect(fresh.json().trials.map((t: { id: string }) => t.id)).toEqual([
+      trial.id,
+      second.id,
+    ]);
+    expect(fresh.json().cursor).toBe(2);
+  });
+
+  it("a retried push does not grow sync_log — idempotent on the pull side too", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    await syncCall(app, token, 0, [trial]);
+    // The same id pushed again (dropped response → client retry) inserts
+    // nothing and logs nothing — the log stays at seq 1.
+    const retry = await syncCall(app, token, 0, [trial]);
+    expect(retry.json()).toEqual({ cursor: 1, trials: [] });
+    expect(
+      db.prepare("SELECT COUNT(*) AS n FROM sync_log").get() as { n: number },
+    ).toMatchObject({ n: 1 });
+  });
+
+  it.each([-1, 1.5, "0", NaN])(
+    "rejects a malformed cursor %s without storing anything",
+    async (cursor) => {
+      const { db, app } = setup();
+      const token = await loginAndGetToken(db, app);
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/sync",
+        headers: { authorization: `Bearer ${token}` },
+        payload: { cursor, trials: [trial] },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(
+        getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+      ).toHaveLength(0);
+    },
+  );
 });

@@ -5,8 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { api, auth, ensureSessionToken, invalidateSession, persistence } =
   vi.hoisted(() => {
     const api = {
-      syncResults: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-      fetchTrials: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+      sync: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
       fetchAllLevels: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
     const auth = {
@@ -141,10 +140,9 @@ beforeEach(() => {
   persistence.persistNow.mockImplementation(() => Promise.resolve(false));
   setAuth({ type: "anonymous", token: "tok" });
   setOnline(true);
-  api.syncResults.mockResolvedValue({});
-  api.fetchTrials.mockResolvedValue([]);
-  api.fetchAllLevels.mockResolvedValue([]);
-  ensureSessionToken.mockResolvedValue("minted-tok");
+  api.sync.mockReset().mockResolvedValue({ cursor: 0, trials: [] });
+  api.fetchAllLevels.mockReset().mockResolvedValue([]);
+  ensureSessionToken.mockReset().mockResolvedValue("minted-tok");
 });
 
 afterEach(() => {
@@ -165,36 +163,40 @@ describe("flush", () => {
     teardown = startSyncEngine();
     await flushSettled();
 
-    expect(api.syncResults).toHaveBeenCalledTimes(1);
-    expect(api.syncResults).toHaveBeenCalledWith("tok", [
+    expect(api.sync).toHaveBeenCalledWith("tok", 0, [
       expect.objectContaining({ id: input.id }),
     ]);
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(true);
-    expect(api.fetchTrials).toHaveBeenCalledWith("tok");
+    // The queued pass then pulls with an empty batch — same endpoint.
+    expect(api.sync).toHaveBeenCalledWith("tok", 0, []);
   });
 
   it("pull-merges even with an empty outbox — keeps multi-device honest", async () => {
-    api.fetchTrials.mockResolvedValue([
-      {
-        id: "99999999-9999-4999-8999-999999999999",
-        runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-        runType: "level",
-        categoryCodename: "1dx1d",
-        levelNumber: 2,
-        operands: [3, 4],
-        answer: 12,
-        correct: true,
-        timeExceeded: false,
-        timeTaken: 900,
-        hintShown: false,
-        playedAt: 1_700_000_000_000,
-      },
-    ]);
+    api.sync.mockResolvedValue({
+      cursor: 1,
+      trials: [
+        {
+          id: "99999999-9999-4999-8999-999999999999",
+          runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          runType: "level",
+          categoryCodename: "1dx1d",
+          levelNumber: 2,
+          operands: [3, 4],
+          answer: 12,
+          correct: true,
+          timeExceeded: false,
+          timeTaken: 900,
+          hintShown: false,
+          playedAt: 1_700_000_000_000,
+        },
+      ],
+    });
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
 
-    expect(api.syncResults).not.toHaveBeenCalled();
+    // The pull rides the same endpoint — an empty trials batch.
+    expect(api.sync).toHaveBeenCalledWith("tok", 0, []);
     expect(
       localStore.getRow(TRIALS_TABLE, "99999999-9999-4999-8999-999999999999")
         .synced,
@@ -202,7 +204,7 @@ describe("flush", () => {
   });
 
   it("leaves rows pending and schedules a retry when the push fails", async () => {
-    api.syncResults.mockRejectedValue(new Error("boom"));
+    api.sync.mockRejectedValue(new Error("boom"));
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
     teardown = startSyncEngine();
@@ -212,11 +214,11 @@ describe("flush", () => {
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(false);
     // A retry timer is armed; fake time shows it re-running.
     vi.useFakeTimers();
-    api.syncResults.mockResolvedValue({});
+    api.sync.mockResolvedValue({ cursor: 0, trials: [] });
     await vi.advanceTimersByTimeAsync(10_000);
     vi.useRealTimers();
     await tick();
-    expect(api.syncResults.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(api.sync.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it("the online event kicks a flush — connectivity is a hint, not a gate", async () => {
@@ -225,14 +227,14 @@ describe("flush", () => {
     teardown = startSyncEngine();
     await tick();
 
-    api.syncResults.mockRejectedValueOnce(new Error("unreachable"));
+    api.sync.mockRejectedValueOnce(new Error("unreachable"));
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
     kickSync();
     await tick();
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(false);
 
-    api.syncResults.mockResolvedValue({});
+    api.sync.mockResolvedValue({ cursor: 0, trials: [] });
     window.dispatchEvent(new Event("online"));
     await tick();
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(true);
@@ -245,16 +247,13 @@ describe("flush", () => {
     await flushSettled();
     await tick();
     expect(ensureSessionToken).toHaveBeenCalled();
-    expect(api.syncResults).toHaveBeenCalledWith(
-      "minted-tok",
-      expect.any(Array),
-    );
+    expect(api.sync).toHaveBeenCalledWith("minted-tok", 0, expect.any(Array));
   });
 
   it("401 → drops the dead session, re-mints anonymous, retries once", async () => {
-    api.syncResults
+    api.sync
       .mockRejectedValueOnce(new ApiError("unauthenticated", 401))
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce({ cursor: 0, trials: [] });
     ensureSessionToken.mockResolvedValue("re-minted");
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
@@ -263,43 +262,42 @@ describe("flush", () => {
     await tick();
 
     expect(invalidateSession).toHaveBeenCalledTimes(1);
-    expect(api.syncResults).toHaveBeenCalledTimes(2);
-    expect(api.syncResults).toHaveBeenLastCalledWith(
-      "re-minted",
-      expect.any(Array),
-    );
+    // 401 attempt + retry push + the queued pass's pull-only call.
+    expect(api.sync).toHaveBeenCalledTimes(3);
+    expect(api.sync).toHaveBeenCalledWith("re-minted", 0, expect.any(Array));
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(true);
   });
 
   it("401 on the retry too → stays pending, retry armed", async () => {
-    api.syncResults.mockRejectedValue(new ApiError("unauthenticated", 401));
+    api.sync.mockRejectedValue(new ApiError("unauthenticated", 401));
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
-    expect(api.syncResults.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(api.sync.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(false);
   });
 
   it("coalesces kicks fired while a flush is in flight", async () => {
     let resolvePush: (v: unknown) => void = () => {};
-    api.syncResults.mockImplementation(
+    api.sync.mockImplementationOnce(
       () => new Promise((res) => (resolvePush = res)),
     );
     enqueueRun([makeInput()], [makeResult()]);
     teardown = startSyncEngine();
     kickSync();
     kickSync();
-    expect(api.syncResults).toHaveBeenCalledTimes(1);
-    resolvePush({});
+    expect(api.sync).toHaveBeenCalledTimes(1);
+    resolvePush({ cursor: 0, trials: [] });
     await flushSettled();
     await tick();
-    expect(api.fetchTrials).toHaveBeenCalled();
+    // The pull rode the push response; the queued pass adds one pull-only.
+    expect(api.sync).toHaveBeenCalledTimes(2);
   });
 
   it("a 401 from a superseded token does NOT invalidate the current session", async () => {
-    api.syncResults
+    api.sync
       .mockImplementationOnce(async () => {
         // OTP login lands while the anonymous-token request is in flight —
         // the backend revokes the anon token, so the response is a 401 for
@@ -307,7 +305,7 @@ describe("flush", () => {
         setAuth({ type: "logged-in", token: "acct", email: "a@b.com" });
         throw new ApiError("unauthenticated", 401);
       })
-      .mockResolvedValue({});
+      .mockResolvedValue({ cursor: 0, trials: [] });
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
     teardown = startSyncEngine();
@@ -317,7 +315,7 @@ describe("flush", () => {
     // The logged-in session must survive — only the failed token may be
     // invalidated, and it already isn't current.
     expect(invalidateSession).not.toHaveBeenCalled();
-    expect(api.syncResults).toHaveBeenLastCalledWith("acct", expect.any(Array));
+    expect(api.sync).toHaveBeenCalledWith("acct", 0, expect.any(Array));
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(true);
   });
 
@@ -342,7 +340,7 @@ describe("flush", () => {
     ]);
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
-    api.syncResults.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
+    api.sync.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
     ensureSessionToken.mockResolvedValue("anon2");
 
     teardown = startSyncEngine();
@@ -361,7 +359,7 @@ describe("flush", () => {
     setAuth({ type: "logged-in", token: "acct", email: "a@b.com" });
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
-    api.syncResults.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
+    api.sync.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
     ensureSessionToken.mockResolvedValue("anon2");
     teardown = startSyncEngine();
     await flushSettled();
@@ -374,7 +372,7 @@ describe("flush", () => {
     await flushSettled();
     await tick();
 
-    expect(api.syncResults).toHaveBeenLastCalledWith("acct2", [
+    expect(api.sync).toHaveBeenCalledWith("acct2", 0, [
       expect.objectContaining({ id: input.id }),
     ]);
     expect(localStore.getCell(TRIALS_TABLE, input.id, "synced")).toBe(true);
@@ -384,7 +382,7 @@ describe("flush", () => {
     setAuth({ type: "logged-in", token: "acct", email: "a@b.com" });
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
-    api.syncResults.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
+    api.sync.mockRejectedValueOnce(new ApiError("unauthenticated", 401));
     ensureSessionToken.mockResolvedValue("anon2");
     teardown = startSyncEngine();
     await flushSettled();
@@ -395,9 +393,9 @@ describe("flush", () => {
     await flushSettled();
     await tick();
     expect(localStore.getRow(TRIALS_TABLE, input.id)).toEqual({});
-    const pushedToBob = api.syncResults.mock.calls
+    const pushedToBob = api.sync.mock.calls
       .filter(([t]) => t === "bob")
-      .flatMap(([, batch]) => (batch as { id: string }[]).map((i) => i.id));
+      .flatMap(([, , batch]) => (batch as { id: string }[]).map((i) => i.id));
     expect(pushedToBob).not.toContain(input.id);
 
     // Alice returns on this device — her run comes back and syncs to her.
@@ -405,7 +403,7 @@ describe("flush", () => {
     setAuth({ type: "logged-in", token: "acct3", email: "a@b.com" });
     await flushSettled();
     await tick();
-    expect(api.syncResults).toHaveBeenLastCalledWith("acct3", [
+    expect(api.sync).toHaveBeenCalledWith("acct3", 0, [
       expect.objectContaining({ id: input.id }),
     ]);
   });
@@ -439,7 +437,7 @@ describe("flush", () => {
     // must still find the stash (no persister in tests → persistNow can't
     // confirm durability, so only the ACK releases it).
     let resolvePush: (v: unknown) => void = () => {};
-    api.syncResults.mockImplementation(
+    api.sync.mockImplementationOnce(
       () => new Promise((res) => (resolvePush = res)),
     );
     setAuth({ type: "logged-in", token: "acct2", email: "a@b.com" });
@@ -447,7 +445,7 @@ describe("flush", () => {
     expect(localStore.getCell(TRIALS_TABLE, rowId, "synced")).toBe(false);
     expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(rowId);
 
-    resolvePush({});
+    resolvePush({ cursor: 0, trials: [] });
     await flushSettled();
     await tick();
     expect(localStore.getCell(TRIALS_TABLE, rowId, "synced")).toBe(true);
@@ -456,29 +454,32 @@ describe("flush", () => {
 
   it("a pull resolving after logout's wipe cannot resurrect old rows", async () => {
     let resolvePull: (v: unknown) => void = () => {};
-    api.fetchTrials.mockImplementation(
+    api.sync.mockImplementationOnce(
       () => new Promise((res) => (resolvePull = res)),
     );
     teardown = startSyncEngine();
-    await tick(); // boot flush: empty outbox → fetchTrials now in-flight
+    await tick(); // boot flush: empty outbox → the pull-only sync is now in-flight
 
     await auth.logoutHook?.("dying-tok", "a@b.com"); // wipe + epoch bump
-    resolvePull([
-      {
-        id: "11111111-1111-4111-8111-111111111111",
-        runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-        runType: "level",
-        categoryCodename: "1dx1d",
-        levelNumber: 2,
-        operands: [3, 4],
-        answer: 12,
-        correct: true,
-        timeExceeded: false,
-        timeTaken: 900,
-        hintShown: false,
-        playedAt: 1_700_000_000_000,
-      },
-    ]);
+    resolvePull({
+      cursor: 1,
+      trials: [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          runType: "level",
+          categoryCodename: "1dx1d",
+          levelNumber: 2,
+          operands: [3, 4],
+          answer: 12,
+          correct: true,
+          timeExceeded: false,
+          timeTaken: 900,
+          hintShown: false,
+          playedAt: 1_700_000_000_000,
+        },
+      ],
+    });
     await tick();
 
     expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
@@ -486,16 +487,16 @@ describe("flush", () => {
 
   it("a push resolving after the wipe can't recreate partial rows via markSynced", async () => {
     let resolvePush: (v: unknown) => void = () => {};
-    api.syncResults
+    api.sync
       .mockImplementationOnce(() => new Promise((res) => (resolvePush = res)))
-      .mockResolvedValue({}); // the logout snapshot's own push resolves fast
+      .mockResolvedValue({ cursor: 0, trials: [] }); // the logout snapshot's own push resolves fast
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
     teardown = startSyncEngine();
     await tick(); // push in-flight under "tok"
 
     await auth.logoutHook?.("dying-tok", "a@b.com"); // wipes the queued row, bumps epoch
-    resolvePush({});
+    resolvePush({ cursor: 0, trials: [] });
     await tick();
 
     expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
@@ -510,15 +511,15 @@ describe("flush", () => {
     // pending rows and the pull both run under the account identity.
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
-    api.syncResults.mockClear();
-    api.fetchTrials.mockClear();
+    api.sync.mockClear();
 
     setAuth({ type: "logged-in", token: "acct-tok", email: "a@b.com" });
     await tick();
-    expect(api.syncResults).toHaveBeenCalledWith("acct-tok", [
+    // The cursor restarts at 0 under the new identity — sync_log seqs are
+    // per-user ranges of a global sequence.
+    expect(api.sync).toHaveBeenCalledWith("acct-tok", 0, [
       expect.objectContaining({ id: input.id }),
     ]);
-    expect(api.fetchTrials).toHaveBeenCalledWith("acct-tok");
   });
 
   it("a settled pass refreshes the level catalog snapshot", async () => {
@@ -546,7 +547,7 @@ describe("flush", () => {
   });
 
   it("warms the catalog on reconnect even if trial sync is failing", async () => {
-    api.fetchTrials.mockRejectedValue(new Error("unreachable"));
+    api.sync.mockRejectedValue(new Error("unreachable"));
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
@@ -558,18 +559,44 @@ describe("flush", () => {
     expect(api.fetchAllLevels).toHaveBeenCalled();
   });
 
+  it("the cursor advances per response and is bound to its token — a login restarts the pull from 0", async () => {
+    api.sync.mockResolvedValue({ cursor: 5, trials: [] });
+    teardown = startSyncEngine();
+    await flushSettled();
+    await tick();
+    // First contact starts at 0; the response's cursor (5) is stored.
+    expect(api.sync).toHaveBeenNthCalledWith(1, "tok", 0, []);
+    expect(api.sync).toHaveBeenLastCalledWith("tok", 5, []);
+
+    enqueueRun([makeInput()], [makeResult()]);
+    kickSync();
+    await flushSettled();
+    // The stored seq rides the same identity's next request.
+    expect(api.sync).toHaveBeenCalledWith("tok", 5, expect.any(Array));
+
+    // sync_log.seq is a global sequence shared across users — another
+    // identity's cursor window means nothing, so it restarts at 0.
+    setAuth({ type: "logged-in", token: "acct-tok", email: "a@b.com" });
+    await tick();
+    expect(
+      api.sync.mock.calls.some(
+        ([t, cursor]) => t === "acct-tok" && cursor === 0,
+      ),
+    ).toBe(true);
+  });
+
   it("a token appearing kicks a flush", async () => {
     // Boot while logged out with an empty outbox — nothing to push.
     setAuth({ type: "logged-out" });
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
-    api.syncResults.mockClear();
+    api.sync.mockClear();
 
     enqueueRun([makeInput()], [makeResult()]);
     setAuth({ type: "anonymous", token: "fresh" });
     await tick();
-    expect(api.syncResults).toHaveBeenCalledWith("fresh", expect.any(Array));
+    expect(api.sync).toHaveBeenCalledWith("fresh", 0, expect.any(Array));
   });
 });
 
@@ -578,7 +605,7 @@ describe("logout", () => {
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
-    api.syncResults.mockClear();
+    api.sync.mockClear();
 
     // A run finishes, is queued locally, and then the user logs out before
     // the background flush could land — the hook fires with the dying token.
@@ -591,12 +618,13 @@ describe("logout", () => {
     expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
 
     await hook;
-    expect(api.syncResults).toHaveBeenCalledWith("dying-tok", [
+    expect(api.sync).toHaveBeenCalledWith("dying-tok", 0, [
       expect.objectContaining({ id: input.id }),
     ]);
-    // The logout flush never pulls — data is gone anyway.
-    const pullCalls = api.fetchTrials.mock.calls.filter(
-      ([t]) => t === "dying-tok",
+    // The logout flush never issues a pull-only request — the data is gone
+    // anyway, so nothing reads the push's own pull rows.
+    const pullCalls = api.sync.mock.calls.filter(
+      ([t, , batch]) => t === "dying-tok" && (batch as unknown[]).length === 0,
     );
     expect(pullCalls).toHaveLength(0);
     // The durable parked copy is dropped once the push is acknowledged.
@@ -607,7 +635,7 @@ describe("logout", () => {
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
-    api.syncResults.mockClear();
+    api.sync.mockClear();
 
     const doomed = makeInput();
     enqueueRun([doomed], [makeResult()]);
@@ -619,10 +647,8 @@ describe("logout", () => {
     await hook;
     await tick();
 
-    const dyingCalls = api.syncResults.mock.calls.filter(
-      ([t]) => t === "dying-tok",
-    );
-    const pushedIds = dyingCalls.flatMap(([, batch]) =>
+    const dyingCalls = api.sync.mock.calls.filter(([t]) => t === "dying-tok");
+    const pushedIds = dyingCalls.flatMap(([, , batch]) =>
       (batch as { id: string }[]).map((i) => i.id),
     );
     expect(pushedIds).toContain(doomed.id);
@@ -637,8 +663,8 @@ describe("logout", () => {
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
-    api.syncResults.mockClear();
-    api.syncResults.mockRejectedValue(new Error("offline at logout"));
+    api.sync.mockClear();
+    api.sync.mockRejectedValue(new Error("offline at logout"));
 
     const input = makeInput();
     enqueueRun([input], [makeResult()]);
@@ -674,9 +700,9 @@ describe("logout", () => {
         playedAt: 1_700_000_000_000,
       },
     ]);
-    api.syncResults.mockClear();
+    api.sync.mockClear();
     let resolvePush: (v: unknown) => void = () => {};
-    api.syncResults.mockImplementation(
+    api.sync.mockImplementationOnce(
       () => new Promise((res) => (resolvePush = res)),
     );
     const setItem = vi
@@ -702,16 +728,14 @@ describe("logout", () => {
     const kicked = flushSettled();
     setAuth({ type: "anonymous", token: "next-anon" });
     await tick();
-    expect(
-      api.syncResults.mock.calls.filter(([t]) => t === "next-anon"),
-    ).toEqual([]);
+    expect(api.sync.mock.calls.filter(([t]) => t === "next-anon")).toEqual([]);
 
-    resolvePush({});
+    resolvePush({ cursor: 0, trials: [] });
     await hook;
     void kicked;
     await tick();
     expect(localStore.getTable(TRIALS_TABLE)).toEqual({});
-    expect(api.syncResults.mock.calls.map(([t]) => t)).toContain("dying-tok");
+    expect(api.sync.mock.calls.map(([t]) => t)).toContain("dying-tok");
     setItem.mockRestore();
     error.mockRestore();
   });
@@ -722,7 +746,7 @@ describe("logout", () => {
     await flushSettled();
     await tick();
     let rejectPush: (e: unknown) => void = () => {};
-    api.syncResults.mockImplementation(
+    api.sync.mockImplementationOnce(
       () => new Promise((_, rej) => (rejectPush = rej)),
     );
     const setItem = vi
@@ -774,9 +798,7 @@ describe("logout", () => {
     // Pushes hang until the end of the test — neither the restore's nor
     // the logout's can land before the save confirmation does.
     const pushes: Array<(v: unknown) => void> = [];
-    api.syncResults.mockImplementation(
-      () => new Promise((res) => pushes.push(res)),
-    );
+    api.sync.mockImplementation(() => new Promise((res) => pushes.push(res)));
 
     setAuth({ type: "logged-in", token: "acct", email: "a@b.com" });
     await tick();
@@ -792,7 +814,10 @@ describe("logout", () => {
     await tick();
     expect(readStashedRows("a@b.com").map((r) => r.id)).toContain(rowId);
 
-    pushes.forEach((res) => res({}));
+    pushes.forEach((res) => res({ cursor: 0, trials: [] }));
+    await tick();
+    // A queued pass's pull-only call can land after the first drain.
+    pushes.forEach((res) => res({ cursor: 0, trials: [] }));
     await tick();
   });
 
@@ -800,7 +825,7 @@ describe("logout", () => {
     teardown = startSyncEngine();
     await flushSettled();
     await tick();
-    api.syncResults.mockRejectedValue(new Error("offline at logout"));
+    api.sync.mockRejectedValue(new Error("offline at logout"));
 
     persistence.loading = true;
     const input = makeInput();
@@ -824,7 +849,7 @@ describe("logout", () => {
       await tick();
       let settlePush: (v: unknown) => void = () => {};
       let failPush: (e: unknown) => void = () => {};
-      api.syncResults.mockImplementation(
+      api.sync.mockImplementationOnce(
         () =>
           new Promise((res, rej) => {
             settlePush = res;
@@ -847,7 +872,7 @@ describe("logout", () => {
       const newcomer = makeInput();
       enqueueRun([newcomer], [makeResult()]);
 
-      if (settle === "deliver") settlePush({});
+      if (settle === "deliver") settlePush({ cursor: 0, trials: [] });
       else failPush(new Error("offline"));
       await hook;
       await tick();
@@ -867,13 +892,13 @@ describe("logout", () => {
       expect(localStore.getRow(TRIALS_TABLE, newcomer.id)).not.toEqual({});
       // And the newcomer proceeds to sync under its own identity now that
       // the wipe flag is cleared.
-      api.syncResults.mockResolvedValue({});
+      api.sync.mockResolvedValue({ cursor: 0, trials: [] });
       kickSync();
       await flushSettled();
       await tick();
       expect(
-        api.syncResults.mock.calls.some(
-          ([t, batch]) =>
+        api.sync.mock.calls.some(
+          ([t, , batch]) =>
             t === "bob-anon" &&
             (batch as { id: string }[]).some((i) => i.id === newcomer.id),
         ),
