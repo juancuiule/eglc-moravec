@@ -22,7 +22,8 @@
   "detail": {
     "backLabel": "Volver a estadísticas",
     "correctTotal": "{correct} correctas · {total} intentos totales",
-    "noCorrectTrials": "Todavía no hay intentos correctos — <link>practicá esta categoría</link>.",
+    "noCorrectTrials": "Todavía no hay respuestas correctas para graficar.",
+    "noTrialsYet": "Todavía no hay intentos — <link>practicá esta categoría</link>.",
     "responseTimeDistribution": "Distribución del tiempo de respuesta",
     "errorHeatmap": "Errores por problema",
     "hardestProblems": "Problemas más difíciles",

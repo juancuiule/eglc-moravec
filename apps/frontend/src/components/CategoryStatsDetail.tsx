@@ -249,9 +249,14 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
         </div>
       )}
 
-      {buckets.length === 0 ? (
+      {/* Response time distribution. A category with zero trials keeps the
+          page-level empty state (with a practice link, #35); a category with
+          trials but zero correct keeps the section heading and gets a
+          chart-scoped message — the centered link-less block used to read as
+          a page-level empty state above the populated heatmap (#81). */}
+      {categoryTrials.length === 0 ? (
         <p className="text-center text-muted-2 py-8">
-          {t.rich("noCorrectTrials", {
+          {t.rich("noTrialsYet", {
             link: (chunks) => (
               <Link
                 href={`/practice/${encodeURIComponent(codename)}`}
@@ -267,22 +272,26 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
           <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">
             {t("responseTimeDistribution")}
           </p>
-          {buckets.map((bucket) => (
-            <div key={bucket.label} className="flex items-center gap-3">
-              <span className="text-xs text-muted-2 w-12 text-right font-mono shrink-0">
-                {bucket.label}
-              </span>
-              <div className="flex-1 h-5 bg-base rounded overflow-hidden">
-                <div
-                  className="h-full bg-accent rounded transition-all"
-                  style={{ width: `${(bucket.count / maxCount) * 100}%` }}
-                />
+          {buckets.length === 0 ? (
+            <p className="text-sm text-muted-2">{t("noCorrectTrials")}</p>
+          ) : (
+            buckets.map((bucket) => (
+              <div key={bucket.label} className="flex items-center gap-3">
+                <span className="text-xs text-muted-2 w-12 text-right font-mono shrink-0">
+                  {bucket.label}
+                </span>
+                <div className="flex-1 h-5 bg-base rounded overflow-hidden">
+                  <div
+                    className="h-full bg-accent rounded transition-all"
+                    style={{ width: `${(bucket.count / maxCount) * 100}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted w-6 text-right shrink-0">
+                  {bucket.count}
+                </span>
               </div>
-              <span className="text-xs text-muted w-6 text-right shrink-0">
-                {bucket.count}
-              </span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
