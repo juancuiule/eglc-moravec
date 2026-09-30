@@ -41,7 +41,7 @@ export function PracticeModeSelection() {
 
       <Link
         href={`/practice/${FOCUS_MODE}`}
-        className="flex flex-col gap-1 rounded-xl py-3 px-4 bg-panel-accent border border-subtle hover:border-accent transition-all cursor-pointer"
+        className="flex flex-col gap-1 rounded-xl py-3 px-4 bg-panel-accent border border-subtle hover:border-accent transition-all duration-150 cursor-pointer touch-manipulation active:scale-96"
       >
         <span className="text-sm font-semibold text-accent-text">
           {t("focus")}
@@ -54,7 +54,7 @@ export function PracticeModeSelection() {
           <Link
             key={codename}
             href={`/practice/${encodeURIComponent(codename)}`}
-            className="flex flex-col items-center justify-center rounded-xl py-3 px-2 bg-base border border-subtle hover:border-accent hover:text-accent transition-all cursor-pointer font-mono text-sm font-semibold"
+            className="flex flex-col items-center justify-center rounded-xl py-3 px-2 bg-base border border-subtle hover:border-accent hover:text-accent transition-all duration-150 cursor-pointer touch-manipulation active:scale-96 font-mono text-sm font-semibold"
           >
             <span>{CATEGORY_LABELS[codename] ?? codename}</span>
             {/* min-h keeps every tile the same height whether or not the

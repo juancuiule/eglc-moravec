@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useLocalHydrated } from "../local/hooks";
+import { useFirstPullSettled, useLocalHydrated } from "../local/hooks";
 import { allLocalTrials } from "../local/trials";
 import { computeStats } from "../stats/computeStats";
 import { focusWeights } from "../practice/focus";
@@ -21,9 +21,15 @@ import { PracticePlay } from "./PracticePlay";
 export function FocusPracticePlay() {
   const t = useTranslations("Practice");
   const hydrated = useLocalHydrated();
-  // Until IndexedDB lands the read model looks empty and would freeze a
-  // misleading uniform weight map into the session — wait it out.
-  if (!hydrated) return <LoadingPanel label={t("loading")} />;
+  // IndexedDB alone is not enough on a fresh device — hydration only
+  // loads what this browser already has, while the account's history
+  // arrives via the sync engine's first pull. Gating on its settle
+  // (success OR failure, so offline play is preserved) lets that pull
+  // merge before weights freeze; without it a known-weakness account on
+  // a new device gets a uniform session.
+  const firstPullSettled = useFirstPullSettled();
+  if (!hydrated || !firstPullSettled)
+    return <LoadingPanel label={t("loading")} />;
   return <FocusPlayInner />;
 }
 
