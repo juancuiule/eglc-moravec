@@ -27,6 +27,13 @@ export type CategoryStats = {
 
 export type HistogramBucket = { label: string; count: number };
 
+// Buckets share one width and always start at 0. The width follows a 1/2/5
+// progression picked to keep the row count bounded: 1s resolution for the
+// common 0–20s band, coarser steps when a slow outlier (a (4d)^2 trial can
+// reach ~80s) would otherwise emit one empty row per second (#80).
+const MAX_BUCKETS = 20;
+const BUCKET_WIDTHS_S = [1, 2, 5, 10, 20, 50, 100];
+
 export function computeHistogram(
   trials: StatsTrial[],
   categoryCodename: string,
@@ -36,20 +43,21 @@ export function computeHistogram(
   );
   if (correct.length === 0) return [];
 
-  const maxBucket = Math.floor(
-    Math.max(...correct.map((t) => t.timeTaken)) / 1000,
-  );
+  const maxSec = Math.max(...correct.map((t) => t.timeTaken)) / 1000;
+  const width =
+    BUCKET_WIDTHS_S.find((w) => Math.floor(maxSec / w) + 1 <= MAX_BUCKETS) ??
+    BUCKET_WIDTHS_S[BUCKET_WIDTHS_S.length - 1];
 
   const buckets: HistogramBucket[] = Array.from(
-    { length: maxBucket + 1 },
+    { length: Math.floor(maxSec / width) + 1 },
     (_, i) => ({
-      label: `${i}–${i + 1}s`,
+      label: `${i * width}–${(i + 1) * width}s`,
       count: 0,
     }),
   );
 
   for (const t of correct) {
-    buckets[Math.floor(t.timeTaken / 1000)].count++;
+    buckets[Math.floor(t.timeTaken / 1000 / width)].count++;
   }
 
   return buckets;
