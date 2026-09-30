@@ -112,14 +112,47 @@ def add_error_classification(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# The answer input caps at 10 digits — replayed traces apply the same cap so
+# ignored presses (recorded only by the earliest builds, which logged raw
+# keydowns) don't inflate the reconstructed buffer.
+_ANSWER_MAX_DIGITS = 10
+
+
+def _replayed_erased(keystrokes) -> bool | None:
+    """True iff an erase in the trace actually removed a digit.
+
+    The capture records only effective presses, so every "⌫"/"C" in a new
+    trace erased a digit. Traces written by the earliest build logged raw
+    keydowns instead (backspace-on-empty, eleventh digits) — replaying the
+    buffer keeps those rows honest too.
+    """
+    if not isinstance(keystrokes, list):
+        return None
+    digits = 0
+    erased = False
+    for event in keystrokes:
+        key = event.get("key")
+        if key == "⌫":
+            if digits > 0:
+                digits -= 1
+                erased = True
+        elif key == "C":
+            if digits > 0:
+                digits = 0
+                erased = True
+        elif key != "⏎":
+            digits = min(_ANSWER_MAX_DIGITS, digits + 1)
+    return erased
+
+
 def add_keystroke_fields(df: pd.DataFrame) -> pd.DataFrame:
     """erased_digit / keystroke_count, from the {key,t} trace stored since #68.
 
-    erased_digit is True iff the trace contains any "⌫" or "C" event — the
-    paper's exclusion criterion ("trials in which participants erased a
-    digit"). Rows predating the column (keystrokes is None) get None —
-    unknown, not clean — so filter with `df[df["erased_digit"] == False]`
-    to keep only observed-clean trials.
+    erased_digit is the paper's exclusion criterion ("trials in which
+    participants erased a digit") — an erase event that actually removed a
+    digit, replayed from the trace. Rows predating the column (keystrokes
+    is None) get None — unknown, not clean — so filter with
+    `df[df["erased_digit"] == False]` to keep only observed-clean trials.
     """
     df = df.copy()
     keys = df.get("keystrokes")
@@ -129,15 +162,7 @@ def add_keystroke_fields(df: pd.DataFrame) -> pd.DataFrame:
         else 0
     )
     df["erased_digit"] = (
-        keys.apply(
-            lambda ks: (
-                any(k.get("key") in ("⌫", "C") for k in ks)
-                if isinstance(ks, list)
-                else None
-            )
-        )
-        if keys is not None
-        else None
+        keys.apply(_replayed_erased) if keys is not None else None
     )
     return df
 

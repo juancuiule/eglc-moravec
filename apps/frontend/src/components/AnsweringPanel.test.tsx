@@ -96,3 +96,42 @@ test("physical keyboard input records the same trace — Backspace as ⌫, Enter
   expect(answer).toBe(7);
   expect(keystrokes.map((k) => k.key)).toEqual(["4", "⌫", "7", "⏎"]);
 });
+
+test("no-op presses aren't evidence — backspace on empty and an eleventh digit never enter the trace", () => {
+  const { onSubmitAnswer } = renderPanel();
+
+  fireEvent.keyDown(window, { key: "Backspace" }); // empty answer — no-op
+  fireEvent.keyDown(window, { key: "Delete" }); // C on empty — no-op
+  for (const d of "1234567890") fireEvent.keyDown(window, { key: d });
+  fireEvent.keyDown(window, { key: "5" }); // eleventh digit — rejected
+  fireEvent.keyDown(window, { key: "Enter" });
+
+  const [answer, keystrokes] = onSubmitAnswer.mock.calls[0] as [
+    number,
+    { key: string; t: number }[],
+  ];
+  expect(answer).toBe(1234567890);
+  expect(keystrokes.map((k) => k.key)).toEqual([
+    ..."1234567890".split(""),
+    "⏎",
+  ]);
+});
+
+test("a press burst past the schema bound truncates the trace but never loses the trial", () => {
+  const { onSubmitAnswer } = renderPanel();
+
+  // 280 effective presses (>256) — alternating accepted digit + erase.
+  for (let i = 0; i < 140; i++) {
+    fireEvent.keyDown(window, { key: "1" });
+    fireEvent.keyDown(window, { key: "Backspace" });
+  }
+  fireEvent.keyDown(window, { key: "5" });
+  fireEvent.keyDown(window, { key: "Enter" });
+
+  const [answer, keystrokes] = onSubmitAnswer.mock.calls[0] as [
+    number,
+    { key: string; t: number }[],
+  ];
+  expect(answer).toBe(5);
+  expect(keystrokes).toHaveLength(256);
+});

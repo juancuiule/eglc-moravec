@@ -1,6 +1,11 @@
 "use client";
 
-import type { Answering, Keystroke, Operation } from "engine";
+import {
+  MAX_KEYSTROKES_PER_TRIAL,
+  type Answering,
+  type Keystroke,
+  type Operation,
+} from "engine";
 import type { Reviewing } from "../trialSession";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -58,10 +63,14 @@ export function AnsweringPanel({
   const [seconds, setSeconds] = useState(() => Math.ceil(solveTime / 1000));
   const barRef = useRef<HTMLDivElement>(null);
   const answerRef = useRef("");
-  // Per-trial keystroke trace (#68): {key, t} pairs for every digit, erase,
-  // and submit during the Answering phase. Ref, not state — each press is
-  // fire-and-forget evidence, and routing it through state would re-render
-  // the keypad on every keystroke.
+  // Per-trial keystroke trace (#68): {key, t} pairs for every ACCEPTED
+  // input event during the Answering phase — digits that entered the
+  // answer, erases that removed one, and the submit press. No-op presses
+  // (⌫/C on an empty answer, an eleventh digit) are excluded so the trace
+  // always reconstructs the submitted answer — including for
+  // `erased_digit`, which a backspace-on-empty would otherwise trip.
+  // Ref, not state — each press is fire-and-forget evidence, and routing
+  // it through state would re-render the keypad on every keystroke.
   const keysRef = useRef<Keystroke[]>([]);
 
   // Countdown timer — only active while answering
@@ -75,6 +84,11 @@ export function AnsweringPanel({
 
   function recordKey(key: string) {
     if (startedAt === null) return;
+    // The schema bound is a hard contract — an oversized trace fails
+    // TrialResultSchema and enqueue drops the WHOLE trial, not just the
+    // evidence. Cap here so a pathological press burst can never cost
+    // the player's result; the truncated prefix is still honest evidence.
+    if (keysRef.current.length >= MAX_KEYSTROKES_PER_TRIAL) return;
     // Same clock-rollback clamp as Trial.scoreAnswer's timeTaken.
     keysRef.current.push({ key, t: Math.max(0, Date.now() - startedAt) });
   }
@@ -146,28 +160,35 @@ export function AnsweringPanel({
   // The press animation lives at the event edge (onPointerDown / keydown) —
   // not here — so a tap's pointerdown+click pair doesn't fire it twice.
   function handleButton(key: string) {
-    recordKey(key);
+    // Only EFFECTIVE presses become evidence — a rejected digit or a
+    // no-op erase isn't part of the answer's construction.
     if (key === "C") {
+      if (answerRef.current === "") return;
+      recordKey("C");
       setAnswer("");
       answerRef.current = "";
     } else if (key === "⌫") {
+      if (answerRef.current === "") return;
+      recordKey("⌫");
       setAnswer((prev) => prev.slice(0, -1));
       answerRef.current = answerRef.current.slice(0, -1);
     } else {
-      setAnswer((prev) => (prev.length < 10 ? prev + key : prev));
-      answerRef.current =
-        answerRef.current.length < 10
-          ? answerRef.current + key
-          : answerRef.current;
+      if (answerRef.current.length >= 10) return;
+      recordKey(key);
+      setAnswer((prev) => prev + key);
+      answerRef.current = answerRef.current + key;
     }
   }
 
   function doSubmit() {
     // The submit press is evidence too — the same logical key for the
-    // on-screen button and physical Enter.
-    recordKey("⏎");
+    // on-screen button and physical Enter. Recorded only when it
+    // actually submits (an empty answer's Enter is a no-op press).
     const parsed = parsedAnswer(answerRef.current);
-    if (parsed !== null) onSubmitAnswer(parsed, keysRef.current);
+    if (parsed !== null) {
+      recordKey("⏎");
+      onSubmitAnswer(parsed, keysRef.current);
+    }
   }
 
   const isReviewing = playingState.type === "reviewing";
