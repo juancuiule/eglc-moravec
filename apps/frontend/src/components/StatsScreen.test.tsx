@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatsScreen } from "./StatsScreen";
@@ -62,9 +62,10 @@ test("a category row with data is a real button, keyboard-reachable and screen-r
   expect(row.tagName).toBe("BUTTON");
 });
 
-test("a category row with no data is not rendered as an interactive control", async () => {
-  // Seed one category with data so the list renders at all, and check a
-  // *different*, data-less category's row isn't an interactive control.
+test("a category row with no data is a button — it opens the detail's empty state with the practice link", async () => {
+  // Seed one category with data so the list renders at all; a *different*,
+  // data-less category's row still opens its detail — that's where the
+  // "practice this category" CTA lives, so the route must be reachable.
   const trials: SyncedTrial[] = [
     {
       id: "11111111-1111-4111-8111-111111111111",
@@ -85,8 +86,14 @@ test("a category row with no data is not rendered as an interactive control", as
 
   renderWithQueryClient();
 
-  const row = await screen.findByText("1dx1d");
-  expect(row.closest("button")).toBeNull();
+  fireEvent.click(await screen.findByRole("button", { name: /1dx1d/ }));
+
+  expect(await screen.findByText(/No trials yet/)).toBeDefined();
+  expect(
+    screen
+      .getByRole("link", { name: "practice this category" })
+      .getAttribute("href"),
+  ).toBe(`/practice/${encodeURIComponent("1dx1d")}`);
 });
 
 test("Level and Practice trials are never merged — a Practice-only trial doesn't show under the Level tab", async () => {
@@ -110,11 +117,16 @@ test("Level and Practice trials are never merged — a Practice-only trial doesn
 
   renderWithQueryClient();
 
-  expect(await screen.findByText(/No data yet/)).toBeDefined();
+  // The Level tab has zero Level trials — the tab-level empty state
+  // renders instead of the row list, so no category button exists.
+  expect(
+    await screen.findByRole("link", { name: "complete some levels" }),
+  ).toBeDefined();
   expect(screen.queryByRole("button", { name: /1d\+1d/ })).toBeNull();
 
   fireEvent.click(screen.getByRole("button", { name: "Practice" }));
-  expect(await screen.findByRole("button", { name: /1d\+1d/ })).toBeDefined();
+  const practiceRow = await screen.findByRole("button", { name: /1d\+1d/ });
+  expect(within(practiceRow).queryByText(/No data yet/)).toBeNull();
 });
 
 test("the active Level/Practice tab exposes its selected state via aria-pressed, not color alone", async () => {

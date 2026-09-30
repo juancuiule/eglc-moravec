@@ -1,6 +1,13 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
-import { Addition, categoryFromCodename, type AdditionCategory } from "engine";
+import {
+  Addition,
+  categoryFromCodename,
+  Multiplication,
+  type AdditionCategory,
+  type MultiplicationCategory,
+  type Operation,
+} from "engine";
 import { AnsweringPanel } from "./AnsweringPanel";
 import type { Answering } from "engine";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
@@ -8,17 +15,20 @@ import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 const category = categoryFromCodename("1d+1d") as AdditionCategory;
 const operation = new Addition(2, 3, category);
 
-function renderPanel() {
+function renderPanel({
+  operation: op = operation,
+  hintVisible = false,
+}: { operation?: Operation; hintVisible?: boolean } = {}) {
   const onSubmitAnswer = vi.fn();
   const answeringState: Answering = {
     type: "answering",
     startedAt: Date.now(),
   };
-  render(
+  const { container } = render(
     <AnsweringPanel
-      operation={operation}
+      operation={op}
       playingState={answeringState}
-      hintVisible={false}
+      hintVisible={hintVisible}
       onSubmitAnswer={onSubmitAnswer}
       onTimeUp={vi.fn()}
       onAdvance={vi.fn()}
@@ -26,7 +36,7 @@ function renderPanel() {
       headerRight={null}
     />,
   );
-  return { onSubmitAnswer };
+  return { onSubmitAnswer, container };
 }
 
 // Regression test for the onPointerDown-only bug: the calculator's digit
@@ -62,6 +72,33 @@ test("the clear and backspace keys have a descriptive accessible name, not just 
   expect(
     screen.getByRole("button", { name: "Delete last digit" }),
   ).toBeDefined();
+});
+
+// Regression test for #79: requesting a hint on an operation whose hint()
+// is NoHint — single-digit multiplication is a memorized fact, not a
+// decomposition — used to render an empty accent-bordered card.
+test("a requested hint renders no card when the operation has NoHint", () => {
+  const noHint = new Multiplication(
+    9,
+    9,
+    categoryFromCodename("1dx1d") as MultiplicationCategory,
+  );
+  const { container } = renderPanel({ operation: noHint, hintVisible: true });
+
+  expect(container.querySelector(".bg-panel-accent")).toBeNull();
+});
+
+test("a requested hint still renders the steps when the operation has one", () => {
+  const hintable = new Addition(
+    47,
+    35,
+    categoryFromCodename("2d+2d") as AdditionCategory,
+  );
+  const { container } = renderPanel({ operation: hintable, hintVisible: true });
+
+  const card = container.querySelector(".bg-panel-accent");
+  expect(card).not.toBeNull();
+  expect(card!.textContent).toContain("47 + 35");
 });
 
 test("records {key,t} per press — digits, erases, and the submit — passed to onSubmitAnswer", () => {

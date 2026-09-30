@@ -62,6 +62,25 @@ test("does not offer a confusion for errors that aren't table neighbors", () => 
   expect(within(hardest).getByText("6 × 7")).toBeDefined();
 });
 
+// Regression test for #81: a category with trials but zero correct must
+// keep the section heading and scope the message to the chart — the old
+// centered block read as a page-level empty state above the populated
+// heatmap and hardest-problems list.
+test("zero correct trials keeps the distribution heading with a scoped message", () => {
+  render(
+    <CategoryStatsDetail
+      codename="1dx1d"
+      onBack={vi.fn()}
+      trials={[makeTrial({ correct: false, answer: 48 })]}
+    />,
+  );
+
+  expect(screen.getByText("Response time distribution")).toBeDefined();
+  expect(screen.getByText("No correct answers to chart yet.")).toBeDefined();
+  // ...and the populated sections below still render.
+  expect(screen.getByText("Hardest problems")).toBeDefined();
+});
+
 test("renders the per-operation error heatmap for 1dx1d only", () => {
   const { rerender } = render(
     <CategoryStatsDetail
@@ -86,6 +105,27 @@ test("renders the per-operation error heatmap for 1dx1d only", () => {
   expect(
     screen.queryByRole("img", { name: "Error rate by problem" }),
   ).toBeNull();
+});
+
+// Regression test for #82: heatmap columns are capped, so a history that
+// only spans operands {7,8} renders a compact centered grid instead of two
+// ~200px unbounded 1fr cells.
+test("the heatmap caps column width for narrow operand domains", () => {
+  render(
+    <CategoryStatsDetail
+      codename="1dx1d"
+      onBack={vi.fn()}
+      trials={[
+        makeTrial({ operands: [7, 8], answer: 56 }),
+        makeTrial({ operands: [7, 8], correct: false, answer: 54 }),
+      ]}
+    />,
+  );
+
+  const grid = screen.getByRole("img", { name: "Error rate by problem" });
+  expect(grid.style.gridTemplateColumns).toContain("44px");
+  expect(grid.style.gridTemplateColumns).not.toContain("1fr");
+  expect(grid.className).toContain("justify-center");
 });
 
 test("shows a weekly trend once the category spans two weeks", () => {
