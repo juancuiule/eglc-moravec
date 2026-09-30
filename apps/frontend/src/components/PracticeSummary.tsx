@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { PracticeStopped } from "../practice/index";
 import { usePractice } from "../practice/store";
+import { focusWeights } from "../practice/focus";
+import { allLocalTrials } from "../local/trials";
+import { computeStats } from "../stats/computeStats";
 import { panel, button } from "../styles";
 
 type Props = { state: PracticeStopped };
@@ -47,7 +50,22 @@ export function PracticeSummary({ state }: Props) {
       >
         <button
           className={button({ intent: "primary" })}
-          onClick={() => start(config)}
+          onClick={() =>
+            start(
+              // A Focus replay re-derives its weights — the stopped run's
+              // Trials are already in the read model (persisted
+              // synchronously by the transition watcher), so the replay
+              // adapts to the player's current weakness rather than
+              // reusing the first session's map. The active run's config
+              // stays frozen; only the new run re-weights.
+              config.mode === "focus"
+                ? {
+                    mode: "focus",
+                    weights: focusWeights(computeStats(allLocalTrials())),
+                  }
+                : config,
+            )
+          }
         >
           {t("practiceAgain")}
         </button>

@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 // The app shell routes by URL to client-rendered screens — HomePage is one
 // of them, reached via its route module since screens live under app/.
 import HomePage from "../../app/page";
+import { FOCUS_MODE } from "../practice/focus";
+import { FocusPracticePlay } from "./FocusPracticePlay";
 import { LocalLevelPlay } from "./LocalLevelPlay";
 import { LocalLevelsList } from "./LocalLevelsList";
 import { LoadingPanel } from "./LoadingPanel";
@@ -46,8 +48,11 @@ export function OfflineRouter() {
   const practiceMatch = /^\/practice\/([^/]+)\/?$/.exec(pathname);
   if (practiceMatch) {
     const mode = decodeURIComponent(practiceMatch[1]);
+    if (mode === FOCUS_MODE) return <FocusPracticePlay />;
     if (isSupportedCategoryCodename(mode)) {
-      return <PracticePlay categoryCodename={mode} />;
+      return (
+        <PracticePlay config={{ mode: "category", categoryCodename: mode }} />
+      );
     }
   }
 

@@ -89,7 +89,11 @@ export function rowToSyncedTrial(
   };
   // Built per runType variant — the wire union. A level row missing
   // levelNumber decodes to the -1 sentinel (same as rowToInput's), which
-  // downstream schema validation drops rather than misreads.
+  // downstream schema validation drops rather than misreads; any runType
+  // outside the practice family lands in the level branch for that guard.
+  if (row.runType === "practice_focus") {
+    return { ...base, runType: "practice_focus", levelNumber: null };
+  }
   return row.runType === "practice"
     ? { ...base, runType: "practice", levelNumber: null }
     : {
@@ -120,7 +124,9 @@ function rowToInput(
   const input: TrialResultInput =
     t.runType === "level"
       ? { ...base, runType: "level", levelNumber: t.levelNumber ?? -1 }
-      : { ...base, runType: "practice", levelNumber: null };
+      : t.runType === "practice_focus"
+        ? { ...base, runType: "practice_focus", levelNumber: null }
+        : { ...base, runType: "practice", levelNumber: null };
   const parsed = TrialResultSchema.safeParse(input);
   if (!parsed.success) {
     console.warn("localFirst: skipping invalid queued trial", {

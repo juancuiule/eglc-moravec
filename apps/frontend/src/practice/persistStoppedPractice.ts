@@ -13,11 +13,21 @@ import type { PracticeStopped } from "./index";
 export function persistStoppedPractice(state: PracticeStopped): void {
   const inputs = toTrialResultInputs(
     state.results,
-    {
-      runType: "practice",
-      levelNumber: null,
-      runId: state.runId,
-    },
+    // Focus trials stay in the practice family (levelNumber null) but carry
+    // their own runType: the adaptively skewed category mix would bias the
+    // operation distribution the research pipeline analyzes, so it's marked
+    // for filtering rather than folded into uniform "practice" rows (#66).
+    state.config.mode === "focus"
+      ? {
+          runType: "practice_focus" as const,
+          levelNumber: null,
+          runId: state.runId,
+        }
+      : {
+          runType: "practice" as const,
+          levelNumber: null,
+          runId: state.runId,
+        },
     Date.now(),
   );
   enqueueRun(inputs, state.results);

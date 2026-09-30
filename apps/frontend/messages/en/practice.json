@@ -1,6 +1,9 @@
 {
   "heading": "Practice",
   "description": "Pick a category to practice indefinitely. No pass/fail — just reps.",
+  "focus": "Focus",
+  "focusDescription": "Mixed practice weighted toward your weakest categories.",
+  "recommended": "Recommended",
   "correctOfTotal": "{correct} / {total} correct",
   "hint": "Hint",
   "stop": "Stop",

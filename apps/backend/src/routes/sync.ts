@@ -28,9 +28,12 @@ function rowToSyncedTrial(r: TrialResultRow): SyncedTrial {
     hintShown: Boolean(r.hint_shown),
     runId: r.run_id,
   };
-  // Practice rows store the level_number=0 sentinel; the wire shape
-  // restores the domain's null — and the discriminated union needs the
-  // matching literal in each branch.
+  // Practice rows (and Focus — same family, adaptive mix) store the
+  // level_number=0 sentinel; the wire shape restores the domain's null —
+  // and the discriminated union needs the matching literal in each branch.
+  if (r.run_type === "practice_focus") {
+    return { ...base, runType: "practice_focus", levelNumber: null };
+  }
   return r.run_type === "practice"
     ? { ...base, runType: "practice", levelNumber: null }
     : { ...base, runType: "level", levelNumber: r.level_number };

@@ -37,8 +37,10 @@ export function PracticePlayingScreen({ state }: Props) {
       onAdvance={advance}
       beforeOperation={
         <div className="text-center text-xs text-accent-text font-mono tracking-wider">
-          {CATEGORY_LABELS[state.config.categoryCodename] ??
-            state.config.categoryCodename}
+          {/* The current Trial's own category — equal to the session
+              category in category mode, varying per draw in Focus mode. */}
+          {CATEGORY_LABELS[state.currentOperation.categoryCodename()] ??
+            state.currentOperation.categoryCodename()}
         </div>
       }
       headerLeft={

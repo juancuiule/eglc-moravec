@@ -1,6 +1,9 @@
 {
   "heading": "Practicar",
   "description": "Elegí una categoría para practicar sin límite. Sin aprobar ni reprobar — solo repeticiones.",
+  "focus": "Enfoque",
+  "focusDescription": "Práctica mixta con más peso en tus categorías más débiles.",
+  "recommended": "Recomendada",
   "correctOfTotal": "{correct} / {total} correctas",
   "hint": "Pista",
   "stop": "Parar",
