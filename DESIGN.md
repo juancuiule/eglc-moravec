@@ -96,6 +96,17 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 - Never ease-in entrances, nothing over ~300ms, nothing that loops or
   bounces, no new keyframes.
 
+## Sound & haptics
+
+- All sound/haptics go through `src/feedback` (cuelume cues + web-haptics);
+  never import those libraries elsewhere.
+- Only three moments: keypad key press (`tick` cue, the duller `press`
+  variant for ⌫/C, short haptic pulse) and trial result (`success`/`error`
+  cue + matching haptic preset). No sound on hover, navigation, or per
+  timer tick.
+- Home's Sound toggle mutes both; on by default, persisted in
+  localStorage (`moravec:sound`).
+
 ## Interaction & accessibility
 
 - Navigation is a real `<Link>` (Cmd-click works); state changes are real

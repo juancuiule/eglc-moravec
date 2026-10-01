@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/auth/store";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { SoundToggle } from "@/components/SoundToggle";
 import { useLocalTrials } from "@/local/hooks";
 import { daysTrainedThisMonth } from "@/stats/activityStats";
 import { panel, linkButton, navLink } from "@/styles";
@@ -27,6 +28,7 @@ export default function HomePage() {
           </h1>
         </div>
         <div className="flex items-center flex-wrap justify-end gap-1">
+          <SoundToggle />
           <LocaleSwitcher />
           {authState.type === "logged-in" ? (
             <>
