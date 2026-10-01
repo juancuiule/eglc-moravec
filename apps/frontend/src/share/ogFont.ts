@@ -26,11 +26,57 @@ async function font(name: string): Promise<Buffer> {
   throw new Error(`OG font not found: ${name} (tried ${FONT_DIRS.join(", ")})`);
 }
 
-// Loaded once at module scope — both OG image routes share it.
-export const ogFonts = Promise.all([
-  font("OverpassMono-Regular.ttf"),
-  font("OverpassMono-Bold.ttf"),
-]).then(([regularData, boldData]) => [
-  { name: "Overpass Mono" as const, data: regularData, weight: 400 as const },
-  { name: "Overpass Mono" as const, data: boldData, weight: 700 as const },
-]);
+// Gotham is commercial — its files are dropped into public/og-fonts at
+// build/deploy time rather than committed. Absent files degrade to Overpass
+// Mono (see ogFonts below), so the card still renders.
+async function optionalFont(
+  names: string[],
+  weight: 500 | 900,
+): Promise<{ name: "Gotham"; data: Buffer; weight: 500 | 900 } | null> {
+  for (const dir of FONT_DIRS) {
+    for (const name of names) {
+      try {
+        const data = await readFile(
+          join(/* turbopackIgnore: true */ dir, name),
+        );
+        return { name: "Gotham", data, weight };
+      } catch {
+        // try the next candidate
+      }
+    }
+  }
+  return null;
+}
+
+type OgFont = {
+  name: string;
+  data: Buffer;
+  weight: 400 | 500 | 700 | 900;
+};
+
+async function loadFonts(): Promise<{
+  fonts: OgFont[];
+  hasGotham: boolean;
+}> {
+  const [regular, medium, bold] = await Promise.all([
+    font("OverpassMono-Regular.ttf"),
+    font("OverpassMono-Medium.ttf"),
+    font("OverpassMono-Bold.ttf"),
+  ]);
+  const gotham = [
+    await optionalFont(["Gotham-Black.ttf", "Gotham-Black.otf"], 900),
+    await optionalFont(["Gotham-Medium.ttf", "Gotham-Medium.otf"], 500),
+  ].filter((f): f is NonNullable<typeof f> => f !== null);
+  return {
+    fonts: [
+      { name: "Overpass Mono", data: regular, weight: 400 },
+      { name: "Overpass Mono", data: medium, weight: 500 },
+      { name: "Overpass Mono", data: bold, weight: 700 },
+      ...gotham,
+    ],
+    hasGotham: gotham.length > 0,
+  };
+}
+
+// Loaded once at module scope — the share OG route uses it.
+export const ogFonts = loadFonts();

@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import type { Finished } from "../game/index";
 import { useGame } from "../game/store";
 import { button, linkButton, panel, textLink } from "../styles";
+import { ShareButton } from "./ShareButton";
 import { StarsDisplay } from "./StarsDisplay";
 import { TrialReview } from "./TrialReview";
 
@@ -122,16 +123,28 @@ export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
         className="animate-fade-in"
         style={{ animationDelay: "350ms", animationFillMode: "backwards" }}
       >
-        <button
-          type="button"
-          className={`${textLink} text-sm mx-auto block`}
-          aria-expanded={reviewOpen}
-          onClick={() => setReviewOpen((open) => !open)}
-        >
-          {reviewOpen
-            ? t("hideReview")
-            : t("showReview", { count: totalAttempts })}
-        </button>
+        <div className="flex items-center justify-center gap-4">
+          <button
+            type="button"
+            className={`${textLink} text-sm`}
+            aria-expanded={reviewOpen}
+            onClick={() => setReviewOpen((open) => !open)}
+          >
+            {reviewOpen
+              ? t("hideReview")
+              : t("showReview", { count: totalAttempts })}
+          </button>
+          {/* Sharing a result is opt-in and travels in the URL itself —
+              nothing is uploaded. */}
+          <ShareButton
+            payload={{
+              l: config.levelNumber,
+              n: totalAttempts,
+              k: correctCount,
+              ms: totalTime,
+            }}
+          />
+        </div>
         {reviewOpen && (
           <div className="mt-2">
             <TrialReview results={results} />

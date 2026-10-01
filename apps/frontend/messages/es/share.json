@@ -2,9 +2,8 @@
   "share": "Compartir",
   "copied": "Enlace copiado",
   "sharedResult": "Resultado compartido",
-  "ogTitle": "{pct}% en {category} en {count} intentos",
-  "ogDescription": "Un resultado de cálculo mental compartido desde EGLC Moravec.",
-  "correctOf": "{correct} de {total} correctas",
-  "avgTime": "promedio {t}",
+  "ogTitle": "Nivel {level} — {correct}/{total} correctas",
+  "ogDescription": "Un resultado de nivel de cálculo mental compartido desde EGLC Moravec.",
+  "score": "{correct}/{total} correctas",
   "cta": "Jugar a Moravec"
 }

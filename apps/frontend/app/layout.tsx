@@ -43,7 +43,7 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
     },
-    // app/opengraph-image.png supplies og:image + twitter:image.
+    // app/opengraph-image.tsx supplies og:image + twitter:image.
   };
 }
 

@@ -2,31 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { CATEGORY_LABELS } from "@/categoryLabels";
-import { formatSeconds } from "@/formatTime";
+import { LEVEL_COMPLETE_THRESHOLD, starsForScore } from "engine";
+import { formatDuration } from "@/formatTime";
 import { decodeSharePayload } from "@/share/payload";
+import { StarsDisplay } from "@/components/StarsDisplay";
 import { button, panel } from "@/styles";
 
 type Props = { params: Promise<{ payload: string }> };
-
-function label(p: { c: string }): string {
-  return CATEGORY_LABELS[p.c] ?? p.c;
-}
-
-function accuracy(p: { k: number; n: number }): number {
-  return Math.round((p.k / p.n) * 100);
-}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { payload: encoded } = await params;
   const t = await getTranslations("Share");
   const p = decodeSharePayload(encoded);
   if (!p) return {};
-  const title = t("ogTitle", {
-    pct: accuracy(p),
-    category: label(p),
-    count: p.n,
-  });
+  const title = t("ogTitle", { level: p.l, correct: p.k, total: p.n });
   const description = t("ogDescription");
   return {
     title,
@@ -44,24 +33,41 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SharePage({ params }: Props) {
   const { payload: encoded } = await params;
   const t = await getTranslations("Share");
+  const tLevels = await getTranslations("Levels");
   const p = decodeSharePayload(encoded);
   if (!p) notFound();
+
+  const levelCompleted = p.k >= LEVEL_COMPLETE_THRESHOLD;
 
   return (
     <div className={`${panel} p-6 gap-6 text-center`}>
       <p className="text-2xs text-muted-2 uppercase tracking-wider font-medium">
         {t("sharedResult")}
       </p>
-      <h1 className="text-4xl font-bold font-mono text-foreground">
-        {label(p)}
+      <h1 className="text-4xl font-bold tracking-tight text-foreground">
+        {tLevels("level", { number: p.l })}
       </h1>
-      <div className="flex flex-col gap-1">
-        <span className="text-5xl font-bold font-mono text-accent">
-          {accuracy(p)}%
+      <StarsDisplay stars={starsForScore(p.k)} />
+      <div>
+        <span className="text-muted text-lg">
+          {tLevels.rich("score", {
+            correct: p.k,
+            total: p.n,
+            colored: (chunks) => (
+              <span
+                className={
+                  levelCompleted
+                    ? "text-teal font-bold text-lg"
+                    : "text-danger font-bold text-lg"
+                }
+              >
+                {chunks}
+              </span>
+            ),
+          })}
         </span>
-        <p className="text-sm text-muted">
-          {t("correctOf", { correct: p.k, total: p.n })}
-          {p.ms !== null && ` · ${t("avgTime", { t: formatSeconds(p.ms) })}`}
+        <p className="font-mono text-accent-text text-xs mt-1">
+          {formatDuration(p.ms)}
         </p>
       </div>
       <Link href="/" className={button({ intent: "primary" })}>

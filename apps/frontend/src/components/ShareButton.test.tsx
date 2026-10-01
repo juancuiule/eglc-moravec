@@ -11,7 +11,7 @@ test("copies a /share/<payload> URL carrying the result", async () => {
     configurable: true,
   });
 
-  render(<ShareButton payload={{ c: "1dx1d", n: 12, k: 10, ms: 4200 }} />);
+  render(<ShareButton payload={{ l: 12, n: 20, k: 18, ms: 55403 }} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Share" }));
 
@@ -19,9 +19,9 @@ test("copies a /share/<payload> URL carrying the result", async () => {
   const url = writeText.mock.calls[0][0] as string;
   const payload = url.split("/share/")[1];
   expect(decodeSharePayload(payload)).toEqual({
-    c: "1dx1d",
-    n: 12,
-    k: 10,
-    ms: 4200,
+    l: 12,
+    n: 20,
+    k: 18,
+    ms: 55403,
   });
 });

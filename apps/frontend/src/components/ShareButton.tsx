@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { encodeSharePayload, type SharePayload } from "../share/payload";
+import { textLink } from "../styles";
 
-type Props = { payload: SharePayload };
+type Props = { payload: SharePayload; className?: string };
 
 // Compact share affordance — the native share sheet when the platform has
 // one (mobile), clipboard copy otherwise. The encoded result travels inside
 // the URL; nothing is uploaded anywhere.
-export function ShareButton({ payload }: Props) {
+export function ShareButton({ payload, className }: Props) {
   const t = useTranslations("Share");
   const [copied, setCopied] = useState(false);
 
@@ -38,7 +39,7 @@ export function ShareButton({ payload }: Props) {
     <button
       onClick={onShare}
       aria-live="polite"
-      className="ml-auto text-sm font-medium text-muted hover:text-foreground cursor-pointer touch-manipulation transition-colors px-2 py-1"
+      className={className ?? `${textLink} cursor-pointer touch-manipulation`}
     >
       {copied ? t("copied") : t("share")}
     </button>

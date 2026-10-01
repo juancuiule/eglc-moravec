@@ -2,9 +2,8 @@
   "share": "Share",
   "copied": "Link copied",
   "sharedResult": "Shared result",
-  "ogTitle": "{pct}% on {category} across {count} trials",
-  "ogDescription": "A mental-math result shared from EGLC Moravec.",
-  "correctOf": "{correct} of {total} correct",
-  "avgTime": "avg {t}",
+  "ogTitle": "Level {level} — {correct}/{total} correct",
+  "ogDescription": "A mental-math level result shared from EGLC Moravec.",
+  "score": "{correct}/{total} correct",
   "cta": "Play Moravec"
 }

@@ -81,7 +81,7 @@ Reconciling a User's progress with the backend — active for any session, anony
 _Avoid_: Backup, save, upload.
 
 **Share link**:
-A URL a player can post anywhere to show off a result — `/share/<base64url payload>` carrying just the numbers they chose to share (category, accuracy, count, avg time). Renders a branded summary page for humans and a per-link OpenGraph card for social unfurling. Self-reported and forgeable by design — it writes nothing and proves nothing, it's show-and-tell.
+A URL a player can post anywhere to show off a Level run — `/share/<base64url payload>` carrying just the numbers they chose to share (level number, correct count, total time; stars derive from the count). Renders a branded summary page for humans and a per-link OpenGraph card for social unfurling; every other route unfurls with the static brand card (`app/opengraph-image.png`). Self-reported and forgeable by design — it writes nothing and proves nothing, it's show-and-tell.
 _Avoid_: Verification, attestation, proof of skill.
 
 ### Research background
