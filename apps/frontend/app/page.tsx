@@ -19,8 +19,8 @@ export default function HomePage() {
 
   return (
     <div className={`${panel} p-6 gap-6`}>
-      {/* Logo on its own row; language + account on a single, non-wrapping
-          row below. Locale-dependent labels ("Log in"/"Iniciar sesión") and
+      {/* Logo on its own row; account (left) + language (right) on a single,
+          non-wrapping row below. Locale-dependent labels ("Log in"/"Iniciar sesión") and
           long emails used to change how the shared row wrapped, shifting the
           whole panel on a language switch — now they only change widths
           within a row of fixed height (the email truncates). */}
@@ -32,8 +32,7 @@ export default function HomePage() {
           </h1>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <LocaleSwitcher />
-          <div className="flex items-center justify-end gap-1 min-w-0">
+          <div className="flex items-center gap-1 min-w-0">
             {authState.type === "logged-in" ? (
               <>
                 <span
@@ -58,6 +57,7 @@ export default function HomePage() {
               </Link>
             )}
           </div>
+          <LocaleSwitcher />
         </div>
       </div>
 
