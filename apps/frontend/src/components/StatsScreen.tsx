@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
@@ -207,7 +208,7 @@ export function StatsScreen() {
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
         <Link href="/" className={backLink} aria-label={tCommon("backToMenu")}>
-          ←
+          <ArrowLeft size={20} aria-hidden="true" />
         </Link>
         <h1 className="text-xl font-bold tracking-tight">{t("title")}</h1>
       </div>

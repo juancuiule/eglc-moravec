@@ -7,6 +7,7 @@ import {
   type Operation,
 } from "engine";
 import type { Reviewing } from "../trialSession";
+import { Delete } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { panel } from "../styles";
@@ -264,7 +265,13 @@ export function AnsweringPanel({
                   isPressed ? "scale-96 brightness-150" : "",
                 ].join(" ")}
               >
-                {key}
+                {/* "⌫" stays the key's identity (it's what the keystroke
+                    trace records); only its rendering is an icon. */}
+                {key === "⌫" ? (
+                  <Delete size={22} aria-hidden="true" className="mx-auto" />
+                ) : (
+                  key
+                )}
               </button>
             );
           })}

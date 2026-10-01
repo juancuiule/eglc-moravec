@@ -145,8 +145,12 @@ test("shows a weekly trend once the category spans two weeks", () => {
   );
 
   expect(screen.getByText("Trend by week")).toBeDefined();
-  // 100% correct in week 1, 0% in week 2 → "100% → 0%"
-  expect(screen.getByText("100% → 0%")).toBeDefined();
+  // 100% correct in week 1, 0% in week 2 → "100% [arrow icon] 0%"
+  expect(
+    screen.getByText(
+      (_, el) => el?.tagName === "SPAN" && el.textContent === "100%0%",
+    ),
+  ).toBeDefined();
 });
 
 test("hides the trend when history fits in a single week", () => {

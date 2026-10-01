@@ -2,6 +2,7 @@
 
 import { canShowHint } from "engine";
 import { useTranslations } from "next-intl";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { HINTS_PER_LEVEL, type Playing } from "../game/index";
 import { useGame } from "../game/store";
@@ -49,7 +50,7 @@ export function AnsweringView({ state }: Props) {
             className={backLink}
             aria-label={tCommon("backToMenu")}
           >
-            ←
+            <ArrowLeft size={20} aria-hidden="true" />
           </Link>
           <span>
             {t("trial", {

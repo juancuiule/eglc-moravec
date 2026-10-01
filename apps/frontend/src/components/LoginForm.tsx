@@ -5,6 +5,7 @@ import { authErrorKey } from "@/api/utils";
 import { backLink, button, panel } from "@/styles";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -28,7 +29,7 @@ export function LoginForm() {
     <div className={`${panel} p-8 gap-4`}>
       <div className="flex items-center gap-3">
         <Link href="/" className={backLink} aria-label={tCommon("backToMenu")}>
-          ←
+          <ArrowLeft size={20} aria-hidden="true" />
         </Link>
         <h1 className="text-xl font-bold tracking-tight">{t("title")}</h1>
       </div>

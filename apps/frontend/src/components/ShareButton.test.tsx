@@ -25,3 +25,22 @@ test("copies a /share/<payload> URL carrying the result", async () => {
     ms: 55403,
   });
 });
+
+test("is an icon-only button that announces the copy", async () => {
+  Object.defineProperty(navigator, "clipboard", {
+    value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    configurable: true,
+  });
+
+  render(<ShareButton payload={{ l: 1, n: 20, k: 20, ms: 1000 }} />);
+
+  const button = screen.getByRole("button", { name: "Share" });
+  expect(button.textContent).toBe("");
+  expect(button.querySelector("svg")).not.toBeNull();
+
+  fireEvent.click(button);
+
+  await vi.waitFor(() =>
+    expect(screen.getByRole("status").textContent).toBe("Link copied"),
+  );
+});

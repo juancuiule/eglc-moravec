@@ -86,12 +86,15 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
   lower priority), `ghost` (muted text).
 - `linkButton()`: same variants for `<Link>` used as a CTA (bakes in
   `text-center block`).
-- `backLink`: the "←" glyph with a 44px pseudo-element touch target.
+- `backLink`: a lucide `ArrowLeft` (20px) with a 44px pseudo-element touch target.
 - `textLink`, `navLink`, `hintButton` for their named roles.
 - Row patterns: dense `py-0.5`/`py-1` rows, `hover:bg-base` on
   interactive/scrollable rows.
 - Thin progress bars: 6px track `bg-subtle` (the bars sit inside `bg-base`
   rows — see `EffBar`), fill colored by meaning.
+- Icons: `lucide-react` only, `aria-hidden="true"` (the control carries the
+  label), colored via `currentColor`; filled shapes (stars) pass
+  `fill="currentColor"`.
 
 ## Motion
 
@@ -112,7 +115,7 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
   `aria-label`; scrollable regions get a labeled `role` (e.g. `img` on the
   heatmap, `table`/`row`/`cell` on grid-laid lists).
 - Touch targets ≥44px — use the `backLink` pseudo-element trick for
-  glyph-size controls.
+  icon-size controls.
 - Existing keyboard chords (Enter submit; N/R/M on FinishedScreen) must
   keep working.
 
@@ -128,3 +131,5 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
   domain constants (use `engine` exports).
 - New border radii (the scale is `rounded-lg`/`rounded-xl`/`rounded-2xl`)
   or new shadows.
+- Unicode glyphs or emoji as UI icons (arrows, ⌫, stars, 🔒, 🎉) — use a
+  lucide icon. Math symbols in content (×, ², −) are text, not icons.

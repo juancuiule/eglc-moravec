@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createOperation, type Operation } from "engine";
@@ -65,7 +66,7 @@ export function TutorialDetail({ topic }: Props) {
           className={backLink}
           aria-label={t("backToTutorials")}
         >
-          ←
+          <ArrowLeft size={20} aria-hidden="true" />
         </Link>
         <h1 className="text-xl font-bold tracking-tight">{title}</h1>
       </div>

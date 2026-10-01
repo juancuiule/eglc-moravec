@@ -1,3 +1,4 @@
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { TUTORIAL_TOPICS } from "../tutorials/content";
@@ -11,7 +12,7 @@ export function TutorialsList() {
     <div className={`${panel} p-6 gap-4`}>
       <div className="flex items-center gap-3">
         <Link href="/" className={backLink} aria-label={tCommon("backToMenu")}>
-          ←
+          <ArrowLeft size={20} aria-hidden="true" />
         </Link>
         <h1 className="text-xl font-bold tracking-tight">{t("listTitle")}</h1>
       </div>
@@ -32,7 +33,7 @@ export function TutorialsList() {
               </span>
             </span>
             <span aria-hidden="true" className="text-muted shrink-0">
-              →
+              <ArrowRight size={18} />
             </span>
           </Link>
         ))}

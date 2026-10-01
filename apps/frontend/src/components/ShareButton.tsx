@@ -1,9 +1,10 @@
 "use client";
 
+import { Check, Share2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { encodeSharePayload, type SharePayload } from "../share/payload";
-import { textLink } from "../styles";
+import { backLink } from "../styles";
 
 type Props = { payload: SharePayload; className?: string };
 
@@ -35,13 +36,27 @@ export function ShareButton({ payload, className }: Props) {
     }
   }
 
+  // Icon-only: the label lives in aria-label, and the "copied" confirmation
+  // goes to a separate live region (an aria-label change isn't announced).
+  // A check icon swaps in briefly as the visual confirmation.
   return (
-    <button
-      onClick={onShare}
-      aria-live="polite"
-      className={className ?? `${textLink} cursor-pointer touch-manipulation`}
-    >
-      {copied ? t("copied") : t("share")}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={onShare}
+        aria-label={t("share")}
+        title={t("share")}
+        className={className ?? `${backLink} cursor-pointer`}
+      >
+        {copied ? (
+          <Check size={18} aria-hidden="true" className="text-teal" />
+        ) : (
+          <Share2 size={18} aria-hidden="true" />
+        )}
+      </button>
+      <span role="status" className="sr-only">
+        {copied ? t("copied") : ""}
+      </span>
+    </>
   );
 }

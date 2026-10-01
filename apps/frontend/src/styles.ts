@@ -47,8 +47,8 @@ export function linkButton(options: Parameters<typeof button>[0]) {
 }
 
 /**
- * The "←" back-arrow affordance — used as both a <Link> and a plain onClick
- * button. Visually just the glyph, but every occurrence sits alone in its
+ * The back-arrow affordance (a lucide `ArrowLeft`) — used as both a <Link> and a plain onClick
+ * button. Visually just the icon, but every occurrence sits alone in its
  * header row (next to a non-interactive heading), so the `after` pseudo-element
  * gives it a real 44×44px touch target with no risk of overlapping another
  * control or shifting layout (it's taken out of flow via `absolute`).
