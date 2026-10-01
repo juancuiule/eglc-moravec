@@ -244,8 +244,10 @@ export function AnsweringPanel({
         <HintCard steps={hint.getSteps()} />
       )}
 
-      {/* Calculator section */}
-      <div className="relative flex flex-col gap-3">
+      {/* Calculator section — opted out of the delegated tap cue: keypad
+          keys already sound on pointerdown and Submit is followed by the
+          verdict cue (src/feedback). */}
+      <div className="relative flex flex-col gap-3" data-feedback="off">
         <div className="bg-base border border-subtle rounded-xl px-4 py-3 text-right text-3xl font-mono flex items-center justify-end select-none">
           {answer || <span className="text-disabled">0</span>}
         </div>

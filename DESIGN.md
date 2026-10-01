@@ -84,6 +84,8 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
   interactive/scrollable rows.
 - Thin progress bars: 6px track `bg-subtle` (the bars sit inside `bg-base`
   rows — see `EffBar`), fill colored by meaning.
+- Icons: `lucide-react`, only for icon-only controls; always `aria-hidden`
+  on the icon plus an `aria-label` on the control.
 
 ## Motion
 
@@ -100,12 +102,17 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 
 - All sound/haptics go through `src/feedback` (cuelume cues + web-haptics);
   never import those libraries elsewhere.
-- Only three moments: keypad key press (`tick` cue, the duller `press`
-  variant for ⌫/C, short haptic pulse) and trial result (`success`/`error`
-  cue + matching haptic preset). No sound on hover, navigation, or per
-  timer tick.
-- Home's Sound toggle mutes both; on by default, persisted in
-  localStorage (`moravec:sound`).
+- Buttons and links: `pulse` cue + short haptic pulse, via the one
+  delegated click listener (`FeedbackBinder` in the root layout). Controls
+  with their own cue opt out with `data-feedback="off"` on themselves or
+  an ancestor.
+- Keypad: `tick` per digit, the duller `press` for ⌫/C, short pulse (on
+  pointerdown/keydown). Trial result: `success`/`error` cue + matching
+  haptic preset.
+- No sound on hover or per timer tick.
+- Home's Sound toggle (lucide `Volume2`/`VolumeX`, icon-only with
+  `aria-label`) mutes both; plays `toggle` when turned on; on by default,
+  persisted in localStorage (`moravec:sound`).
 
 ## Interaction & accessibility
 

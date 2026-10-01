@@ -1,8 +1,9 @@
 "use client";
 
+import { Volume2, VolumeX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { isFeedbackEnabled, setFeedbackEnabled } from "@/feedback";
+import { feedback, isFeedbackEnabled, setFeedbackEnabled } from "@/feedback";
 import { navLink } from "@/styles";
 
 /**
@@ -10,6 +11,8 @@ import { navLink } from "@/styles";
  * switch that mutes both sound and haptics (see src/feedback). Optimistic
  * default ON matches isFeedbackEnabled's default, so the useEffect sync
  * with localStorage is a no-op render unless the player turned it off.
+ * data-feedback="off" because it plays its own `toggle` cue when switched
+ * on (turning off is silent) — a generic tap on top would double it.
  */
 export function SoundToggle() {
   const t = useTranslations("Common");
@@ -23,14 +26,21 @@ export function SoundToggle() {
     <button
       type="button"
       aria-pressed={enabled}
+      aria-label={t("sound")}
+      data-feedback="off"
       onClick={() => {
         const next = !enabled;
         setEnabled(next);
         setFeedbackEnabled(next);
+        if (next) feedback.toggle();
       }}
-      className={`${navLink} ${enabled ? "text-foreground bg-subtle" : ""}`}
+      className={`${navLink} inline-flex items-center justify-center min-w-11 ${enabled ? "text-foreground bg-subtle" : ""}`}
     >
-      {t("sound")}
+      {enabled ? (
+        <Volume2 size={16} aria-hidden />
+      ) : (
+        <VolumeX size={16} aria-hidden />
+      )}
     </button>
   );
 }
