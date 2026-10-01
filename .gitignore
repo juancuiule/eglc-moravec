@@ -6,11 +6,6 @@ dist
 .env.local
 apps/backend/data
 
-# Commercial typefaces dropped in at build time for app and OG rendering —
-# licensed, not redistributable through the repo (see src/share/ogFont.ts).
-apps/frontend/public/og-fonts/Gotham-*.ttf
-apps/frontend/public/og-fonts/Gotham-*.otf
-
 # packages/analysis (Python)
 .venv
 __pycache__

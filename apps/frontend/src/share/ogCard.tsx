@@ -9,8 +9,8 @@ import type { SharePayload } from "./payload";
 // free), pink mono URL bottom-left. With a SharePayload it adds the level
 // result block between subtitle and URL; with p=null it's the general card.
 //
-// Gotham files are gitignored (commercial) — absent or incomplete, `brand`
-// falls back to Overpass Mono and the card still renders.
+// Absent or incomplete Gotham files make `brand` fall back to Overpass Mono,
+// so the card still renders.
 
 const STAR_PATH =
   "M12 2l2.9 6.6 7.1.7-5.3 4.6 1.5 7.1L12 17.7 5.8 21l1.5-7.1L2 9.3l7.1-.7z";

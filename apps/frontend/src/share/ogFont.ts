@@ -26,9 +26,9 @@ async function font(name: string): Promise<Buffer> {
   throw new Error(`OG font not found: ${name} (tried ${FONT_DIRS.join(", ")})`);
 }
 
-// Gotham is commercial — its files are dropped into public/og-fonts at
-// build/deploy time rather than committed. Absent or incomplete files degrade
-// to Overpass Mono (see ogFonts below), so the card still renders.
+// Gotham's licensed faces live beside Overpass under public/og-fonts.
+// Absent or incomplete files degrade to Overpass Mono (see ogFonts below),
+// so the card still renders.
 async function optionalFont(
   names: string[],
   weight: 400 | 500 | 700 | 900,

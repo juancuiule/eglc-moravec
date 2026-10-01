@@ -3,6 +3,7 @@ import { SyncChip } from "@/components/SyncChip";
 import { QueryProvider } from "@/providers/QueryProvider";
 import type { Metadata, Viewport } from "next";
 import { Overpass_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
@@ -13,6 +14,33 @@ const overpassMono = Overpass_Mono({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--font-overpass-mono",
+});
+
+const gotham = localFont({
+  src: [
+    {
+      path: "../public/og-fonts/Gotham-Book.otf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/og-fonts/Gotham-Medium.otf",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../public/og-fonts/Gotham-Bold.otf",
+      weight: "700",
+      style: "normal",
+    },
+    {
+      path: "../public/og-fonts/Gotham-Black.otf",
+      weight: "900",
+      style: "normal",
+    },
+  ],
+  variable: "--font-gotham",
+  display: "swap",
 });
 
 // Public origin for absolute og:/twitter: URLs — crawlers can't resolve
@@ -65,7 +93,10 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={overpassMono.variable}>
+    <html
+      lang={locale}
+      className={`${gotham.variable} ${overpassMono.variable}`}
+    >
       <body className="min-h-dvh bg-base text-foreground font-sans">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <QueryProvider>
