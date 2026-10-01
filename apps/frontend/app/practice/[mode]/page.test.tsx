@@ -35,7 +35,19 @@ describe("PracticeModePage", () => {
     expect(result.type).toBe(FocusPracticePlay);
   });
 
-  it("404s for an already-decoded percent sign instead of decoding it again", async () => {
+  it("decodes reserved category characters that Next keeps percent-encoded", async () => {
+    const squaring = await PracticeModePage({
+      params: Promise.resolve({ mode: "(2d)%5E2" }),
+    });
+    const addition = await PracticeModePage({
+      params: Promise.resolve({ mode: "1d%2B1d" }),
+    });
+
+    expect(squaring.props.config.categoryCodename).toBe("(2d)^2");
+    expect(addition.props.config.categoryCodename).toBe("1d+1d");
+  });
+
+  it("404s for malformed encoded input instead of throwing a URIError", async () => {
     await expect(
       PracticeModePage({ params: Promise.resolve({ mode: "%" }) }),
     ).rejects.toThrow("NEXT_NOT_FOUND");
