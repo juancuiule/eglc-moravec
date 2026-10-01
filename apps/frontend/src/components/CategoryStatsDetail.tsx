@@ -7,6 +7,7 @@ import { computeHistogram, type StatsTrial } from "../stats/computeStats";
 import { computeOperationStats, findConfusions } from "../stats/operationStats";
 import { weeklyCategoryTrend, type TrendTrial } from "../stats/activityStats";
 import { formatSeconds } from "../formatTime";
+import { ShareButton } from "./ShareButton";
 import { panel, backLink } from "../styles";
 
 type Props = {
@@ -189,7 +190,15 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
   );
   const maxCount = Math.max(1, ...buckets.map((b) => b.count));
   const categoryTrials = trials.filter((t) => t.categoryCodename === codename);
-  const correctCount = categoryTrials.filter((t) => t.correct).length;
+  const correctTrials = categoryTrials.filter((t) => t.correct);
+  const correctCount = correctTrials.length;
+  const avgCorrectMs =
+    correctTrials.length > 0
+      ? Math.round(
+          correctTrials.reduce((sum, t) => sum + t.timeTaken, 0) /
+            correctTrials.length,
+        )
+      : null;
 
   const opStats = useMemo(
     () => computeOperationStats(trials, codename),
@@ -221,6 +230,18 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
         <h1 className="text-xl font-bold tracking-tight font-mono">
           {codename}
         </h1>
+        {/* Sharing a result is opt-in and travels in the URL itself —
+            nothing is uploaded. Hidden on the zero-trials empty state. */}
+        {categoryTrials.length > 0 && (
+          <ShareButton
+            payload={{
+              c: codename,
+              n: categoryTrials.length,
+              k: correctCount,
+              ms: avgCorrectMs,
+            }}
+          />
+        )}
       </div>
 
       <p className="text-sm text-muted">

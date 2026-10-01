@@ -1,0 +1,10 @@
+{
+  "share": "Share",
+  "copied": "Link copied",
+  "sharedResult": "Shared result",
+  "ogTitle": "{pct}% on {category} across {count} trials",
+  "ogDescription": "A mental-math result shared from EGLC Moravec.",
+  "correctOf": "{correct} of {total} correct",
+  "avgTime": "avg {t}",
+  "cta": "Play Moravec"
+}

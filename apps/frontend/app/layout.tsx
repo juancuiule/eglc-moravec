@@ -4,7 +4,7 @@ import { QueryProvider } from "@/providers/QueryProvider";
 import type { Metadata, Viewport } from "next";
 import { Overpass_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import "./globals.css";
@@ -15,12 +15,37 @@ const overpassMono = Overpass_Mono({
   variable: "--font-overpass-mono",
 });
 
-export const metadata: Metadata = {
-  title: "EGLC Moravec",
-  icons: {
-    icon: "/moravec.svg",
-  },
-};
+// Public origin for absolute og:/twitter: URLs — crawlers can't resolve
+// relative image paths without it. Override on self-hosts; the default is
+// the production domain.
+const appUrl =
+  process.env.NEXT_PUBLIC_APP_URL ?? "https://moravec.elgatoylacaja.com";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = await getTranslations("Meta");
+  return {
+    metadataBase: new URL(appUrl),
+    title: "EGLC Moravec",
+    description: t("description"),
+    icons: {
+      icon: "/moravec.svg",
+    },
+    openGraph: {
+      type: "website",
+      siteName: "EGLC Moravec",
+      title: "EGLC Moravec",
+      description: t("description"),
+      url: "/",
+      locale: locale === "es" ? "es_ES" : "en_US",
+      alternateLocale: locale === "es" ? "en_US" : "es_ES",
+    },
+    twitter: {
+      card: "summary_large_image",
+    },
+    // app/opengraph-image.png supplies og:image + twitter:image.
+  };
+}
 
 // viewportFit: "cover" lets content draw under the notch/home indicator on
 // iOS instead of Safari letterboxing it — paired with the safe-area padding
