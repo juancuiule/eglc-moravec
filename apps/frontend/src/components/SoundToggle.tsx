@@ -8,7 +8,7 @@ import { navLink } from "@/styles";
 
 /**
  * Lives only on the home page header, next to LocaleSwitcher — the one
- * switch that mutes both sound and haptics (see src/feedback). Optimistic
+ * switch that mutes sound (see src/feedback). Optimistic
  * default ON matches isFeedbackEnabled's default, so the useEffect sync
  * with localStorage is a no-op render unless the player turned it off.
  * The switch itself is silent.

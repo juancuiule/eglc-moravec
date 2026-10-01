@@ -5,7 +5,7 @@ import { SoundToggle } from "./SoundToggle";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
 // The real feedback module is jsdom-safe here — the toggle only reads and
-// writes the enabled flag, never reaching cuelume/web-haptics. Its enabled
+// writes the enabled flag, never reaching cuelume. Its enabled
 // cache persists across tests in this file, so sync it via
 // setFeedbackEnabled rather than setting storage directly.
 beforeEach(() => {

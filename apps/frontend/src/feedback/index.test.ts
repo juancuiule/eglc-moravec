@@ -3,15 +3,9 @@ import { beforeEach, expect, test, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   play: vi.fn(),
   setTheme: vi.fn(),
-  trigger: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("cuelume", () => ({ play: mocks.play, setTheme: mocks.setTheme }));
-vi.mock("web-haptics", () => ({
-  WebHaptics: class {
-    trigger = mocks.trigger;
-  },
-}));
 
 // The module caches the enabled flag at first read — reset the module
 // registry and re-import so each test starts from a cold cache.
@@ -23,17 +17,15 @@ beforeEach(() => {
   vi.resetModules();
   mocks.play.mockClear();
   mocks.setTheme.mockClear();
-  mocks.trigger.mockClear();
   localStorage.clear();
 });
 
-test("a digit key plays the tap cue and a short haptic pulse", async () => {
+test("a digit key plays the tap cue", async () => {
   const { feedback } = await load();
 
   feedback.key("5");
 
   expect(mocks.play).toHaveBeenCalledWith("tap");
-  expect(mocks.trigger).toHaveBeenCalledWith(10);
 });
 
 test("⌫ and C play the close cue", async () => {
@@ -44,10 +36,9 @@ test("⌫ and C play the close cue", async () => {
 
   expect(mocks.play).toHaveBeenNthCalledWith(1, "close");
   expect(mocks.play).toHaveBeenNthCalledWith(2, "close");
-  expect(mocks.trigger).toHaveBeenCalledTimes(2);
 });
 
-test("success and error play their cue and matching haptic preset", async () => {
+test("success and error play their cues", async () => {
   const { feedback } = await load();
 
   feedback.success();
@@ -55,11 +46,9 @@ test("success and error play their cue and matching haptic preset", async () => 
 
   expect(mocks.play).toHaveBeenNthCalledWith(1, "success");
   expect(mocks.play).toHaveBeenNthCalledWith(2, "error");
-  expect(mocks.trigger).toHaveBeenNthCalledWith(1, "success");
-  expect(mocks.trigger).toHaveBeenNthCalledWith(2, "error");
 });
 
-test("disabled feedback makes every cue a no-op — sound and haptics both", async () => {
+test("disabled feedback makes every cue a no-op", async () => {
   const { feedback, setFeedbackEnabled } = await load();
 
   setFeedbackEnabled(false);
@@ -69,7 +58,6 @@ test("disabled feedback makes every cue a no-op — sound and haptics both", asy
   feedback.error();
 
   expect(mocks.play).not.toHaveBeenCalled();
-  expect(mocks.trigger).not.toHaveBeenCalled();
   expect(localStorage.getItem("moravec:sound")).toBe("off");
 });
 
@@ -94,11 +82,10 @@ test("importing the module switches all cues to the bubble theme", async () => {
   expect(mocks.setTheme).toHaveBeenCalledWith("bubble");
 });
 
-test("select plays the select cue and a short haptic pulse", async () => {
+test("select plays the select cue", async () => {
   const { feedback } = await load();
 
   feedback.select();
 
   expect(mocks.play).toHaveBeenCalledWith("select");
-  expect(mocks.trigger).toHaveBeenCalledWith(10);
 });
