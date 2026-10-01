@@ -9,6 +9,7 @@ import {
 import type { Reviewing } from "../trialSession";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { feedback } from "../feedback";
 import { panel } from "../styles";
 import { HintCard } from "./HintCard";
 
@@ -129,6 +130,15 @@ export function AnsweringPanel({
     return () => clearTimeout(id);
   }, [playingState.type, onAdvance]);
 
+  // Verdict cue — "reviewing" begins exactly once per mounted panel
+  // (key={trialId} remounts per trial), so this edge fires once per result.
+  useEffect(() => {
+    if (playingState.type !== "reviewing") return;
+    if (playingState.result.correct) feedback.success();
+    else feedback.error();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playingState.type]);
+
   // Keyboard input — only active while answering
   useEffect(() => {
     if (playingState.type !== "answering") return;
@@ -153,6 +163,7 @@ export function AnsweringPanel({
   }, [playingState.type, onSubmitAnswer]);
 
   function press(key: string) {
+    feedback.key(key);
     setPressedKey(key);
     setTimeout(() => setPressedKey((k) => (k === key ? null : k)), 150);
   }

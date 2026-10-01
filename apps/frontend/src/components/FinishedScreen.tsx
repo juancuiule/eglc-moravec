@@ -1,5 +1,6 @@
 "use client";
 
+import { feedback } from "../feedback";
 import { formatDuration } from "@/formatTime";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -33,14 +34,17 @@ export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
 
   function playNext() {
     if (nextLevelNumber === null) return;
+    feedback.select();
     router.push(`/level/${nextLevelNumber}`);
   }
 
   function replay() {
+    feedback.select();
     start(config);
   }
 
   function backToMenu() {
+    feedback.select();
     reset();
     router.push("/levels");
   }
@@ -160,6 +164,7 @@ export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
           <Link
             href={`/level/${nextLevelNumber}`}
             className={linkButton({ intent: "success" })}
+            onClick={() => feedback.select()}
           >
             {t("playNextLevel")}
           </Link>

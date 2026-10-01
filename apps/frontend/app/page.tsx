@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/auth/store";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { SoundToggle } from "@/components/SoundToggle";
+import { feedback } from "@/feedback";
 import { useLocalTrials } from "@/local/hooks";
 import { daysTrainedThisMonth } from "@/stats/activityStats";
 import { panel, linkButton, navLink } from "@/styles";
@@ -27,6 +29,7 @@ export default function HomePage() {
           </h1>
         </div>
         <div className="flex items-center flex-wrap justify-end gap-1">
+          <SoundToggle />
           <LocaleSwitcher />
           {authState.type === "logged-in" ? (
             <>
@@ -46,24 +49,34 @@ export default function HomePage() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Link href="/levels" className={linkButton({ intent: "success" })}>
+        <Link
+          href="/levels"
+          className={linkButton({ intent: "success" })}
+          onClick={() => feedback.select()}
+        >
           {t("play")}
         </Link>
         <div className="flex gap-2">
           <Link
             href="/practice"
             className={`${linkButton({ intent: "primary" })} flex-1`}
+            onClick={() => feedback.select()}
           >
             {t("practice")}
           </Link>
           <Link
             href="/stats"
             className={`${linkButton({ intent: "primary" })} flex-1`}
+            onClick={() => feedback.select()}
           >
             {t("stats")}
           </Link>
         </div>
-        <Link href="/tutorials" className={linkButton({ intent: "outline" })}>
+        <Link
+          href="/tutorials"
+          className={linkButton({ intent: "outline" })}
+          onClick={() => feedback.select()}
+        >
           {t("tutorials")}
         </Link>
       </div>

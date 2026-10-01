@@ -12,8 +12,11 @@ import type { SharePayload } from "./payload";
 // Absent or incomplete Gotham files make `brand` fall back to Overpass Mono,
 // so the card still renders.
 
+// lucide-react's `Star` geometry (24×24 viewBox, 2px round stroke), inlined
+// because Satori can't reliably render the React component. Keep in sync
+// with the in-app icon in components/StarsDisplay.tsx.
 const STAR_PATH =
-  "M12 2l2.9 6.6 7.1.7-5.3 4.6 1.5 7.1L12 17.7 5.8 21l1.5-7.1L2 9.3l7.1-.7z";
+  "M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z";
 
 export function OgCard({
   p,
@@ -141,20 +144,30 @@ export function OgCard({
             <div
               style={{ display: "flex", gap: 6, transform: "translateX(-8px)" }}
             >
-              {[1, 2, 3].map((n) => (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  key={n}
-                  width={48}
-                  height={48}
-                >
-                  <path
-                    d={STAR_PATH}
-                    fill={n <= stars ? "#eab308" : "#585e6932"}
-                  />
-                </svg>
-              ))}
+              {[1, 2, 3].map((n) => {
+                // Unearned grey is #585e6932 pre-composited onto the #eeeef0
+                // card: opaque, so the stroke overlapping the fill doesn't
+                // double the alpha into a darker rim.
+                const color = n <= stars ? "#eab308" : "#d1d2d6";
+                return (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    key={n}
+                    width={48}
+                    height={48}
+                  >
+                    <path
+                      d={STAR_PATH}
+                      fill={color}
+                      stroke={color}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                );
+              })}
             </div>
 
             <div

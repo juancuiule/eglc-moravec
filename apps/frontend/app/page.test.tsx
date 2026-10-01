@@ -1,14 +1,24 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
 import HomePage from "./page";
 import { authStore } from "@/auth/store";
 import { localStore, TRIALS_TABLE } from "@/local/store";
+import { feedback } from "@/feedback";
 import { renderWithIntl } from "@/testUtils/renderWithIntl";
 
 // The home page header now renders LocaleSwitcher, which calls useRouter()
 // to refresh after a locale change — needs a router context to render at all.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
+
+// Home's primary links play the `select` cue via src/feedback — mocked so
+// the assertions stay on the call, and so SoundToggle still gets working
+// flag helpers.
+vi.mock("@/feedback", () => ({
+  feedback: { key: vi.fn(), select: vi.fn(), success: vi.fn(), error: vi.fn() },
+  isFeedbackEnabled: () => true,
+  setFeedbackEnabled: vi.fn(),
 }));
 
 // Minimal localStorage mock, matching the convention used elsewhere in this
@@ -65,6 +75,16 @@ test("links to Play, Practice, Stats, and Tutorials routes", () => {
   expect(
     screen.getByRole("link", { name: "Tutorials" }).getAttribute("href"),
   ).toBe("/tutorials");
+});
+
+test("each primary link plays the select cue", () => {
+  renderWithIntl(<HomePage />);
+
+  for (const name of ["Play", "Practice", "Stats", "Tutorials"]) {
+    fireEvent.click(screen.getByRole("link", { name }));
+  }
+
+  expect(feedback.select).toHaveBeenCalledTimes(4);
 });
 
 test("shows days trained this month for locally-stored trials — even ones not yet synced", () => {

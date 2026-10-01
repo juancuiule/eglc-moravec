@@ -1,5 +1,5 @@
 import { fireEvent, screen } from "@testing-library/react";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import {
   Addition,
   categoryFromCodename,
@@ -7,36 +7,56 @@ import {
   type AdditionCategory,
   type MultiplicationCategory,
   type Operation,
+  type TrialResult,
 } from "engine";
 import { AnsweringPanel } from "./AnsweringPanel";
 import type { Answering } from "engine";
+import { feedback } from "../feedback";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
+
+vi.mock("../feedback", () => ({
+  feedback: { key: vi.fn(), success: vi.fn(), error: vi.fn() },
+}));
 
 const category = categoryFromCodename("1d+1d") as AdditionCategory;
 const operation = new Addition(2, 3, category);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 function renderPanel({
   operation: op = operation,
   hintVisible = false,
 }: { operation?: Operation; hintVisible?: boolean } = {}) {
   const onSubmitAnswer = vi.fn();
+  const props = {
+    operation: op,
+    hintVisible,
+    onSubmitAnswer,
+    onTimeUp: vi.fn(),
+    onAdvance: vi.fn(),
+    headerLeft: null,
+    headerRight: null,
+  };
   const answeringState: Answering = {
     type: "answering",
     startedAt: Date.now(),
   };
-  const { container } = render(
-    <AnsweringPanel
-      operation={op}
-      playingState={answeringState}
-      hintVisible={hintVisible}
-      onSubmitAnswer={onSubmitAnswer}
-      onTimeUp={vi.fn()}
-      onAdvance={vi.fn()}
-      headerLeft={null}
-      headerRight={null}
-    />,
+  const { container, rerender } = render(
+    <AnsweringPanel {...props} playingState={answeringState} />,
   );
-  return { onSubmitAnswer, container };
+  return {
+    onSubmitAnswer,
+    container,
+    showResult: (result: TrialResult) =>
+      rerender(
+        <AnsweringPanel
+          {...props}
+          playingState={{ type: "reviewing", result }}
+        />,
+      ),
+  };
 }
 
 // Regression test for the onPointerDown-only bug: the calculator's digit
@@ -171,4 +191,73 @@ test("a press burst past the schema bound truncates the trace but never loses th
   ];
   expect(answer).toBe(5);
   expect(keystrokes).toHaveLength(256);
+});
+
+function result(overrides: Partial<TrialResult> = {}): TrialResult {
+  return {
+    operation,
+    answer: 5,
+    timeTaken: 1000,
+    hintShown: false,
+    correct: true,
+    timeExceeded: false,
+    ...overrides,
+  };
+}
+
+test("a keypad tap plays the key cue — a plain click (no pointerdown) doesn't double-fire it", () => {
+  renderPanel();
+
+  fireEvent.pointerDown(screen.getByRole("button", { name: "5" }));
+  expect(feedback.key).toHaveBeenCalledTimes(1);
+  expect(feedback.key).toHaveBeenCalledWith("5");
+
+  fireEvent.click(screen.getByRole("button", { name: "5" }));
+  expect(feedback.key).toHaveBeenCalledTimes(1);
+});
+
+test("physical keypad input plays the key cue too", () => {
+  renderPanel();
+
+  fireEvent.keyDown(window, { key: "7" });
+  fireEvent.keyDown(window, { key: "Backspace" });
+
+  expect(feedback.key).toHaveBeenNthCalledWith(1, "7");
+  expect(feedback.key).toHaveBeenNthCalledWith(2, "⌫");
+});
+
+test("the Submit button plays no key cue", () => {
+  renderPanel();
+
+  fireEvent.click(screen.getByRole("button", { name: "5" }));
+  vi.mocked(feedback.key).mockClear();
+  fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+  expect(feedback.key).not.toHaveBeenCalled();
+});
+
+test("a correct verdict plays the success cue once", () => {
+  const { showResult } = renderPanel();
+
+  showResult(result({ correct: true }));
+
+  expect(feedback.success).toHaveBeenCalledTimes(1);
+  expect(feedback.error).not.toHaveBeenCalled();
+});
+
+test("a wrong verdict plays the error cue", () => {
+  const { showResult } = renderPanel();
+
+  showResult(result({ answer: 7, correct: false }));
+
+  expect(feedback.error).toHaveBeenCalledTimes(1);
+  expect(feedback.success).not.toHaveBeenCalled();
+});
+
+test("time-up (answer null) also plays the error cue", () => {
+  const { showResult } = renderPanel();
+
+  showResult(result({ answer: null, correct: false, timeExceeded: true }));
+
+  expect(feedback.error).toHaveBeenCalledTimes(1);
 });

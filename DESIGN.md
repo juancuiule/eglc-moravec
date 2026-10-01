@@ -84,6 +84,10 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
   interactive/scrollable rows.
 - Thin progress bars: 6px track `bg-subtle` (the bars sit inside `bg-base`
   rows — see `EffBar`), fill colored by meaning.
+- Icons: `lucide-react` (no text glyphs/emoji for stars or controls).
+  Icons are always `aria-hidden`; the meaning lives on the control's
+  `aria-label` or, for star ratings, the `role="img"` wrapper's label.
+  Size with `size="1em"` so the surrounding `text-*` class sets the scale.
 
 ## Motion
 
@@ -95,6 +99,23 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 - `prefers-reduced-motion` → opacity-only (baked into the utility).
 - Never ease-in entrances, nothing over ~300ms, nothing that loops or
   bounces, no new keyframes.
+
+## Sound
+
+- All sound goes through `src/feedback` (cuelume cues); never import that
+  library elsewhere. All cues use cuelume's `bubble` theme (set once in
+  `src/feedback`).
+- Sound is opt-in per control, never global. Only these play: home
+  Play/Practice/Stats/Tutorials, level-finished Play next
+  level/Replay/Back to menu (and their N/R/M chords), practice summary
+  Back to menu/practice again → `select`; keypad digits → `tap`, C/⌫ →
+  `close` (on pointerdown/keydown); trial result → `success`/`error`.
+- No sound on other buttons, links, hover, or timer ticks — add a new
+  call site only for a primary navigation/decision moment like the ones
+  above.
+- Home's Sound toggle (lucide `Volume2`/`VolumeX`, icon-only with
+  `aria-label`) mutes sound, is silent itself, on by default,
+  persisted in localStorage (`moravec:sound`).
 
 ## Interaction & accessibility
 
