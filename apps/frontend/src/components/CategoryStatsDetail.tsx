@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { computeHistogram, type StatsTrial } from "../stats/computeStats";
@@ -174,8 +175,10 @@ function Spark({
           vectorEffect="non-scaling-stroke"
         />
       </svg>
-      <span className="text-2xs text-muted-2 font-mono">
-        {format(values[0])} → {format(values[values.length - 1])}
+      <span className="inline-flex items-center gap-1 text-2xs text-muted-2 font-mono">
+        {format(values[0])}
+        <ArrowRight size={10} aria-hidden="true" />
+        {format(values[values.length - 1])}
       </span>
     </div>
   );
@@ -216,7 +219,7 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
           className={backLink}
           aria-label={t("backLabel")}
         >
-          ←
+          <ArrowLeft size={20} aria-hidden="true" />
         </button>
         <h1 className="text-xl font-bold tracking-tight font-mono">
           {codename}

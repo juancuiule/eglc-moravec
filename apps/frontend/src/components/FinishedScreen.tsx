@@ -1,5 +1,6 @@
 "use client";
 
+import { PartyPopper } from "lucide-react";
 import { formatDuration } from "@/formatTime";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -88,7 +89,7 @@ export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
           className="flex items-center justify-center gap-1.5 bg-teal-bg text-foreground rounded-xl py-2 px-3 text-sm font-semibold animate-fade-in"
           style={{ animationDelay: "200ms", animationFillMode: "backwards" }}
         >
-          <span aria-hidden="true">🎉</span>
+          <PartyPopper size={16} aria-hidden="true" />
           {t("newRecord")}
         </div>
       )}
