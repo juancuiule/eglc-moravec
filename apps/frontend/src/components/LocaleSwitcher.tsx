@@ -31,7 +31,7 @@ export function LocaleSwitcher() {
 
   return (
     <div
-      className="flex items-center gap-0.5 text-xs font-medium"
+      className="flex shrink-0 items-center gap-0.5 text-xs font-medium"
       role="group"
       aria-label={t("language")}
     >

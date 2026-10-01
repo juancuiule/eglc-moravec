@@ -19,29 +19,45 @@ export default function HomePage() {
 
   return (
     <div className={`${panel} p-6 gap-6`}>
-      <div className="flex items-center justify-between flex-wrap gap-y-2">
+      {/* Logo on its own row; language + account on a single, non-wrapping
+          row below. Locale-dependent labels ("Log in"/"Iniciar sesión") and
+          long emails used to change how the shared row wrapped, shifting the
+          whole panel on a language switch — now they only change widths
+          within a row of fixed height (the email truncates). */}
+      <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <img src="/moravec.svg" alt="" className="h-8 w-auto" />
           <h1 className="text-2xl font-bold tracking-tight whitespace-nowrap">
             Moravec
           </h1>
         </div>
-        <div className="flex items-center flex-wrap justify-end gap-1">
+        <div className="flex items-center justify-between gap-2">
           <LocaleSwitcher />
-          {authState.type === "logged-in" ? (
-            <>
-              <span className="text-xs text-accent-text font-mono break-all">
-                {authState.email}
-              </span>
-              <button onClick={logout} className={navLink}>
-                {t("logOut")}
-              </button>
-            </>
-          ) : (
-            <Link href="/login" className={navLink}>
-              {t("logIn")}
-            </Link>
-          )}
+          <div className="flex items-center justify-end gap-1 min-w-0">
+            {authState.type === "logged-in" ? (
+              <>
+                <span
+                  className="text-xs text-accent-text font-mono truncate min-w-0"
+                  title={authState.email}
+                >
+                  {authState.email}
+                </span>
+                <button
+                  onClick={logout}
+                  className={`${navLink} shrink-0 whitespace-nowrap`}
+                >
+                  {t("logOut")}
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/login"
+                className={`${navLink} shrink-0 whitespace-nowrap`}
+              >
+                {t("logIn")}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
