@@ -91,8 +91,12 @@ export function LevelsList(props: {
         </p>
       ) : null}
 
+      {/* `relative` makes this scroller the containing block for the rows'
+          absolutely-positioned descendants (the locked rows' sr-only
+          labels). Without it they resolve against the page, escape the
+          scroll clip, and stretch the document far below the panel. */}
       {stats !== undefined && (
-        <div className="flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto overflow-x-hidden">
+        <div className="relative flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto overflow-x-hidden">
           {levelKeys.map((n) => {
             const levelStats = stats[String(n)];
             const unlocked = isLevelUnlocked(n, stats);

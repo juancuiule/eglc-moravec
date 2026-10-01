@@ -24,7 +24,7 @@ function external(href: string) {
 /**
  * Small attribution below the panel. `mt-auto` (in the body's flex column)
  * pushes it to the bottom of the screen on short pages and lets it follow
- * the panel on tall ones; its bottom padding mirrors `<main>`'s top padding.
+ * the panel on tall ones; its bottom padding is 12px (or the safe-area inset).
  */
 export function SiteCredit() {
   const t = useTranslations("Common");
@@ -32,10 +32,9 @@ export function SiteCredit() {
     <footer
       className={[
         "mt-auto pt-6 text-center text-2xs text-muted-2",
-        "pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+        "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
         "pl-[max(0.75rem,env(safe-area-inset-left))]",
         "pr-[max(0.75rem,env(safe-area-inset-right))]",
-        "sm:pb-[max(3rem,env(safe-area-inset-bottom))]",
       ].join(" ")}
     >
       {t.rich("credit", {

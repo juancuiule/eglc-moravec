@@ -62,7 +62,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       type: "website",
-      siteName: "EGLC Moravec",
+      siteName: "Moravec - Cognición Aritmética",
       title: "Moravec - Cognición Aritmética",
       description: t("description"),
       url: "/",

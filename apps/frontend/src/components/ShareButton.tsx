@@ -19,7 +19,7 @@ export function ShareButton({ payload, className }: Props) {
   async function onShare() {
     if (navigator.share !== undefined) {
       try {
-        await navigator.share({ url, title: "EGLC Moravec" });
+        await navigator.share({ url, title: "Moravec - Cognición Aritmética" });
         return;
       } catch {
         // Cancelled sheet or a platform that rejects share — fall through
