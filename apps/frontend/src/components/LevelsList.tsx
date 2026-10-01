@@ -6,6 +6,7 @@ import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
 import { useLocalLevelStats, useSessionSeedStats } from "@/local/hooks";
 import { mergeLevelStats } from "@/local/trials";
 import { backLink, panel } from "@/styles";
+import { ArrowLeft, Lock, Star } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -23,13 +24,14 @@ function RowStars({
     <span
       role="img"
       aria-label={t("stars", { count: stars })}
-      className={`text-sm shrink-0 ${className || ""}`}
+      className={`inline-flex items-center gap-0.5 shrink-0 ${className || ""}`}
     >
-      {" "}
       {[1, 2, 3].map((n) => (
-        <span
+        <Star
           key={n}
+          size={14}
           aria-hidden="true"
+          fill={n <= stars ? "currentColor" : "none"}
           className={
             n <= stars
               ? light
@@ -39,9 +41,7 @@ function RowStars({
                 ? "text-white/70"
                 : "text-disabled"
           }
-        >
-          {n <= stars ? "★" : "☆"}
-        </span>
+        />
       ))}
     </span>
   );
@@ -75,7 +75,7 @@ export function LevelsList(props: {
     <div className={`${panel} p-6 gap-3`}>
       <div className="flex items-center gap-3">
         <Link href="/" className={backLink} aria-label={tCommon("backToMenu")}>
-          ←
+          <ArrowLeft size={20} aria-hidden="true" />
         </Link>
         <h1 className="text-xl font-bold tracking-tight">{t("heading")}</h1>
       </div>
@@ -109,7 +109,7 @@ export function LevelsList(props: {
                     <span className="sr-only">{t("levelLocked")}</span>
                   </span>
                   <span className="shrink-0" aria-hidden="true">
-                    🔒
+                    <Lock size={16} />
                   </span>
                 </div>
               );

@@ -6,6 +6,7 @@ import { useAuth } from "@/auth/store";
 import { backLink, button, panel } from "@/styles";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -40,7 +41,7 @@ export function OtpForm({ email }: { email: string }) {
         {/* Back goes to the email step, not home — the realistic reason to
             leave this screen is a mistyped email. */}
         <Link href="/login" className={backLink} aria-label={t("backToLogin")}>
-          ←
+          <ArrowLeft size={20} aria-hidden="true" />
         </Link>
         <h1 className="text-xl font-bold tracking-tight">{t("title")}</h1>
       </div>
