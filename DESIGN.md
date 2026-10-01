@@ -104,16 +104,17 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 
 - All sound/haptics go through `src/feedback` (cuelume cues + web-haptics);
   never import those libraries elsewhere.
-- Buttons and links: `pulse` cue + short haptic pulse, via the one
-  delegated click listener (`FeedbackBinder` in the root layout). Controls
-  with their own cue opt out with `data-feedback="off"` on themselves or
-  an ancestor.
-- Keypad: `tick` per digit, the duller `press` for ⌫/C, short pulse (on
-  pointerdown/keydown). Trial result: `success`/`error` cue + matching
-  haptic preset.
-- No sound on hover or per timer tick.
+- Sound is opt-in per control, never global. Only these play: home
+  Play/Practice/Stats/Tutorials, level-finished Play next
+  level/Replay/Back to menu (and their N/R/M chords), practice summary
+  Back to menu/practice again → `select`; keypad digits → `tap`, C/⌫ →
+  `close` (on pointerdown/keydown); trial result → `success`/`error` with
+  the matching haptic preset. Every cue adds a short haptic pulse.
+- No sound on other buttons, links, hover, or timer ticks — add a new
+  call site only for a primary navigation/decision moment like the ones
+  above.
 - Home's Sound toggle (lucide `Volume2`/`VolumeX`, icon-only with
-  `aria-label`) mutes both; plays `toggle` when turned on; on by default,
+  `aria-label`) mutes sound and haptics, is silent itself, on by default,
   persisted in localStorage (`moravec:sound`).
 
 ## Interaction & accessibility

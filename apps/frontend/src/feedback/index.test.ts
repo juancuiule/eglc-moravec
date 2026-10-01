@@ -23,26 +23,25 @@ beforeEach(() => {
   mocks.play.mockClear();
   mocks.trigger.mockClear();
   localStorage.clear();
-  document.body.innerHTML = "";
 });
 
-test("a digit key plays the tick cue and a short haptic pulse", async () => {
+test("a digit key plays the tap cue and a short haptic pulse", async () => {
   const { feedback } = await load();
 
   feedback.key("5");
 
-  expect(mocks.play).toHaveBeenCalledWith("tick");
+  expect(mocks.play).toHaveBeenCalledWith("tap");
   expect(mocks.trigger).toHaveBeenCalledWith(10);
 });
 
-test("⌫ and C play the duller press variant", async () => {
+test("⌫ and C play the close cue", async () => {
   const { feedback } = await load();
 
   feedback.key("⌫");
   feedback.key("C");
 
-  expect(mocks.play).toHaveBeenNthCalledWith(1, "press");
-  expect(mocks.play).toHaveBeenNthCalledWith(2, "press");
+  expect(mocks.play).toHaveBeenNthCalledWith(1, "close");
+  expect(mocks.play).toHaveBeenNthCalledWith(2, "close");
   expect(mocks.trigger).toHaveBeenCalledTimes(2);
 });
 
@@ -63,6 +62,7 @@ test("disabled feedback makes every cue a no-op — sound and haptics both", asy
 
   setFeedbackEnabled(false);
   feedback.key("5");
+  feedback.select();
   feedback.success();
   feedback.error();
 
@@ -86,76 +86,11 @@ test("enabled by default — anything but a stored 'off' means on", async () => 
   expect(isFeedbackEnabled()).toBe(true);
 });
 
-test("tap plays the pulse cue and a short haptic pulse", async () => {
+test("select plays the select cue and a short haptic pulse", async () => {
   const { feedback } = await load();
 
-  feedback.tap();
+  feedback.select();
 
-  expect(mocks.play).toHaveBeenCalledWith("pulse");
+  expect(mocks.play).toHaveBeenCalledWith("select");
   expect(mocks.trigger).toHaveBeenCalledWith(10);
-});
-
-test("toggle plays the toggle cue and a short haptic pulse", async () => {
-  const { feedback } = await load();
-
-  feedback.toggle();
-
-  expect(mocks.play).toHaveBeenCalledWith("toggle");
-  expect(mocks.trigger).toHaveBeenCalledWith(10);
-});
-
-test("bindFeedback taps on a click anywhere inside a button or a link", async () => {
-  const { bindFeedback } = await load();
-  const unbind = bindFeedback();
-  document.body.innerHTML = `
-    <button id="b"><span id="s">hi</span></button>
-    <a id="l" href="/x">go</a>`;
-
-  document.getElementById("b")!.click();
-  document.getElementById("s")!.click();
-  document.getElementById("l")!.click();
-
-  expect(mocks.play).toHaveBeenCalledTimes(3);
-  expect(mocks.play).toHaveBeenCalledWith("pulse");
-  unbind();
-});
-
-test("bindFeedback skips non-controls, opted-out controls, and disabled ones", async () => {
-  const { bindFeedback } = await load();
-  const unbind = bindFeedback();
-  document.body.innerHTML = `
-    <div id="d">plain</div>
-    <div data-feedback="off"><button id="opt">x</button></div>
-    <button id="dis" disabled>x</button>
-    <button id="aria" aria-disabled="true">x</button>`;
-
-  for (const id of ["d", "opt", "dis", "aria"])
-    document.getElementById(id)!.click();
-
-  expect(mocks.play).not.toHaveBeenCalled();
-  expect(mocks.trigger).not.toHaveBeenCalled();
-  unbind();
-});
-
-test("bindFeedback is silent while feedback is disabled", async () => {
-  const { bindFeedback, setFeedbackEnabled } = await load();
-  const unbind = bindFeedback();
-  document.body.innerHTML = `<button id="b">x</button>`;
-  setFeedbackEnabled(false);
-
-  document.getElementById("b")!.click();
-
-  expect(mocks.play).not.toHaveBeenCalled();
-  unbind();
-});
-
-test("the returned unbind removes the listener", async () => {
-  const { bindFeedback } = await load();
-  const unbind = bindFeedback();
-  document.body.innerHTML = `<button id="b">x</button>`;
-  unbind();
-
-  document.getElementById("b")!.click();
-
-  expect(mocks.play).not.toHaveBeenCalled();
 });

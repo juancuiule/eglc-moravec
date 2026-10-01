@@ -261,16 +261,3 @@ test("time-up (answer null) also plays the error cue", () => {
 
   expect(feedback.error).toHaveBeenCalledTimes(1);
 });
-
-// The delegated tap listener (bindFeedback) skips anything under
-// [data-feedback="off"] — the calculator must stay opted out so keypad
-// presses don't double with feedback.key and Submit doesn't pre-empt the
-// verdict cue.
-test("the keypad and Submit live under a data-feedback=off ancestor", () => {
-  renderPanel();
-
-  for (const name of ["5", "Submit"]) {
-    const button = screen.getByRole("button", { name });
-    expect(button.closest('[data-feedback="off"]')).not.toBeNull();
-  }
-});

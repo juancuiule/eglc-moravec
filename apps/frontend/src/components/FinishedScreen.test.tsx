@@ -2,6 +2,7 @@ import { screen, fireEvent } from "@testing-library/react";
 import { test, vi, expect, describe, beforeEach } from "vitest";
 import { FinishedScreen } from "./FinishedScreen";
 import type { Finished } from "../game/index";
+import { feedback } from "../feedback";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 import { Trial, reconstructOperation } from "engine";
 
@@ -11,8 +12,12 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, replace: vi.fn() }),
 }));
 
+vi.mock("../feedback", () => ({
+  feedback: { key: vi.fn(), select: vi.fn(), success: vi.fn(), error: vi.fn() },
+}));
+
 beforeEach(() => {
-  pushMock.mockClear();
+  vi.clearAllMocks();
 });
 
 const finishedState: Finished = {
@@ -226,5 +231,39 @@ describe("per-trial review", () => {
     // A y-scroller would silently compute overflow-x:auto — the container
     // clips it so the panel can never gain a horizontal scrollbar.
     expect(screen.getByRole("table").className).toContain("overflow-x-hidden");
+  });
+});
+
+describe("sound cues", () => {
+  test("Play next level, Replay, and Back to menu each play the select cue", () => {
+    render(
+      <FinishedScreen
+        state={finishedState}
+        isNewRecord={false}
+        nextLevelNumber={4}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Play next level (N)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Replay (R)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to menu (M)" }));
+
+    expect(feedback.select).toHaveBeenCalledTimes(3);
+  });
+
+  test("the N/R/M chords play the select cue too", () => {
+    render(
+      <FinishedScreen
+        state={finishedState}
+        isNewRecord={false}
+        nextLevelNumber={4}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: "n" });
+    fireEvent.keyDown(window, { key: "r" });
+    fireEvent.keyDown(window, { key: "m" });
+
+    expect(feedback.select).toHaveBeenCalledTimes(3);
   });
 });

@@ -1,5 +1,4 @@
 import { AuthBoot } from "@/auth/AuthBoot";
-import { FeedbackBinder } from "@/components/FeedbackBinder";
 import { SyncChip } from "@/components/SyncChip";
 import { QueryProvider } from "@/providers/QueryProvider";
 import type { Metadata, Viewport } from "next";
@@ -102,7 +101,6 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <QueryProvider>
             <AuthBoot />
-            <FeedbackBinder />
             {/* Top-aligned rather than centered, paired with `panel`'s fixed max-width,
                 so navigating between screens of different heights doesn't shift the surface.
                 Every side is a longhand pl-/pr-/pt-/pb- utility (never the p- or sm:p-

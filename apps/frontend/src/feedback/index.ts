@@ -1,7 +1,7 @@
 // The single seam for sound + haptic feedback: cuelume (synthesized audio
 // cues) and web-haptics are imported here and nowhere else. Callers name
-// moments — "key", "success", "error" — not recipes, so the libraries and
-// the cue mapping stay swappable behind this module.
+// moments — "key", "select", "success", "error" — not recipes, so the
+// libraries and the cue mapping stay swappable behind this module.
 import { play } from "cuelume";
 import { WebHaptics } from "web-haptics";
 
@@ -42,18 +42,12 @@ function buzz(input: Parameters<WebHaptics["trigger"]>[0]) {
 export const feedback = {
   key(key: string): void {
     if (!isFeedbackEnabled()) return;
-    play(key === "⌫" || key === "C" ? "press" : "tick");
+    play(key === "⌫" || key === "C" ? "close" : "tap");
     buzz(10);
   },
-  // Buttons and links — fired by the delegated listener in bindFeedback.
-  tap(): void {
+  select(): void {
     if (!isFeedbackEnabled()) return;
-    play("pulse");
-    buzz(10);
-  },
-  toggle(): void {
-    if (!isFeedbackEnabled()) return;
-    play("toggle");
+    play("select");
     buzz(10);
   },
   success(): void {
@@ -67,22 +61,3 @@ export const feedback = {
     buzz("error");
   },
 };
-
-/**
- * One delegated click listener gives every real button and link a tap cue.
- * Click (not pointerdown) so keyboard activation is covered and a touch
- * that starts a scroll doesn't sound. Controls with their own cue — the
- * keypad, Submit, the Sound toggle itself — opt out via
- * `data-feedback="off"` on themselves or an ancestor. Returns the unbind.
- */
-export function bindFeedback(root: Document = document): () => void {
-  function onClick(e: MouseEvent) {
-    const el = (e.target as Element | null)?.closest?.("button, a[href]");
-    if (!el) return;
-    if (el.closest('[data-feedback="off"]')) return;
-    if (el.matches(':disabled, [aria-disabled="true"]')) return;
-    feedback.tap();
-  }
-  root.addEventListener("click", onClick);
-  return () => root.removeEventListener("click", onClick);
-}

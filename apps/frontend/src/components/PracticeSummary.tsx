@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { feedback } from "../feedback";
 import type { PracticeStopped } from "../practice/index";
 import { usePractice } from "../practice/store";
 import { focusWeights } from "../practice/focus";
@@ -24,6 +25,7 @@ export function PracticeSummary({ state }: Props) {
   const pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
 
   function handleBack() {
+    feedback.select();
     reset();
     router.push("/practice");
   }
@@ -50,7 +52,8 @@ export function PracticeSummary({ state }: Props) {
       >
         <button
           className={button({ intent: "primary" })}
-          onClick={() =>
+          onClick={() => {
+            feedback.select();
             start(
               // A Focus replay re-derives its weights — the stopped run's
               // Trials are already in the read model (persisted
@@ -64,8 +67,8 @@ export function PracticeSummary({ state }: Props) {
                     weights: focusWeights(computeStats(allLocalTrials())),
                   }
                 : config,
-            )
-          }
+            );
+          }}
         >
           {t("practiceAgain")}
         </button>
