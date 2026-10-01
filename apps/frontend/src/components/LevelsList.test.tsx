@@ -87,3 +87,27 @@ test("a better local record still wins over the seed", async () => {
   // local level-1 record unlocks level 2 regardless of the seed's 0 stars
   expect(await screen.findByRole("link", { name: /Level 2/ })).toBeDefined();
 });
+
+test("a 2-star record renders three star icons — two filled, one outline", async () => {
+  render(
+    <LevelsList
+      levelKeys={[1]}
+      stats={{
+        "1": {
+          stars: 2,
+          totalTime: 5_000,
+          completedAt: "2025-01-01T00:00:00Z",
+        },
+      }}
+    />,
+  );
+
+  const stars = await screen.findByRole("img", { name: "2 stars" });
+  const svgs = [...stars.querySelectorAll("svg")];
+  expect(svgs).toHaveLength(3);
+  expect(svgs.map((s) => s.getAttribute("fill"))).toEqual([
+    "currentColor",
+    "currentColor",
+    "none",
+  ]);
+});

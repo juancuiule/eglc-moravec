@@ -84,8 +84,10 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
   interactive/scrollable rows.
 - Thin progress bars: 6px track `bg-subtle` (the bars sit inside `bg-base`
   rows — see `EffBar`), fill colored by meaning.
-- Icons: `lucide-react`, only for icon-only controls; always `aria-hidden`
-  on the icon plus an `aria-label` on the control.
+- Icons: `lucide-react` (no text glyphs/emoji for stars or controls).
+  Icons are always `aria-hidden`; the meaning lives on the control's
+  `aria-label` or, for star ratings, the `role="img"` wrapper's label.
+  Size with `size="1em"` so the surrounding `text-*` class sets the scale.
 
 ## Motion
 

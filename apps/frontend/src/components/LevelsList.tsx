@@ -1,5 +1,6 @@
 "use client";
 
+import { Star } from "lucide-react";
 import { formatDuration } from "@/formatTime";
 import type { LevelStats } from "@/api/Api";
 import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
@@ -23,13 +24,14 @@ function RowStars({
     <span
       role="img"
       aria-label={t("stars", { count: stars })}
-      className={`text-sm shrink-0 ${className || ""}`}
+      className={`inline-flex items-center gap-0.5 text-sm shrink-0 ${className || ""}`}
     >
-      {" "}
       {[1, 2, 3].map((n) => (
-        <span
+        <Star
           key={n}
-          aria-hidden="true"
+          size="1em"
+          fill={n <= stars ? "currentColor" : "none"}
+          aria-hidden
           className={
             n <= stars
               ? light
@@ -39,9 +41,7 @@ function RowStars({
                 ? "text-white/70"
                 : "text-disabled"
           }
-        >
-          {n <= stars ? "★" : "☆"}
-        </span>
+        />
       ))}
     </span>
   );
