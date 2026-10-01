@@ -26,7 +26,11 @@ rule and the code disagree, the code wins and this file is stale (fix it).
 - Page frame (`layout.tsx`): top-aligned centered column; padding is
   longhand `pt-/pb-/pl-/pr-` per side so each folds in its
   `env(safe-area-inset-*)`. Never use `p-`/`px-`/`py-` shorthands on the
-  page frame.
+  page frame. The body is a flex column: `<main>` (the panel) then
+  `SiteCredit`, which takes `mt-auto` and a bottom padding mirroring
+  `<main>`'s top padding — it sits at the screen's bottom on short pages
+  and follows the panel on tall ones. Nothing in the frame is `fixed`
+  except the `SyncChip` pill.
 - `bg-base` is the _recessed_ surface inside a panel (input wells, table
   rows, calculator keys). `bg-panel-accent` marks a panel surface asking
   for attention (unplayed level, hint card). Those are the only surfaces.

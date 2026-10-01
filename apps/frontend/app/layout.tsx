@@ -63,7 +63,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       siteName: "EGLC Moravec",
-      title: "EGLC Moravec",
+      title: "Moravec - Cognición Aritmética",
       description: t("description"),
       url: "/",
       locale: locale === "es" ? "es_ES" : "en_US",
@@ -98,7 +98,7 @@ export default async function RootLayout({
       lang={locale}
       className={`${gotham.variable} ${overpassMono.variable}`}
     >
-      <body className="min-h-dvh bg-base text-foreground font-sans">
+      <body className="min-h-dvh flex flex-col bg-base text-foreground font-sans">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <QueryProvider>
             <AuthBoot />
@@ -111,14 +111,12 @@ export default async function RootLayout({
                 panel adds its own p-6/p-8 on top, so stacking a full 24px margin here on a
                 320-375px screen ate too much of the calculator keypad's width. left/right
                 (not just top) carry the safe-area-inset because a landscape iPhone's notch
-                becomes a *side* inset, not a top one. The bottom padding also reserves
-                room for the fixed SiteCredit line, so a scrolled-to-the-end panel is
-                never covered by it. */}
+                becomes a *side* inset, not a top one. No bottom padding: SiteCredit
+                follows the panel and owns the bottom spacing (see it). */}
             <main
               className={[
-                "min-h-dvh flex items-start justify-center",
+                "flex items-start justify-center",
                 "pt-[max(1.5rem,env(safe-area-inset-top))]",
-                "pb-[calc(max(0.5rem,env(safe-area-inset-bottom))+2.5rem)]",
                 "pl-[max(0.75rem,env(safe-area-inset-left))]",
                 "pr-[max(0.75rem,env(safe-area-inset-right))]",
                 "sm:pt-[max(3rem,env(safe-area-inset-top))]",
