@@ -2,8 +2,11 @@
 // cues) and web-haptics are imported here and nowhere else. Callers name
 // moments — "key", "select", "success", "error" — not recipes, so the
 // libraries and the cue mapping stay swappable behind this module.
-import { play } from "cuelume";
+import { play, setTheme } from "cuelume";
 import { WebHaptics } from "web-haptics";
+
+// One theme for every cue — global for future plays, not persisted.
+setTheme("bubble");
 
 const STORAGE_KEY = "moravec:sound";
 

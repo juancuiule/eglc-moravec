@@ -2,10 +2,11 @@ import { beforeEach, expect, test, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   play: vi.fn(),
+  setTheme: vi.fn(),
   trigger: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock("cuelume", () => ({ play: mocks.play }));
+vi.mock("cuelume", () => ({ play: mocks.play, setTheme: mocks.setTheme }));
 vi.mock("web-haptics", () => ({
   WebHaptics: class {
     trigger = mocks.trigger;
@@ -21,6 +22,7 @@ async function load() {
 beforeEach(() => {
   vi.resetModules();
   mocks.play.mockClear();
+  mocks.setTheme.mockClear();
   mocks.trigger.mockClear();
   localStorage.clear();
 });
@@ -84,6 +86,12 @@ test("a stored 'off' survives reloads — a fresh module reads it disabled", asy
 test("enabled by default — anything but a stored 'off' means on", async () => {
   const { isFeedbackEnabled } = await load();
   expect(isFeedbackEnabled()).toBe(true);
+});
+
+test("importing the module switches all cues to the bubble theme", async () => {
+  await load();
+
+  expect(mocks.setTheme).toHaveBeenCalledWith("bubble");
 });
 
 test("select plays the select cue and a short haptic pulse", async () => {

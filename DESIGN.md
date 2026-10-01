@@ -103,7 +103,8 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 ## Sound & haptics
 
 - All sound/haptics go through `src/feedback` (cuelume cues + web-haptics);
-  never import those libraries elsewhere.
+  never import those libraries elsewhere. All cues use cuelume's `bubble`
+  theme (set once in `src/feedback`).
 - Sound is opt-in per control, never global. Only these play: home
   Play/Practice/Stats/Tutorials, level-finished Play next
   level/Replay/Back to menu (and their N/R/M chords), practice summary
