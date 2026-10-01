@@ -27,12 +27,16 @@ async function font(name: string): Promise<Buffer> {
 }
 
 // Gotham is commercial — its files are dropped into public/og-fonts at
-// build/deploy time rather than committed. Absent files degrade to Overpass
-// Mono (see ogFonts below), so the card still renders.
+// build/deploy time rather than committed. Absent or incomplete files degrade
+// to Overpass Mono (see ogFonts below), so the card still renders.
 async function optionalFont(
   names: string[],
-  weight: 500 | 900,
-): Promise<{ name: "Gotham"; data: Buffer; weight: 500 | 900 } | null> {
+  weight: 400 | 500 | 700 | 900,
+): Promise<{
+  name: "Gotham";
+  data: Buffer;
+  weight: 400 | 500 | 700 | 900;
+} | null> {
   for (const dir of FONT_DIRS) {
     for (const name of names) {
       try {
@@ -63,18 +67,23 @@ async function loadFonts(): Promise<{
     font("OverpassMono-Medium.ttf"),
     font("OverpassMono-Bold.ttf"),
   ]);
-  const gotham = [
-    await optionalFont(["Gotham-Black.ttf", "Gotham-Black.otf"], 900),
-    await optionalFont(["Gotham-Medium.ttf", "Gotham-Medium.otf"], 500),
-  ].filter((f): f is NonNullable<typeof f> => f !== null);
+  const gotham = await Promise.all([
+    optionalFont(["Gotham-Book.ttf", "Gotham-Book.otf"], 400),
+    optionalFont(["Gotham-Medium.ttf", "Gotham-Medium.otf"], 500),
+    optionalFont(["Gotham-Bold.ttf", "Gotham-Bold.otf"], 700),
+    optionalFont(["Gotham-Black.ttf", "Gotham-Black.otf"], 900),
+  ]);
+  const hasGotham = gotham.every(
+    (font): font is NonNullable<typeof font> => font !== null,
+  );
   return {
     fonts: [
       { name: "Overpass Mono", data: regular, weight: 400 },
       { name: "Overpass Mono", data: medium, weight: 500 },
       { name: "Overpass Mono", data: bold, weight: 700 },
-      ...gotham,
+      ...(hasGotham ? gotham : []),
     ],
-    hasGotham: gotham.length > 0,
+    hasGotham,
   };
 }
 

@@ -1,5 +1,37 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Gotham";
+  src: url("/og-fonts/Gotham-Book.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/og-fonts/Gotham-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/og-fonts/Gotham-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/og-fonts/Gotham-Black.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /*
  * The app's whole palette, named by role rather than value. Every color and
  * the one non-default type size used anywhere in the app should come from
@@ -58,7 +90,7 @@
   /* The one recurring non-default type size (badge-sized labels) */
   --text-2xs: 0.625rem;
   --font-mono: var(--font-overpass-mono);
-  /*--font-sans: var(--font-inter);*/
+  --font-sans: "Gotham", Arial, sans-serif;
 
   /* Entry transition for content that appears mid-interaction (hint
      reveal, etc.) — short and ease-out per the animation guidance in

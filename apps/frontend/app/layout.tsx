@@ -65,7 +65,7 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${overpassMono.variable}`}>
+    <html lang={locale} className={overpassMono.variable}>
       <body className="min-h-dvh bg-base text-foreground font-sans">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <QueryProvider>

@@ -59,8 +59,8 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 
 ## Type
 
-- `font-mono` (Overpass Mono) for every number, math expression, and
-  time. Body text is `font-sans`.
+- `font-sans` (Gotham) is the default interface face. `font-mono` (Overpass
+  Mono) is for every number, math expression, and time.
 - Headings: `text-xl`/`text-2xl font-bold tracking-tight`.
 - The only non-default size is `text-2xs` (0.625rem) for badge-sized
   labels; no other arbitrary sizes.
