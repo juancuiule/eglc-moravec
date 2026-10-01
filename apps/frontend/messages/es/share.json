@@ -1,0 +1,9 @@
+{
+  "share": "Compartir",
+  "copied": "Enlace copiado",
+  "sharedResult": "Resultado compartido",
+  "ogTitle": "Nivel {level} — {correct}/{total} correctas",
+  "ogDescription": "Un resultado de nivel de cálculo mental compartido desde EGLC Moravec.",
+  "score": "{correct}/{total} correctas",
+  "cta": "Jugar a Moravec"
+}

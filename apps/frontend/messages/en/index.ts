@@ -11,6 +11,8 @@ import practice from "./practice.json";
 import stats from "./stats.json";
 import tutorials from "./tutorials.json";
 import offline from "./offline.json";
+import meta from "./meta.json";
+import share from "./share.json";
 
 export default {
   Common: common,
@@ -22,4 +24,6 @@ export default {
   Stats: stats,
   Tutorials: tutorials,
   Offline: offline,
+  Meta: meta,
+  Share: share,
 };

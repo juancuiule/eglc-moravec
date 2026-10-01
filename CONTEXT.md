@@ -80,6 +80,10 @@ _Avoid_: Magic link, passwordless login, sign-in.
 Reconciling a User's progress with the backend — active for any session, anonymous or logged in. A Level finish or Practice stop pushes the final answer, total timing, and a per-trial keystroke trace (`{key, t}` pairs recorded in `AnsweringPanel`, stored verbatim in `trial_results.keystrokes`) — research evidence only: the server never re-derives anything from it and pull responses never return it. LevelStats pulls read the User's remote best runs for the Levels page, Level access, and the post-finish record refresh. Level and Practice trials share one backend table (`trial_results`, discriminated by a `run_type` column) but stay isolated everywhere it matters: only Level Trial rows feed LevelStats or the Levels unlock view — a Practice Trial is only a raw synced Trial row.
 _Avoid_: Backup, save, upload.
 
+**Share link**:
+A URL a player can post anywhere to show off a Level run — `/share/<base64url payload>` carrying just the numbers they chose to share (level number, correct count, total time; stars derive from the count). Renders a branded summary page for humans and a per-link OpenGraph card for social unfurling; every other route unfurls with the static brand card (`app/opengraph-image.png`). Self-reported and forgeable by design — it writes nothing and proves nothing, it's show-and-tell.
+_Avoid_: Verification, attestation, proof of skill.
+
 ### Research background
 
 Moravec started as a research instrument, not a game — this shapes why certain design choices exist and is worth knowing before changing them. Federico Zimmerman (engineering student), Andrés Rieznik (neuroscientist, his thesis advisor), and El Gato y La Caja turned arithmetic-cognition research — normally volunteers doing timed mental math in a lab, one session a week — into a public Android game, on the bet that a genuinely fun game would collect more and better data than a lab ever could. It worked: ~500 downloads produced 120,000+ data points in weeks, replicating ~30 years of prior lab findings, and won silver at Neurocog 2015.

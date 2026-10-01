@@ -1,0 +1,9 @@
+{
+  "share": "Share",
+  "copied": "Link copied",
+  "sharedResult": "Shared result",
+  "ogTitle": "Level {level} — {correct}/{total} correct",
+  "ogDescription": "A mental-math level result shared from EGLC Moravec.",
+  "score": "{correct}/{total} correct",
+  "cta": "Play Moravec"
+}

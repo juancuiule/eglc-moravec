@@ -5,6 +5,10 @@ WORKDIR /app
 # must be set here, not just in docker-compose's `environment:`.
 ARG NEXT_PUBLIC_API_URL=http://localhost:3000
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+# The public origin baked into og:/twitter: absolute URLs (metadataBase) —
+# crawlers can't resolve relative image URLs without it.
+ARG NEXT_PUBLIC_APP_URL=https://moravec.elgatoylacaja.com
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 COPY pnpm-workspace.yaml package.json ./
 COPY packages/engine ./packages/engine
 COPY apps/frontend ./apps/frontend
