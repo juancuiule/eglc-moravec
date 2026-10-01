@@ -6,5 +6,6 @@
   "wrong": "Incorrecto",
   "timeUp": "Se acabó el tiempo",
   "clear": "Borrar todo",
-  "deleteLastDigit": "Borrar el último dígito"
+  "deleteLastDigit": "Borrar el último dígito",
+  "credit": "Versión web - desarrollada por <author>@juancuiule</author> de <org>@elgatoylacaja</org>"
 }

@@ -1,4 +1,5 @@
 import { AuthBoot } from "@/auth/AuthBoot";
+import { SiteCredit } from "@/components/SiteCredit";
 import { SyncChip } from "@/components/SyncChip";
 import { QueryProvider } from "@/providers/QueryProvider";
 import type { Metadata, Viewport } from "next";
@@ -54,7 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Meta");
   return {
     metadataBase: new URL(appUrl),
-    title: "EGLC Moravec",
+    title: "Moravec - Cognición Aritmética",
     description: t("description"),
     icons: {
       icon: "/moravec.svg",
@@ -110,12 +111,14 @@ export default async function RootLayout({
                 panel adds its own p-6/p-8 on top, so stacking a full 24px margin here on a
                 320-375px screen ate too much of the calculator keypad's width. left/right
                 (not just top) carry the safe-area-inset because a landscape iPhone's notch
-                becomes a *side* inset, not a top one. */}
+                becomes a *side* inset, not a top one. The bottom padding also reserves
+                room for the fixed SiteCredit line, so a scrolled-to-the-end panel is
+                never covered by it. */}
             <main
               className={[
                 "min-h-dvh flex items-start justify-center",
                 "pt-[max(1.5rem,env(safe-area-inset-top))]",
-                "pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+                "pb-[calc(max(0.5rem,env(safe-area-inset-bottom))+2.5rem)]",
                 "pl-[max(0.75rem,env(safe-area-inset-left))]",
                 "pr-[max(0.75rem,env(safe-area-inset-right))]",
                 "sm:pt-[max(3rem,env(safe-area-inset-top))]",
@@ -125,6 +128,7 @@ export default async function RootLayout({
             >
               {children}
             </main>
+            <SiteCredit />
             <SyncChip />
           </QueryProvider>
         </NextIntlClientProvider>

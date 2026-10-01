@@ -62,6 +62,8 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 - `font-sans` (Gotham) is the default interface face. `font-mono` (Overpass
   Mono) is for every number, math expression, and time.
 - Headings: `text-xl`/`text-2xl font-bold tracking-tight`.
+- Buttons (`button()`, keypad, Submit) and level-row labels: `font-medium`
+  (Gotham Medium, 500).
 - The only non-default size is `text-2xs` (0.625rem) for badge-sized
   labels; no other arbitrary sizes.
 - Section labels: `text-2xs text-muted-2 uppercase tracking-wider`.
