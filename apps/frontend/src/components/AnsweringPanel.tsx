@@ -67,7 +67,7 @@ export function AnsweringPanel({
   // Per-trial keystroke trace (#68): {key, t} pairs for every ACCEPTED
   // input event during the Answering phase — digits that entered the
   // answer, erases that removed one, and the submit press. No-op presses
-  // (⌫/C on an empty answer, an eleventh digit) are excluded so the trace
+  // (⌫/C on an empty answer, a leading 0, an eleventh digit) are excluded so the trace
   // always reconstructs the submitted answer — including for
   // `erased_digit`, which a backspace-on-empty would otherwise trip.
   // Ref, not state — each press is fire-and-forget evidence, and routing
@@ -135,7 +135,11 @@ export function AnsweringPanel({
     if (playingState.type !== "answering") return;
     function onKeyDown(e: KeyboardEvent) {
       const key =
-        e.key === "Backspace" ? "⌫" : e.key === "Delete" ? "C" : e.key;
+        e.key === "Backspace"
+          ? "⌫"
+          : e.key === "Delete" || e.key === "c"
+            ? "C"
+            : e.key;
       if (/^\d$/.test(key) || key === "⌫" || key === "C") {
         press(key);
         handleButton(key);
@@ -175,6 +179,8 @@ export function AnsweringPanel({
       answerRef.current = answerRef.current.slice(0, -1);
     } else {
       if (answerRef.current.length >= 10) return;
+      // No leading zeros ("0012") — no generated operation's answer is 0.
+      if (key === "0" && answerRef.current === "") return;
       recordKey(key);
       setAnswer((prev) => prev + key);
       answerRef.current = answerRef.current + key;
@@ -251,7 +257,7 @@ export function AnsweringPanel({
                 onClick={() => handleButton(key)}
                 aria-label={KEY_LABELS[key]}
                 className={[
-                  "h-14 rounded-xl font-semibold text-xl cursor-pointer select-none touch-manipulation",
+                  "h-14 rounded-xl font-medium text-xl cursor-pointer select-none touch-manipulation",
                   "transition-all duration-100",
                   isAction
                     ? "bg-subtle text-muted hover:bg-subtle-accent"
@@ -272,7 +278,7 @@ export function AnsweringPanel({
         </div>
 
         <button
-          className="cursor-pointer touch-manipulation bg-teal text-white w-full rounded-xl py-3 font-semibold text-lg hover:opacity-90 active:scale-96 disabled:opacity-30 disabled:cursor-not-allowed transition-[opacity,scale] duration-150"
+          className="cursor-pointer touch-manipulation bg-teal text-white w-full rounded-xl py-3 font-medium text-lg hover:opacity-90 active:scale-96 disabled:opacity-30 disabled:cursor-not-allowed transition-[opacity,scale] duration-150"
           disabled={!answer}
           onClick={doSubmit}
         >

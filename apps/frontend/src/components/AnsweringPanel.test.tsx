@@ -172,3 +172,37 @@ test("a press burst past the schema bound truncates the trace but never loses th
   expect(answer).toBe(5);
   expect(keystrokes).toHaveLength(256);
 });
+
+test("a leading zero is rejected — no 0012-style answers, and it isn't evidence", () => {
+  const { onSubmitAnswer } = renderPanel();
+
+  fireEvent.click(screen.getByRole("button", { name: "0" })); // rejected
+  fireEvent.keyDown(window, { key: "0" }); // rejected
+  fireEvent.click(screen.getByRole("button", { name: "1" }));
+  fireEvent.click(screen.getByRole("button", { name: "0" })); // accepted
+  fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+  const [answer, keystrokes] = onSubmitAnswer.mock.calls[0] as [
+    number,
+    { key: string; t: number }[],
+  ];
+  expect(answer).toBe(10);
+  expect(keystrokes.map((k) => k.key)).toEqual(["1", "0", "⏎"]);
+});
+
+test.each(["c", "C"])("the physical %s key clears the answer", (key) => {
+  const { onSubmitAnswer } = renderPanel();
+
+  fireEvent.keyDown(window, { key: "4" });
+  fireEvent.keyDown(window, { key: "2" });
+  fireEvent.keyDown(window, { key });
+  fireEvent.keyDown(window, { key: "7" });
+  fireEvent.keyDown(window, { key: "Enter" });
+
+  const [answer, keystrokes] = onSubmitAnswer.mock.calls[0] as [
+    number,
+    { key: string; t: number }[],
+  ];
+  expect(answer).toBe(7);
+  expect(keystrokes.map((k) => k.key)).toEqual(["4", "2", "C", "7", "⏎"]);
+});

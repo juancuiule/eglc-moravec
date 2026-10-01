@@ -3,7 +3,7 @@
   "copied": "Link copied",
   "sharedResult": "Shared result",
   "ogTitle": "Level {level} — {correct}/{total} correct",
-  "ogDescription": "A mental-math level result shared from EGLC Moravec.",
+  "ogDescription": "A mental-math level result shared from Moravec - Cognición Aritmética.",
   "score": "{correct}/{total} correct",
   "cta": "Play Moravec"
 }

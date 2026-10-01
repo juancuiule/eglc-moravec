@@ -26,13 +26,19 @@ rule and the code disagree, the code wins and this file is stale (fix it).
 - Page frame (`layout.tsx`): top-aligned centered column; padding is
   longhand `pt-/pb-/pl-/pr-` per side so each folds in its
   `env(safe-area-inset-*)`. Never use `p-`/`px-`/`py-` shorthands on the
-  page frame.
+  page frame. The body is a flex column: `<main>` (the panel) then
+  `SiteCredit`, which takes `mt-auto` and a 12px (`0.75rem`) bottom
+  padding — it sits at the screen's bottom on short pages
+  and follows the panel on tall ones. Nothing in the frame is `fixed`
+  except the `SyncChip` pill.
 - `bg-base` is the _recessed_ surface inside a panel (input wells, table
   rows, calculator keys). `bg-panel-accent` marks a panel surface asking
   for attention (unplayed level, hint card). Those are the only surfaces.
 - **Never scroll horizontally inside a panel.** Pitfall: `overflow-y-auto`
   makes `overflow-x` compute to `auto`, so a y-scroller can sprout an
-  x-scrollbar — add `overflow-x-hidden`. Fluid grid/flex columns must be
+  x-scrollbar — add `overflow-x-hidden`. Make every scroller `relative`
+  too: otherwise absolute descendants (e.g. `sr-only` labels) escape its
+  clip and stretch the page's scroll height. Fluid grid/flex columns must be
   `minmax(0,1fr)`/`min-w-0` and long text `truncate`d. Verify the ~320px
   phone case; the 480px panel shrinks to it.
 
@@ -62,6 +68,8 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 - `font-sans` (Gotham) is the default interface face. `font-mono` (Overpass
   Mono) is for every number, math expression, and time.
 - Headings: `text-xl`/`text-2xl font-bold tracking-tight`.
+- Buttons (`button()`, keypad, Submit) and level-row labels: `font-medium`
+  (Gotham Medium, 500).
 - The only non-default size is `text-2xs` (0.625rem) for badge-sized
   labels; no other arbitrary sizes.
 - Section labels: `text-2xs text-muted-2 uppercase tracking-wider`.
