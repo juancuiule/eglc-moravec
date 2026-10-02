@@ -206,3 +206,31 @@ test.each(["c", "C"])("the physical %s key clears the answer", (key) => {
   expect(answer).toBe(7);
   expect(keystrokes.map((k) => k.key)).toEqual(["4", "2", "C", "7", "⏎"]);
 });
+
+// A keypad button keeps focus after a tap/click, and the browser's default
+// action for Enter on a focused <button> is to click it — so without
+// preventDefault, Enter both submitted AND re-pressed the focused key,
+// appending a digit to the already-submitted trace.
+test.each(["Enter", "5", "Backspace", "Delete", "c"])(
+  "a handled %s keydown suppresses the browser default",
+  (key) => {
+    renderPanel();
+    fireEvent.keyDown(window, { key: "1" });
+    expect(fireEvent.keyDown(window, { key })).toBe(false);
+  },
+);
+
+test("unhandled keys keep their browser default", () => {
+  renderPanel();
+  expect(fireEvent.keyDown(window, { key: "Tab" })).toBe(true);
+});
+
+test("keyboard shortcuts with modifiers are left to the browser", () => {
+  const { onSubmitAnswer } = renderPanel();
+  fireEvent.keyDown(window, { key: "4" });
+  // Cmd/Ctrl+C is copy, not clear.
+  expect(fireEvent.keyDown(window, { key: "c", metaKey: true })).toBe(true);
+  expect(fireEvent.keyDown(window, { key: "c", ctrlKey: true })).toBe(true);
+  fireEvent.keyDown(window, { key: "Enter" });
+  expect(onSubmitAnswer).toHaveBeenCalledWith(4, expect.any(Array));
+});

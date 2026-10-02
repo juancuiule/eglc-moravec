@@ -134,16 +134,23 @@ export function AnsweringPanel({
   useEffect(() => {
     if (playingState.type !== "answering") return;
     function onKeyDown(e: KeyboardEvent) {
+      // Shortcuts (Cmd/Ctrl+C copy, Cmd+R reload, …) belong to the browser.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const key =
         e.key === "Backspace"
           ? "⌫"
           : e.key === "Delete" || e.key === "c"
             ? "C"
             : e.key;
+      // preventDefault on every handled key: a keypad button keeps focus
+      // after a tap, and Enter's default on a focused <button> is to click
+      // it — submitting AND re-pressing that key into the sent trace.
       if (/^\d$/.test(key) || key === "⌫" || key === "C") {
+        e.preventDefault();
         press(key);
         handleButton(key);
       } else if (e.key === "Enter") {
+        e.preventDefault();
         doSubmit();
       }
     }
