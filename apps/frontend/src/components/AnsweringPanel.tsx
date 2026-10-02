@@ -134,16 +134,23 @@ export function AnsweringPanel({
   useEffect(() => {
     if (playingState.type !== "answering") return;
     function onKeyDown(e: KeyboardEvent) {
+      // Shortcuts (Cmd/Ctrl+C copy, Cmd+R reload, …) belong to the browser.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const key =
         e.key === "Backspace"
           ? "⌫"
           : e.key === "Delete" || e.key === "c"
             ? "C"
             : e.key;
+      // preventDefault on every handled key: a keypad button keeps focus
+      // after a tap, and Enter's default on a focused <button> is to click
+      // it — submitting AND re-pressing that key into the sent trace.
       if (/^\d$/.test(key) || key === "⌫" || key === "C") {
+        e.preventDefault();
         press(key);
         handleButton(key);
       } else if (e.key === "Enter") {
+        e.preventDefault();
         doSubmit();
       }
     }
@@ -228,7 +235,7 @@ export function AnsweringPanel({
       {beforeOperation}
 
       {/* Operation */}
-      <div className="text-5xl font-bold text-center tracking-tight py-1">
+      <div className="text-5xl font-mono font-bold text-center tracking-tight py-1">
         {operation.humanReadable()}
       </div>
 
@@ -242,9 +249,15 @@ export function AnsweringPanel({
 
       {/* Calculator section */}
       <div className="relative flex flex-col gap-3">
-        <div className="bg-base border border-subtle rounded-xl px-4 py-3 text-right text-3xl font-mono flex items-center justify-end select-none">
+        {/* <output> is a polite live region: screen readers hear each
+            accepted digit/erase without the keypad stealing focus. */}
+        <output
+          aria-live="polite"
+          aria-label={t("yourAnswer")}
+          className="bg-base border border-subtle rounded-xl px-4 py-3 text-right text-3xl font-mono flex items-center justify-end select-none"
+        >
           {answer || <span className="text-disabled">0</span>}
-        </div>
+        </output>
 
         <div className="grid grid-cols-3 gap-2">
           {ROWS.flat().map((key) => {

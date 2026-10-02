@@ -14,6 +14,7 @@ import {
 import { weeklyCategoryTrend, type TrendTrial } from "../stats/activityStats";
 import { formatSeconds } from "../formatTime";
 import { panel, backLink } from "../styles";
+import { CATEGORY_LABELS } from "../categoryLabels";
 
 type Props = {
   codename: string;
@@ -300,7 +301,7 @@ export function CategoryStatsDetail({ codename, trials, onBack }: Props) {
           <ArrowLeft size={20} aria-hidden="true" />
         </button>
         <h1 className="text-xl font-bold tracking-tight font-mono">
-          {codename}
+          {CATEGORY_LABELS[codename] ?? codename}
         </h1>
       </div>
 

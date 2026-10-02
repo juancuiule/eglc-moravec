@@ -48,6 +48,8 @@ export function FinishedScreen({ state, isNewRecord, nextLevelNumber }: Props) {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      // Cmd+R / Ctrl+N / Cmd+M are the browser's, not replay/next/menu.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "n" || e.key === "N") {
         if (levelCompleted && hasNextLevel) playNext();
       } else if (e.key === "r" || e.key === "R") {

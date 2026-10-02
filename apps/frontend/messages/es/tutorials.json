@@ -30,7 +30,7 @@
     "majorSystem": {
       "title": "Sistema Mayor",
       "subtitle": "Aprendé el Sistema Mayor paso a paso",
-      "explanation": "Cada dígito se asocia a uno o más sonidos consonánticos. Encadená las consonantes de los dígitos de un número, en orden, y completá con las vocales que quieras para armar una palabra real — las vocales no valen. Una palabra memorable es mucho más fácil de retener que una tira de dígitos sueltos. La tabla de abajo usa la asociación fonética en español, la misma razón por la que el hallazgo de \"orden con rima\" del juego es específico del español."
+      "explanation": "Cada dígito se asocia a uno o más sonidos consonánticos. Encadená las consonantes de los dígitos de un número, en orden, y completá con las vocales que quieras para armar una palabra real — las vocales no valen. Una palabra memorable es mucho más fácil de retener que una tira de dígitos sueltos. La asociación va por sonido, no por ortografía: decí la palabra en voz alta y escuchá sus consonantes."
     }
   },
   "examples": {
@@ -58,5 +58,24 @@
   "showAnswer": "Mostrar respuesta",
   "hideAnswer": "Ocultar respuesta",
   "newExample": "Nuevo ejemplo",
-  "practiceCta": "Practicar {category}"
+  "practiceCta": "Practicar {category}",
+  "majorSystemTable": {
+    "label": "Tabla del Sistema Mayor",
+    "digits": {
+      "0": "R, RR",
+      "1": "T, D",
+      "2": "N, Ñ",
+      "3": "M",
+      "4": "C, K",
+      "5": "L, LL",
+      "6": "S, Z",
+      "7": "F, J",
+      "8": "G, CH",
+      "9": "P, B, V"
+    }
+  },
+  "steps": {
+    "squaring4dMnemonic": "6764 × 6000 = 40 584 000 — retené \"584\" como palabra (5=L, 8=G, 4=C → \"lógica\")",
+    "majorSystemExample": "\"lupa\" → L, P → 5, 9 → 59"
+  }
 }

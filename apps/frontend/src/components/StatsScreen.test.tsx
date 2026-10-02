@@ -58,7 +58,7 @@ test("a category row with data is a real button, keyboard-reachable and screen-r
 
   renderWithQueryClient();
 
-  const row = await screen.findByRole("button", { name: /1d\+1d/ });
+  const row = await screen.findByRole("button", { name: /1d \+ 1d/ });
   expect(row.tagName).toBe("BUTTON");
 });
 
@@ -86,7 +86,7 @@ test("a category row with no data is a button — it opens the detail's empty st
 
   renderWithQueryClient();
 
-  fireEvent.click(await screen.findByRole("button", { name: /1dx1d/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /1d × 1d/ }));
 
   expect(await screen.findByText(/No trials yet/)).toBeDefined();
   expect(
@@ -122,10 +122,10 @@ test("Level and Practice trials are never merged — a Practice-only trial doesn
   expect(
     await screen.findByRole("link", { name: "complete some levels" }),
   ).toBeDefined();
-  expect(screen.queryByRole("button", { name: /1d\+1d/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /1d \+ 1d/ })).toBeNull();
 
   fireEvent.click(screen.getByRole("button", { name: "Practice" }));
-  const practiceRow = await screen.findByRole("button", { name: /1d\+1d/ });
+  const practiceRow = await screen.findByRole("button", { name: /1d \+ 1d/ });
   expect(within(practiceRow).queryByText(/No data yet/)).toBeNull();
 });
 
