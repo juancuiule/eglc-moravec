@@ -62,6 +62,23 @@ export function computeOperationStats(
     .sort((a, b) => b.errors - a.errors || b.attempts - a.attempts);
 }
 
+/** The heatmap's ordinal error-rate bins. "untried" (no data) and "none"
+ *  (tried, never missed) are kept apart: a blank cell and a clean record
+ *  mean different things. Edges are inclusive — 1/4 is "low", 1/2 "mid". */
+export type ErrorRateBucket = "untried" | "none" | "low" | "mid" | "high";
+
+export function errorRateBucket(
+  errors: number,
+  attempts: number,
+): ErrorRateBucket {
+  if (attempts === 0) return "untried";
+  if (errors === 0) return "none";
+  const rate = errors / attempts;
+  if (rate <= 0.25) return "low";
+  if (rate <= 0.5) return "mid";
+  return "high";
+}
+
 export type Confusion = {
   asked: string; // "6 × 7"
   given: number; // the wrong answer the player typed, e.g. 48

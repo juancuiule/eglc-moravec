@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeOperationStats,
+  errorRateBucket,
   findConfusions,
   multiplicationNeighbor,
 } from "./operationStats";
@@ -132,5 +133,21 @@ describe("findConfusions", () => {
     expect(
       findConfusions([trial("2d+2d", [47, 35], false, 77)], "2d+2d"),
     ).toEqual([]);
+  });
+});
+
+describe("errorRateBucket", () => {
+  it("separates never-tried from tried-and-perfect", () => {
+    expect(errorRateBucket(0, 0)).toBe("untried");
+    expect(errorRateBucket(0, 5)).toBe("none");
+  });
+
+  it("bins the error rate at a quarter and a half (edges inclusive)", () => {
+    expect(errorRateBucket(1, 10)).toBe("low");
+    expect(errorRateBucket(1, 4)).toBe("low");
+    expect(errorRateBucket(1, 3)).toBe("mid");
+    expect(errorRateBucket(1, 2)).toBe("mid");
+    expect(errorRateBucket(2, 3)).toBe("high");
+    expect(errorRateBucket(1, 1)).toBe("high");
   });
 });

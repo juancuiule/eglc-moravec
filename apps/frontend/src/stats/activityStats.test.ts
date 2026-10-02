@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activityCalendar,
+  activityLevel,
   countsPerDay,
   daysTrainedThisMonth,
   localDayKey,
@@ -111,5 +112,20 @@ describe("weeklyCategoryTrend", () => {
     const trend = weeklyCategoryTrend(trials, "1dx1d", 10);
     expect(trend).toHaveLength(10);
     expect(trend[trend.length - 1].weekStart).toBe("2026-08-24");
+  });
+});
+
+describe("activityLevel", () => {
+  it("is 0 only for days without trials", () => {
+    expect(activityLevel(0, 10)).toBe(0);
+    expect(activityLevel(1, 100)).toBe(1);
+  });
+
+  it("splits 1..max into four equal steps, max at the top", () => {
+    expect(activityLevel(2, 8)).toBe(1);
+    expect(activityLevel(3, 8)).toBe(2);
+    expect(activityLevel(6, 8)).toBe(3);
+    expect(activityLevel(7, 8)).toBe(4);
+    expect(activityLevel(8, 8)).toBe(4);
   });
 });

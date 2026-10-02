@@ -1,11 +1,16 @@
 "use client";
 
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { computeHistogram, type StatsTrial } from "../stats/computeStats";
-import { computeOperationStats, findConfusions } from "../stats/operationStats";
+import {
+  computeOperationStats,
+  errorRateBucket,
+  findConfusions,
+  type ErrorRateBucket,
+} from "../stats/operationStats";
 import { weeklyCategoryTrend, type TrendTrial } from "../stats/activityStats";
 import { formatSeconds } from "../formatTime";
 import { panel, backLink } from "../styles";
@@ -16,6 +21,27 @@ type Props = {
   trials: (StatsTrial & TrendTrial)[];
   onBack: () => void;
 };
+
+/** Ordinal fill per error-rate bin. Misses step one hue (danger) light →
+ *  dark — the light end clears 2:1 on the panel (danger/50 ≈ 2.3:1, /75 ≈
+ *  3.5:1, solid 4.7:1). A clean record is teal (the correct-result color),
+ *  so "never missed" can't be mistaken for "never tried", which recedes to
+ *  the border gray. Static class strings so Tailwind generates them. */
+const BUCKET_FILL: Record<ErrorRateBucket, string> = {
+  untried: "bg-subtle",
+  none: "bg-teal/70",
+  low: "bg-danger/50",
+  mid: "bg-danger/75",
+  high: "bg-danger",
+};
+
+const LEGEND = [
+  { bucket: "untried", label: "heatmapUntried" },
+  { bucket: "none", label: "heatmapNone" },
+  { bucket: "low", label: "heatmapLow" },
+  { bucket: "mid", label: "heatmapMid" },
+  { bucket: "high", label: "heatmapHigh" },
+] as const;
 
 /** 1dx1d-only view: error rate per operand pair, symmetric across the
  * diagonal since {a,b} and {b,a} are the same memorized fact. Axis values
@@ -50,15 +76,41 @@ function OperationHeatmap({
     [trials, codename],
   );
 
+  const [selected, setSelected] = useState<string | null>(null);
+
   if (domain.length === 0) return null;
+
+  // Both mirrors of a fact ({6,7} and {7,6}) read the same record.
+  const lookup = (row: number, col: number) => {
+    const [a, b] = [row, col].sort((x, y) => x - y);
+    return { a, b, op: byOp.get(`${a}|${b}`) };
+  };
+
+  const readout = (() => {
+    if (selected === null) return t("heatmapHint");
+    const [row, col] = selected.split("|").map(Number);
+    const { a, b, op } = lookup(row, col);
+    const label = `${a} × ${b}`;
+    return op && op.attempts > 0
+      ? t("heatmapCell", {
+          op: label,
+          errors: op.errors,
+          attempts: op.attempts,
+        })
+      : t("heatmapCellUntried", { op: label });
+  })();
 
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs text-muted-2 uppercase tracking-wider font-medium">
         {t("errorHeatmap")}
       </p>
+      {/* Cells shrink below the 44px touch floor on narrow panels, so they
+          aren't individual controls — the grid is the tap surface and reads
+          out the tapped cell below (same pattern as ActivityCalendar).
+          Screen readers get the hidden table instead. */}
       <div
-        className="grid gap-0.5 justify-center"
+        className="grid gap-0.5 justify-center items-center touch-manipulation"
         style={{
           // Cap the column width — an unbounded 1fr lets a two-operand
           // history grow ~200px cells (#82). justify-center keeps the grid
@@ -67,44 +119,70 @@ function OperationHeatmap({
         }}
         role="img"
         aria-label={t("errorHeatmap")}
+        onClick={(e) => {
+          const cell = (e.target as HTMLElement).dataset.cell;
+          if (cell) setSelected(cell);
+        }}
       >
-        <span />
+        <span className="text-2xs text-disabled font-mono text-center pr-1">
+          ×
+        </span>
         {domain.map((d) => (
-          <span key={d} className="text-2xs text-muted-2 text-center">
+          <span
+            key={d}
+            className="text-2xs text-muted-2 font-mono text-center pb-0.5"
+          >
             {d}
           </span>
         ))}
         {domain.map((row) => (
           <Fragment key={row}>
-            <span className="text-2xs text-muted-2 pr-1">{row}</span>
+            <span className="text-2xs text-muted-2 font-mono text-right pr-1">
+              {row}
+            </span>
             {domain.map((col) => {
-              const [a, b] = [row, col].sort((x, y) => x - y);
-              const op = byOp.get(`${a}|${b}`);
-              const rate = !op
-                ? -1
-                : op.attempts === 0
-                  ? -1
-                  : op.errors / op.attempts;
+              const { op } = lookup(row, col);
+              const bucket = errorRateBucket(
+                op?.errors ?? 0,
+                op?.attempts ?? 0,
+              );
+              const key = `${row}|${col}`;
               return (
                 <div
-                  key={`${row}-${col}`}
-                  className="aspect-square rounded-sm"
-                  style={{
-                    backgroundColor:
-                      rate < 0
-                        ? "var(--color-subtle)"
-                        : rate === 0
-                          ? "var(--color-teal)"
-                          : "var(--color-danger)",
-                    opacity:
-                      rate < 0 ? 0.35 : rate === 0 ? 0.3 : 0.25 + rate * 0.75,
-                  }}
+                  key={key}
+                  data-cell={key}
+                  className={`aspect-square rounded-sm ${BUCKET_FILL[bucket]} ${
+                    selected === key
+                      ? "ring-2 ring-foreground ring-offset-1 ring-offset-panel"
+                      : ""
+                  }`}
                 />
               );
             })}
           </Fragment>
         ))}
       </div>
+      <ul
+        aria-label={t("heatmapLegend")}
+        className="flex flex-wrap justify-center gap-x-3 gap-y-1"
+      >
+        {LEGEND.map(({ bucket, label }) => (
+          <li
+            key={bucket}
+            className={`inline-flex items-center gap-1 text-2xs text-muted-2 ${
+              bucket === "untried" ? "" : "font-mono"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`h-2.5 w-2.5 rounded-sm ${BUCKET_FILL[bucket]}`}
+            />
+            {t(label)}
+          </li>
+        ))}
+      </ul>
+      {/* min-h reserves the line so tapping a cell doesn't shift layout */}
+      <p className="min-h-4 text-center text-2xs text-muted-2">{readout}</p>
       {/* role="img" flattens the colored cells to their label — the same
           data stays reachable as a real (visually hidden) table. */}
       <table className="sr-only">

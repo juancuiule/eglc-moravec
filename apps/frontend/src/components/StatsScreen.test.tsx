@@ -240,6 +240,9 @@ test("renders the activity calendar and days-trained caption once trials exist",
 
   expect(await screen.findByRole("img", { name: "Activity" })).toBeDefined();
   expect(await screen.findByText("1 day trained this month")).toBeDefined();
+  // The calendar's shading is binned; a less → more key explains it.
+  expect(screen.getByText("Fewer trials")).toBeDefined();
+  expect(screen.getByText("More trials")).toBeDefined();
 });
 
 test("the export buttons trigger real CSV and JSON downloads", async () => {
