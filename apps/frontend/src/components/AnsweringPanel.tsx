@@ -235,7 +235,7 @@ export function AnsweringPanel({
       {beforeOperation}
 
       {/* Operation */}
-      <div className="text-5xl font-bold text-center tracking-tight py-1">
+      <div className="text-5xl font-mono font-bold text-center tracking-tight py-1">
         {operation.humanReadable()}
       </div>
 
@@ -249,9 +249,15 @@ export function AnsweringPanel({
 
       {/* Calculator section */}
       <div className="relative flex flex-col gap-3">
-        <div className="bg-base border border-subtle rounded-xl px-4 py-3 text-right text-3xl font-mono flex items-center justify-end select-none">
+        {/* <output> is a polite live region: screen readers hear each
+            accepted digit/erase without the keypad stealing focus. */}
+        <output
+          aria-live="polite"
+          aria-label={t("yourAnswer")}
+          className="bg-base border border-subtle rounded-xl px-4 py-3 text-right text-3xl font-mono flex items-center justify-end select-none"
+        >
           {answer || <span className="text-disabled">0</span>}
-        </div>
+        </output>
 
         <div className="grid grid-cols-3 gap-2">
           {ROWS.flat().map((key) => {

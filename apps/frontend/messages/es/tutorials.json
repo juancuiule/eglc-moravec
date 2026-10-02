@@ -30,7 +30,7 @@
     "majorSystem": {
       "title": "Sistema Mayor",
       "subtitle": "Aprendé el Sistema Mayor paso a paso",
-      "explanation": "Cada dígito se asocia a uno o más sonidos consonánticos. Encadená las consonantes de los dígitos de un número, en orden, y completá con las vocales que quieras para armar una palabra real — las vocales no valen. Una palabra memorable es mucho más fácil de retener que una tira de dígitos sueltos. La tabla de abajo usa la asociación fonética en español, la misma razón por la que el hallazgo de \"orden con rima\" del juego es específico del español."
+      "explanation": "Cada dígito se asocia a uno o más sonidos consonánticos. Encadená las consonantes de los dígitos de un número, en orden, y completá con las vocales que quieras para armar una palabra real — las vocales no valen. Una palabra memorable es mucho más fácil de retener que una tira de dígitos sueltos. La asociación va por sonido, no por ortografía: decí la palabra en voz alta y escuchá sus consonantes."
     }
   },
   "examples": {

@@ -163,3 +163,8 @@ test("hides the trend when history fits in a single week", () => {
   );
   expect(screen.queryByText("Trend by week")).toBeNull();
 });
+
+test("the heading uses the category's display label, not its codename", () => {
+  render(<CategoryStatsDetail codename="2dx1d" onBack={vi.fn()} trials={[]} />);
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("2d × 1d");
+});

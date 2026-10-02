@@ -234,3 +234,12 @@ test("keyboard shortcuts with modifiers are left to the browser", () => {
   fireEvent.keyDown(window, { key: "Enter" });
   expect(onSubmitAnswer).toHaveBeenCalledWith(4, expect.any(Array));
 });
+
+test("the typed answer is a labelled live region", () => {
+  renderPanel();
+  fireEvent.keyDown(window, { key: "4" });
+  fireEvent.keyDown(window, { key: "2" });
+  const output = screen.getByRole("status", { name: "Your answer" });
+  expect(output.getAttribute("aria-live")).toBe("polite");
+  expect(output.textContent).toBe("42");
+});
