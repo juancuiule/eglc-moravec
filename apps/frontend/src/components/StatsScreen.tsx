@@ -19,6 +19,7 @@ import {
   trialsToJson,
 } from "../stats/exportTrials";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
+import { CATEGORY_LABELS } from "../categoryLabels";
 import { formatSeconds } from "../formatTime";
 import { useLocalTrials } from "../local/hooks";
 import { pullServerTrials } from "../local/trials";
@@ -294,7 +295,7 @@ export function StatsScreen() {
             const content = (
               <>
                 <span className="font-mono text-sm text-foreground">
-                  {row.codename}
+                  {CATEGORY_LABELS[row.codename] ?? row.codename}
                 </span>
 
                 {row.total === 0 ? (

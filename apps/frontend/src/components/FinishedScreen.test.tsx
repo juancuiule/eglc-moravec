@@ -228,3 +228,17 @@ describe("per-trial review", () => {
     expect(screen.getByRole("table").className).toContain("overflow-x-hidden");
   });
 });
+
+test("N/R/M with a modifier are browser shortcuts, not screen shortcuts", () => {
+  render(
+    <FinishedScreen
+      state={finishedState}
+      isNewRecord={false}
+      nextLevelNumber={4}
+    />,
+  );
+
+  fireEvent.keyDown(window, { key: "n", ctrlKey: true }); // new window
+  fireEvent.keyDown(window, { key: "m", metaKey: true }); // minimize
+  expect(pushMock).not.toHaveBeenCalled();
+});

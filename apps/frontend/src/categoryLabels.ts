@@ -1,5 +1,5 @@
 // Human-readable labels for each operation category codename — shared
-// between Practice mode selection and the Tutorials screens.
+// between Practice mode selection, the Tutorials screens and Stats.
 export const CATEGORY_LABELS: Record<string, string> = {
   "1d+1d": "1d + 1d",
   "2d+2d": "2d + 2d",

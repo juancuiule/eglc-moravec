@@ -5,8 +5,10 @@ import {
   videoIdFor,
   TUTORIAL_TOPICS,
   TUTORIAL_EXAMPLES,
-  MAJOR_SYSTEM_TABLE,
+  MAJOR_SYSTEM_DIGITS,
 } from "./content";
+import en from "../../messages/en/index";
+import es from "../../messages/es/index";
 
 test("categoriesForTopic maps each topic to its engine category codename(s)", () => {
   expect(categoriesForTopic("addition")).toEqual(["1d+1d", "2d+2d"]);
@@ -49,8 +51,29 @@ test("every topic has at least one worked example", () => {
   }
 });
 
-test("the Major System table covers all ten digits", () => {
-  expect(MAJOR_SYSTEM_TABLE.map((row) => row.digit)).toEqual([
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-  ]);
+test.each([
+  ["en", en],
+  ["es", es],
+] as const)("%s has a Major System entry for every digit", (_, messages) => {
+  const digits = messages.Tutorials.majorSystemTable.digits as Record<
+    string,
+    string
+  >;
+  for (const digit of MAJOR_SYSTEM_DIGITS) {
+    expect(digits[String(digit)]).toBeTruthy();
+  }
+});
+
+test.each([
+  ["en", en],
+  ["es", es],
+] as const)("%s has every message-keyed worked step", (_, messages) => {
+  const steps = messages.Tutorials.steps as Record<string, string>;
+  for (const topic of TUTORIAL_TOPICS) {
+    for (const example of TUTORIAL_EXAMPLES[topic]) {
+      for (const step of example.steps) {
+        if (typeof step !== "string") expect(steps[step.message]).toBeTruthy();
+      }
+    }
+  }
 });

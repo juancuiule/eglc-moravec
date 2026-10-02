@@ -27,13 +27,19 @@ export const TUTORIAL_TOPICS: TutorialTopic[] = [
 // Titles, subtitles, explanations, per-example notes, and the "live
 // example" note all moved to messages/{locale}/tutorials.json (see
 // TutorialsList/TutorialDetail) — they're translatable prose, not data.
-// What's left here is locale-invariant: ids, arithmetic notation, and the
-// Major System's Spanish-phonetic table (kept identical in both locales —
-// see tutorials.json's majorSystem explanation for why).
+// What's left here is locale-invariant: ids and arithmetic notation.
+// Anything that depends on the language — prose inside a derivation, and
+// the Major System (its digit→consonant table follows each language's own
+// sounds, so its words differ too) — lives in tutorials.json and is
+// referenced by key. Thousands use a narrow no-break space ("40 584 000"),
+// which reads correctly in both locales, unlike "," or ".".
+
+/** A derivation line: literal math, or a key under tutorials.json's `steps`. */
+export type WorkedStep = string | { message: string };
 
 export type WorkedExample = {
   /** Each line of the derivation, first line is the problem itself. */
-  steps: string[];
+  steps: WorkedStep[];
 };
 
 export const TUTORIAL_EXAMPLES: Record<TutorialTopic, WorkedExample[]> = {
@@ -55,7 +61,7 @@ export const TUTORIAL_EXAMPLES: Record<TutorialTopic, WorkedExample[]> = {
         "512² = (512+12)(512−12) + 12²",
         "= 524 × 500 + 12²",
         "12² = (12+2)(12−2) + 2² = 14×10 + 4 = 144",
-        "= 262,000 + 144 = 262,144",
+        "= 262 000 + 144 = 262 144",
       ],
     },
     {
@@ -63,40 +69,26 @@ export const TUTORIAL_EXAMPLES: Record<TutorialTopic, WorkedExample[]> = {
         "684² = (684+16)(684−16) + 16²",
         "= 700 × 668 + 16²",
         "16² = (16+4)(16−4) + 4² = 20×12 + 16 = 256",
-        "= 467,600 + 256 = 467,856",
+        "= 467 600 + 256 = 467 856",
       ],
     },
   ],
   squaring4d: [
     {
-      // The bracketed word is a Spanish Major System mnemonic by design
-      // (see tutorials.json's majorSystem explanation) — kept identical
-      // in both locales, not translated.
       steps: [
         "6382² = (6382+382)(6382−382) + 382²",
         "= 6764 × 6000 + 382²",
-        '6764 × 6000 = 40,584,000 — hold onto "584" as a word (5=L, 8=G, 4=C → "lógica")',
-        "382² = (382−2)(382+2) + 2² = 380 × 384 + 4 = 145,924",
-        "40,584,000 + 145,924 = 40,729,924",
+        { message: "squaring4dMnemonic" },
+        "382² = (382−2)(382+2) + 2² = 380 × 384 + 4 = 145 924",
+        "40 584 000 + 145 924 = 40 729 924",
       ],
     },
   ],
-  majorSystem: [{ steps: ['"lupa" → L, P → 5, 9 → 59'] }],
+  majorSystem: [{ steps: [{ message: "majorSystemExample" }] }],
 };
 
-/** The Major System's digit-to-consonant table — the only topic that needs one. */
-export const MAJOR_SYSTEM_TABLE: { digit: number; letters: string }[] = [
-  { digit: 0, letters: "R, RR" },
-  { digit: 1, letters: "T, D" },
-  { digit: 2, letters: "N, Ñ" },
-  { digit: 3, letters: "M" },
-  { digit: 4, letters: "C, K" },
-  { digit: 5, letters: "L, LL" },
-  { digit: 6, letters: "S, Z" },
-  { digit: 7, letters: "F, J" },
-  { digit: 8, letters: "G, CH" },
-  { digit: 9, letters: "P, B, V" },
-];
+/** Rows of the Major System table; each digit's consonants are per-locale, in tutorials.json's `majorSystemTable.digits`. */
+export const MAJOR_SYSTEM_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
 export function isTutorialTopic(value: string): value is TutorialTopic {
   return (TUTORIAL_TOPICS as string[]).includes(value);
