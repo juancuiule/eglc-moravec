@@ -1,4 +1,6 @@
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent, render as rtlRender } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import esMessages from "../../messages/es/index";
 import { expect, test } from "vitest";
 import { TutorialDetail } from "./TutorialDetail";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
@@ -83,9 +85,48 @@ test("Major System has a video, the digit table, and a worked example, but no in
   expect(
     screen.getByTitle("Major System tutorial").getAttribute("src"),
   ).toContain("Fv0Si7UJHKw");
-  expect(screen.getByText("P, B, V")).toBeDefined();
-  expect(screen.getByText(/"lupa"/)).toBeDefined();
+  expect(screen.getByText("P, B")).toBeDefined();
+  expect(screen.getByText(/"lip"/)).toBeDefined();
   expect(screen.queryByTestId("hint-card")).toBeNull();
   expect(screen.queryByTestId("tutorial-expression")).toBeNull();
   expect(screen.queryByRole("link", { name: /Practice/ })).toBeNull();
+});
+
+function renderInSpanish(ui: React.ReactElement) {
+  return rtlRender(
+    <NextIntlClientProvider locale="es" messages={esMessages}>
+      {ui}
+    </NextIntlClientProvider>,
+  );
+}
+
+test("the Major System follows English sounds in English", () => {
+  render(<TutorialDetail topic="majorSystem" />);
+
+  const table = screen.getByRole("table", { name: "Major System table" });
+  expect(table.textContent).toContain("4R");
+  expect(table.textContent).toContain("8F, V");
+  expect(screen.getByText(/"lip"/)).toBeDefined();
+  expect(screen.queryByText(/lupa/)).toBeNull();
+});
+
+test("the Major System follows Spanish sounds in Spanish", () => {
+  renderInSpanish(<TutorialDetail topic="majorSystem" />);
+
+  const table = screen.getByRole("table", { name: "Tabla del Sistema Mayor" });
+  expect(table.textContent).toContain("0R, RR");
+  expect(table.textContent).toContain("4C, K");
+  expect(screen.getByText(/"lupa"/)).toBeDefined();
+});
+
+test("4-digit squaring's mnemonic step is translated and uses the locale's Major System", () => {
+  render(<TutorialDetail topic="squaring4d" />);
+  expect(screen.getByText(/hold onto "584".*"lever"/)).toBeDefined();
+  expect(screen.queryByText(/lógica/)).toBeNull();
+});
+
+test("4-digit squaring in Spanish has no English prose", () => {
+  renderInSpanish(<TutorialDetail topic="squaring4d" />);
+  expect(screen.getByText(/retené "584".*"lógica"/)).toBeDefined();
+  expect(screen.queryByText(/hold onto/)).toBeNull();
 });

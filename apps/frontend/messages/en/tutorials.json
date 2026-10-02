@@ -30,7 +30,7 @@
     "majorSystem": {
       "title": "Major System",
       "subtitle": "Learn the Major System step by step",
-      "explanation": "Each digit maps to one or more consonant sounds. String together the consonants for a number's digits, in order, then fill in any vowels you like to spell a real word — vowels carry no value. A memorable word is far easier to hold onto than a bare string of digits. The mapping below is tuned to Spanish consonant sounds, so the example words only work in Spanish — the same reason the game's own \"rhymed-order\" finding is Spanish-specific."
+      "explanation": "Each digit maps to one or more consonant sounds. String together the consonants for a number's digits, in order, then fill in any vowels you like to spell a real word — vowels carry no value. A memorable word is far easier to hold onto than a bare string of digits. The mapping goes by sound, not spelling: say the word out loud and listen for its consonants."
     }
   },
   "examples": {
@@ -46,7 +46,7 @@
     },
     "squaring4d": {
       "0": {
-        "note": "\"lógica\" is a real Spanish word — the whole point of the Major System is picking a word that means something, not just any consonant string."
+        "note": "\"lever\" is a real word — the whole point of the Major System is picking a word that means something, not just any consonant string."
       }
     }
   },
@@ -58,5 +58,24 @@
   "showAnswer": "Show answer",
   "hideAnswer": "Hide answer",
   "newExample": "New example",
-  "practiceCta": "Practice {category}"
+  "practiceCta": "Practice {category}",
+  "majorSystemTable": {
+    "label": "Major System table",
+    "digits": {
+      "0": "S, Z",
+      "1": "T, D",
+      "2": "N",
+      "3": "M",
+      "4": "R",
+      "5": "L",
+      "6": "J, SH, CH",
+      "7": "K, C, G",
+      "8": "F, V",
+      "9": "P, B"
+    }
+  },
+  "steps": {
+    "squaring4dMnemonic": "6764 × 6000 = 40 584 000 — hold onto \"584\" as a word (5=L, 8=V, 4=R → \"lever\")",
+    "majorSystemExample": "\"lip\" → L, P → 5, 9 → 59"
+  }
 }

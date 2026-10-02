@@ -8,7 +8,8 @@ import { createOperation, type Operation } from "engine";
 import { CATEGORY_LABELS } from "../categoryLabels";
 import {
   TUTORIAL_EXAMPLES,
-  MAJOR_SYSTEM_TABLE,
+  MAJOR_SYSTEM_DIGITS,
+  type WorkedStep,
   categoriesForTopic,
   videoIdFor,
   type TutorialTopic,
@@ -57,6 +58,8 @@ export function TutorialDetail({ topic }: Props) {
   const liveNote = liveNotes[topic];
 
   const title = t(`topics.${topic}.title`);
+  const resolveStep = (step: WorkedStep) =>
+    typeof step === "string" ? step : t(`steps.${step.message}`);
 
   return (
     <div className={`${panel} p-6 gap-4`}>
@@ -79,14 +82,23 @@ export function TutorialDetail({ topic }: Props) {
       />
 
       {topic === "majorSystem" && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1 bg-base rounded-xl px-4 py-3 font-mono text-sm">
-          {MAJOR_SYSTEM_TABLE.map(({ digit, letters }) => (
-            <div key={digit} className="flex gap-2">
-              <span className="text-accent-text font-bold w-3">{digit}</span>
-              <span className="text-muted">{letters}</span>
-            </div>
-          ))}
-        </div>
+        <table
+          aria-label={t("majorSystemTable.label")}
+          className="block bg-base rounded-xl px-4 py-3 font-mono text-sm"
+        >
+          <tbody className="grid grid-cols-2 gap-x-6 gap-y-1">
+            {MAJOR_SYSTEM_DIGITS.map((digit) => (
+              <tr key={digit} className="flex gap-2">
+                <th scope="row" className="text-accent-text font-bold w-3">
+                  {digit}
+                </th>
+                <td className="text-muted">
+                  {t(`majorSystemTable.digits.${digit}`)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
 
       <div className="flex flex-col gap-3">
@@ -94,7 +106,7 @@ export function TutorialDetail({ topic }: Props) {
           const note = exampleNotes[topic]?.[String(i)]?.note;
           return (
             <div key={i} className="flex flex-col gap-1">
-              <HintCard steps={example.steps} />
+              <HintCard steps={example.steps.map(resolveStep)} />
               {note && <p className="text-xs text-muted-2 px-1">{note}</p>}
             </div>
           );

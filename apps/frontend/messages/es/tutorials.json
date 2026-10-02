@@ -58,5 +58,24 @@
   "showAnswer": "Mostrar respuesta",
   "hideAnswer": "Ocultar respuesta",
   "newExample": "Nuevo ejemplo",
-  "practiceCta": "Practicar {category}"
+  "practiceCta": "Practicar {category}",
+  "majorSystemTable": {
+    "label": "Tabla del Sistema Mayor",
+    "digits": {
+      "0": "R, RR",
+      "1": "T, D",
+      "2": "N, Ñ",
+      "3": "M",
+      "4": "C, K",
+      "5": "L, LL",
+      "6": "S, Z",
+      "7": "F, J",
+      "8": "G, CH",
+      "9": "P, B, V"
+    }
+  },
+  "steps": {
+    "squaring4dMnemonic": "6764 × 6000 = 40 584 000 — retené \"584\" como palabra (5=L, 8=G, 4=C → \"lógica\")",
+    "majorSystemExample": "\"lupa\" → L, P → 5, 9 → 59"
+  }
 }
