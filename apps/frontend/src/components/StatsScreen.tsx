@@ -9,6 +9,7 @@ import { authToken, useAuth } from "../auth/store";
 import { computeStats } from "../stats/computeStats";
 import {
   activityCalendar,
+  activityLevel,
   daysTrainedThisMonth,
   type PlayedTrial,
 } from "../stats/activityStats";
@@ -27,10 +28,22 @@ import { panel, backLink, button, textLink } from "../styles";
 
 type Tab = "level" | "practice";
 
-/** GitHub-style trailing-weeks calendar of daily trial counts — teal alpha
- *  encodes count, muted for empty days, transparent for future days. Cells
- *  are buttons, not hover-only tooltips: per-day counts must be reachable
- *  on touch, where title never shows. */
+/** Calendar shade per `activityLevel` (0–4): muted gray for a day without
+ *  trials, then teal stepped light → dark. A sequential ramp, so the light
+ *  end may recede toward the surface; a fewer → more key sits below the
+ *  grid. Static class strings so Tailwind generates them. */
+const LEVEL_FILL = [
+  "bg-subtle-muted",
+  "bg-teal/40",
+  "bg-teal/60",
+  "bg-teal/80",
+  "bg-teal",
+] as const;
+
+/** GitHub-style trailing-weeks calendar of daily trial counts — teal steps
+ *  encode count, muted for empty days, transparent for future days. Per-day
+ *  counts are reachable on touch by tapping (see the readout below the
+ *  grid), not hover-only tooltips — title never shows on touch. */
 function ActivityCalendar({ trials }: { trials: PlayedTrial[] }) {
   const t = useTranslations("Stats");
   const format = useFormatter();
@@ -67,7 +80,7 @@ function ActivityCalendar({ trials }: { trials: PlayedTrial[] }) {
           delegating to the tapped cell's day. Per-day counts stay reachable
           to screen readers through the hidden list below. */}
       <div
-        className="flex justify-center gap-[3px]"
+        className="flex justify-center gap-[3px] touch-manipulation"
         role="img"
         aria-label={t("activity")}
         onClick={(e) => {
@@ -81,23 +94,28 @@ function ActivityCalendar({ trials }: { trials: PlayedTrial[] }) {
               <div
                 key={cell.day}
                 data-day={cell.future ? undefined : cell.day}
-                className="h-2.5 w-2.5 rounded-sm"
+                className={`h-2.5 w-2.5 rounded-sm ${
+                  cell.future
+                    ? ""
+                    : LEVEL_FILL[activityLevel(cell.count, maxCount)]
+                }`}
                 title={dayLabel(cell.day, cell.count)}
-                style={{
-                  backgroundColor: cell.future
-                    ? "transparent"
-                    : cell.count === 0
-                      ? "var(--color-subtle-muted)"
-                      : "var(--color-teal)",
-                  opacity:
-                    !cell.future && cell.count > 0
-                      ? 0.35 + 0.65 * (cell.count / maxCount)
-                      : undefined,
-                }}
               />
             ))}
           </div>
         ))}
+      </div>
+      {/* The shading key. Hidden from screen readers — they get exact
+          per-day counts from the list below, not shades. */}
+      <div
+        aria-hidden="true"
+        className="flex items-center justify-center gap-[3px] text-2xs text-muted-2"
+      >
+        <span className="pr-1">{t("activityLess")}</span>
+        {LEVEL_FILL.map((fill) => (
+          <span key={fill} className={`h-2.5 w-2.5 rounded-sm ${fill}`} />
+        ))}
+        <span className="pl-1">{t("activityMore")}</span>
       </div>
       <ul className="sr-only">
         {weeks

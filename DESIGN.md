@@ -59,9 +59,17 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
   coding, not sole information carriers.
 - Semantic pairs: `success`/`success-bg`/`success-solid`,
   `danger`/`danger-bg`/`danger-border` for correctness states.
-- For computed colors (e.g. heatmap alpha), reference the variables
-  inline — `style={{ backgroundColor: "var(--color-teal)" }}` — still no
-  raw hex (see `EffBar`/`CategoryStatsDetail`).
+- For computed colors, reference the variables inline —
+  `style={{ backgroundColor: "var(--color-danger)" }}` — still no raw hex
+  (see `EffBar`).
+- Heatmaps bin their values into a few ordinal steps of one token via
+  opacity modifiers (`bg-danger/50`, `/75`, solid), written as static class
+  strings in a lookup so Tailwind generates them — never a continuous
+  inline opacity. "No data" gets its own neutral (`bg-subtle`/
+  `bg-subtle-muted`), distinct from the lowest data step. Every heatmap
+  ships a legend for its bins and a tap-to-read line for the tapped cell
+  (see `OperationHeatmap` in `CategoryStatsDetail`, `ActivityCalendar` in
+  `StatsScreen`).
 
 ## Type
 

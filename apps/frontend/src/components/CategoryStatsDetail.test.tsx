@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
 import type { StatsTrial } from "../stats/computeStats";
@@ -126,6 +126,44 @@ test("the heatmap caps column width for narrow operand domains", () => {
   expect(grid.style.gridTemplateColumns).toContain("44px");
   expect(grid.style.gridTemplateColumns).not.toContain("1fr");
   expect(grid.className).toContain("justify-center");
+});
+
+// The heatmap's color is binned, so a legend must name every bin — color
+// can't be the only carrier of what a cell means.
+test("the heatmap has a legend naming every error-rate bin", () => {
+  render(
+    <CategoryStatsDetail
+      codename="1dx1d"
+      onBack={vi.fn()}
+      trials={[makeTrial({}), makeTrial({ correct: false, answer: 48 })]}
+    />,
+  );
+
+  const legend = screen.getByRole("list", { name: "Error rate legend" });
+  const items = within(legend)
+    .getAllByRole("listitem")
+    .map((li) => li.textContent);
+  expect(items).toEqual(["Not tried", "0%", "1–25%", "26–50%", "51–100%"]);
+});
+
+// Cells are too small to be individual controls, so tapping the grid reads
+// out the tapped cell — the per-cell value must be reachable on touch.
+test("tapping a heatmap cell reads out that problem's record", () => {
+  render(
+    <CategoryStatsDetail
+      codename="1dx1d"
+      onBack={vi.fn()}
+      trials={[makeTrial({}), makeTrial({ correct: false, answer: 48 })]}
+    />,
+  );
+
+  const grid = screen.getByRole("img", { name: "Error rate by problem" });
+  // 7 × 6 is the mirror of 6 × 7 — same fact, same record.
+  fireEvent.click(grid.querySelector('[data-cell="7|6"]')!);
+  expect(screen.getByText("6 × 7 · 1/2 wrong")).toBeDefined();
+
+  fireEvent.click(grid.querySelector('[data-cell="6|6"]')!);
+  expect(screen.getByText("6 × 6 · not tried yet")).toBeDefined();
 });
 
 test("shows a weekly trend once the category spans two weeks", () => {

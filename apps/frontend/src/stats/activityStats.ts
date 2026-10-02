@@ -80,6 +80,13 @@ export function activityCalendar(
   );
 }
 
+/** Calendar shade, 0–4: 0 is a day without trials; 1–4 split (0, max] into
+ *  equal quarters, so any trial at all reads as at least level 1. */
+export function activityLevel(count: number, maxCount: number): number {
+  if (count <= 0) return 0;
+  return Math.min(4, Math.max(1, Math.ceil((4 * count) / maxCount)));
+}
+
 export type WeekTrend = {
   weekStart: string; // local YYYY-MM-DD of the week's Monday
   trials: number;
