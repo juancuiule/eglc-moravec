@@ -9,6 +9,7 @@ import { backLink, panel } from "@/styles";
 import { ArrowLeft, Lock, Star } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 
 function RowStars({
   stars,
@@ -71,6 +72,21 @@ export function LevelsList(props: {
     ? Object.keys(stats).filter((k) => (stats[k]?.stars ?? 0) > 0).length
     : 0;
 
+  // The first unlocked-but-unplayed level is the "Play" row; center it in
+  // the scroller so a long record doesn't push it below the fold.
+  const nextLevel = stats
+    ? levelKeys.find((n) => isLevelUnlocked(n, stats) && !stats[String(n)])
+    : undefined;
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const nextLevelRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const next = nextLevelRef.current;
+    if (!scroller || !next) return;
+    scroller.scrollTop =
+      next.offsetTop - scroller.clientHeight / 2 + next.clientHeight / 2;
+  }, [nextLevel]);
+
   return (
     <div className={`${panel} p-6 gap-3`}>
       <div className="flex items-center gap-3">
@@ -96,7 +112,10 @@ export function LevelsList(props: {
           labels). Without it they resolve against the page, escape the
           scroll clip, and stretch the document far below the panel. */}
       {stats !== undefined && (
-        <div className="relative flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto overflow-x-hidden">
+        <div
+          ref={scrollerRef}
+          className="relative flex flex-col -mx-6 max-h-[60dvh] overflow-y-auto overflow-x-hidden"
+        >
           {levelKeys.map((n) => {
             const levelStats = stats[String(n)];
             const unlocked = isLevelUnlocked(n, stats);
@@ -123,6 +142,7 @@ export function LevelsList(props: {
               return (
                 <Link
                   key={n}
+                  ref={n === nextLevel ? nextLevelRef : undefined}
                   href={`/level/${n}`}
                   className="flex flex-col items-center gap-1 px-6 py-3 bg-accent text-white"
                 >
