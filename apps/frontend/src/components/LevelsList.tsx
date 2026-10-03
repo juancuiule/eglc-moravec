@@ -9,7 +9,7 @@ import { backLink, panel } from "@/styles";
 import { ArrowLeft, Lock, Star } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 function RowStars({
   stars,
@@ -73,16 +73,21 @@ export function LevelsList(props: {
     : 0;
 
   // The first unlocked-but-unplayed level is the "Play" row; center it in
-  // the scroller so a long record doesn't push it below the fold.
+  // the scroller so a long record doesn't push it below the fold. The
+  // offsetTop math only measures from the scroller because it's `relative`.
+  // Layout effect so the list never paints at level 1 first; once per mount
+  // so a background unlock doesn't yank the list from where the player is.
   const nextLevel = stats
     ? levelKeys.find((n) => isLevelUnlocked(n, stats) && !stats[String(n)])
     : undefined;
   const scrollerRef = useRef<HTMLDivElement>(null);
   const nextLevelRef = useRef<HTMLAnchorElement>(null);
-  useEffect(() => {
+  const centeredRef = useRef(false);
+  useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     const next = nextLevelRef.current;
-    if (!scroller || !next) return;
+    if (centeredRef.current || !scroller || !next) return;
+    centeredRef.current = true;
     scroller.scrollTop =
       next.offsetTop - scroller.clientHeight / 2 + next.clientHeight / 2;
   }, [nextLevel]);
