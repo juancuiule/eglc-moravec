@@ -1,5 +1,5 @@
 import { act, screen, waitFor } from "@testing-library/react";
-import { beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { LevelsList } from "./LevelsList";
 import type { LevelStats, SyncedTrial } from "@/api/Api";
 import { localStore, resetLocalData, TRIALS_TABLE } from "@/local/store";
@@ -86,4 +86,64 @@ test("a better local record still wins over the seed", async () => {
   );
   // local level-1 record unlocks level 2 regardless of the seed's 0 stars
   expect(await screen.findByRole("link", { name: /Level 2/ })).toBeDefined();
+});
+
+// jsdom has no layout: give every row a fixed 50px height stacked by its
+// index, the scroller a 400px viewport, and a scrollTop that sticks.
+function stubLayout() {
+  const proto = HTMLElement.prototype;
+  const scrollTops = new WeakMap<Element, number>();
+  vi.spyOn(proto, "offsetTop", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const siblings = this.parentElement?.children;
+    return siblings ? Array.from(siblings).indexOf(this) * 50 : 0;
+  });
+  vi.spyOn(proto, "clientHeight", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.classList.contains("overflow-y-auto") ? 400 : 50;
+  });
+  vi.spyOn(proto, "scrollTop", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return scrollTops.get(this) ?? 0;
+  });
+  vi.spyOn(proto, "scrollTop", "set").mockImplementation(function (
+    this: HTMLElement,
+    v: number,
+  ) {
+    scrollTops.set(this, v);
+  });
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+const LEVELS_1_TO_20 = Array.from({ length: 20 }, (_, i) => i + 1);
+const FIRST_NINE_DONE = Object.fromEntries(
+  Array.from({ length: 9 }, (_, i) => [String(i + 1), SEED_3STAR]),
+);
+
+test("a long record opens with the next-to-play row centered in the scroller", async () => {
+  stubLayout();
+  render(<LevelsList levelKeys={LEVELS_1_TO_20} stats={FIRST_NINE_DONE} />);
+
+  const play = await screen.findByRole("link", { name: /Level 10/ });
+  // row 10 sits at 9 * 50 = 450; centered in a 400px viewport: 450 - 200 + 25
+  expect(play.parentElement?.scrollTop).toBe(275);
+});
+
+test("a later unlock doesn't yank the list away from where the player scrolled", async () => {
+  stubLayout();
+  render(<LevelsList levelKeys={LEVELS_1_TO_20} stats={FIRST_NINE_DONE} />);
+  const scroller = (await screen.findByRole("link", { name: /Level 10/ }))
+    .parentElement!;
+  scroller.scrollTop = 0; // the player scrolls back up to level 1
+
+  act(() => seedLevelRun(10)); // e.g. a background pull lands a level-10 run
+
+  await screen.findByRole("link", { name: /Level 11/ });
+  expect(scroller.scrollTop).toBe(0);
 });
