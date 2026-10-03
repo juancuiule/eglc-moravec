@@ -235,7 +235,7 @@ export function AnsweringPanel({
       {beforeOperation}
 
       {/* Operation */}
-      <div className="text-5xl font-mono font-bold text-center tracking-tight py-1">
+      <div className="text-5xl font-gotham font-bold text-center tracking-tight py-1">
         {operation.humanReadable()}
       </div>
 
