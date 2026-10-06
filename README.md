@@ -1,4 +1,7 @@
+<img width="1200" height="630" alt="opengraph-image" src="https://github.com/user-attachments/assets/631348a2-9bec-4a8f-920b-6533d766e481" />
+
 # Moravec
+
 
 A mental-math training game, rebuilt as a full-stack web app. The player solves timed arithmetic Trials, progresses through Levels, can drill freely in Practice mode, and gets progress synced across devices, logged in or not.
 
