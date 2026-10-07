@@ -14,7 +14,7 @@ import {
   pendingInputs,
 } from "../local/trials";
 import { localStore, TRIALS_TABLE } from "../local/store";
-import { Addition, type TrialResult } from "engine";
+import { Addition, type RecordedTrialResult } from "engine";
 import type { Level } from "../level";
 import type { Finished } from "./index";
 import type { LevelStats } from "../api/Api";
@@ -23,7 +23,7 @@ import type { LevelStats } from "../api/Api";
 // on production Level content (which now lives in the backend).
 const LEVEL_FIXTURE: Level = { "1d+1d": 50, "1dx1d": 50 };
 
-function makeResult(timeTaken: number): TrialResult {
+function makeResult(timeTaken: number): RecordedTrialResult {
   const op = Addition.create({
     type: "addition",
     codename: "1d+1d",
@@ -31,6 +31,8 @@ function makeResult(timeTaken: number): TrialResult {
     rDigits: 1,
   });
   return {
+    id: crypto.randomUUID(),
+    playedAt: 1_700_000_000_000,
     operation: op,
     answer: op.result(),
     correct: true,
@@ -69,27 +71,27 @@ describe("persistFinishedLevel", () => {
     );
   });
 
-  it("enqueues fully-formed trial inputs into the outbox — ids and playedAt frozen at finish time", () => {
-    const before = Date.now();
+  it("enqueues fully-formed trial inputs into the outbox — ids and playedAt as minted at scoring", () => {
     const state = makeFinished();
     persistFinishedLevel(state, undefined);
-    const after = Date.now();
 
     const pending = pendingInputs();
     expect(pending).toHaveLength(state.results.length);
-    pending.forEach((input, i) => {
-      expect(input.id).toBeTruthy();
-      expect(input.runId).toBe(state.runId);
-      expect(input.runType).toBe("level");
-      expect(input.levelNumber).toBe(4);
-      expect(input.categoryCodename).toBe(
-        state.results[i].operation.categoryCodename(),
-      );
-      // playedAt is back-computed per-trial from the finish instant minus
-      // cumulative timeTaken — earlier trials legitimately predate `before`.
-      expect(input.playedAt).toBeLessThanOrEqual(after);
-      expect(input.playedAt).toBeGreaterThan(before - 60_000);
+    state.results.forEach((result) => {
+      const input = pending.find((i) => i.id === result.id);
+      expect(input?.playedAt).toBe(result.playedAt);
+      expect(input?.runId).toBe(state.runId);
+      expect(input?.runType).toBe("level");
+      expect(input?.levelNumber).toBe(4);
+      expect(input?.categoryCodename).toBe(result.operation.categoryCodename());
     });
+  });
+
+  it("re-enqueueing a run whose Trials were already saved as scored adds no rows", () => {
+    const state = makeFinished();
+    persistFinishedLevel(state, undefined);
+    persistFinishedLevel(state, undefined);
+    expect(pendingInputs()).toHaveLength(state.results.length);
   });
 
   it("enqueues even with no session — the engine owns session establishment", () => {

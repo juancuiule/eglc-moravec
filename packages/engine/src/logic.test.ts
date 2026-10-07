@@ -1,11 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   MAX_KEYSTROKES_PER_TRIAL,
   TrialResultSchema,
   TrialResultsSchema,
   evaluateTrialResult,
   deriveLevelRuns,
-  toTrialResultInputs,
+  toTrialResultInput,
+  type RecordedTrialResult,
 } from "./logic.js";
 import { TRIALS_PER_LEVEL } from "./levelScoring.js";
 import { Addition } from "./operations/operation.js";
@@ -420,10 +421,13 @@ describe("deriveLevelRuns", () => {
   });
 });
 
-describe("toTrialResultInputs", () => {
+describe("toTrialResultInput", () => {
   const NOW = new Date("2026-01-01T00:00:00.000Z").getTime();
+  const ID = "11111111-1111-4111-8111-111111111111";
 
-  function makeResult(overrides: Partial<TrialResult> = {}): TrialResult {
+  function makeResult(
+    overrides: Partial<RecordedTrialResult> = {},
+  ): RecordedTrialResult {
     const op = Addition.create({
       type: "addition",
       codename: "1d+1d",
@@ -431,6 +435,8 @@ describe("toTrialResultInputs", () => {
       rDigits: 1,
     });
     return {
+      id: ID,
+      playedAt: NOW,
       operation: op,
       answer: op.result(),
       correct: true,
@@ -441,17 +447,16 @@ describe("toTrialResultInputs", () => {
     };
   }
 
-  it("flattens a Level result into a wire-shaped input", () => {
+  it("flattens a Level result into a wire-shaped input, keeping its own id and playedAt", () => {
     const result = makeResult();
-    const [input] = toTrialResultInputs(
-      [result],
-      { runType: "level", levelNumber: 3, runId: "run-abc" },
-      NOW,
-      () => "11111111-1111-4111-8111-111111111111",
-    );
+    const input = toTrialResultInput(result, {
+      runType: "level",
+      levelNumber: 3,
+      runId: "run-abc",
+    });
 
     expect(input).toEqual({
-      id: "11111111-1111-4111-8111-111111111111",
+      id: ID,
       runType: "level",
       levelNumber: 3,
       categoryCodename: "1d+1d",
@@ -465,13 +470,11 @@ describe("toTrialResultInputs", () => {
   });
 
   it("flattens a Practice result with a null levelNumber", () => {
-    const result = makeResult({ timeTaken: 800 });
-    const [input] = toTrialResultInputs(
-      [result],
-      { runType: "practice", levelNumber: null, runId: "practice-run-abc" },
-      NOW,
-      () => "11111111-1111-4111-8111-111111111111",
-    );
+    const input = toTrialResultInput(makeResult({ timeTaken: 800 }), {
+      runType: "practice",
+      levelNumber: null,
+      runId: "practice-run-abc",
+    });
 
     expect(input.runType).toBe("practice");
     expect(input.levelNumber).toBeNull();
@@ -479,65 +482,32 @@ describe("toTrialResultInputs", () => {
   });
 
   it("flattens a Focus result as practice_focus with a null levelNumber", () => {
-    const result = makeResult({ timeTaken: 800 });
-    const [input] = toTrialResultInputs(
-      [result],
-      {
-        runType: "practice_focus",
-        levelNumber: null,
-        runId: "focus-run-abc",
-      },
-      NOW,
-      () => "11111111-1111-4111-8111-111111111111",
-    );
+    const input = toTrialResultInput(makeResult({ timeTaken: 800 }), {
+      runType: "practice_focus",
+      levelNumber: null,
+      runId: "focus-run-abc",
+    });
 
     expect(input.runType).toBe("practice_focus");
     expect(input.levelNumber).toBeNull();
     expect(input.runId).toBe("focus-run-abc");
   });
 
-  it("reconstructs playedAt by working backward from `now` across the batch", () => {
-    const results = [
-      makeResult({ timeTaken: 1000 }),
-      makeResult({ timeTaken: 2000 }),
-    ];
-    const inputs = toTrialResultInputs(
-      results,
-      { runType: "level", levelNumber: 1, runId: "run-abc" },
-      10_000,
-      () => crypto.randomUUID(),
+  it("serializes keystrokes only when the Trial recorded any", () => {
+    const policy = {
+      runType: "level" as const,
+      levelNumber: 1,
+      runId: "run-abc",
+    };
+    expect(toTrialResultInput(makeResult(), policy)).not.toHaveProperty(
+      "keystrokes",
     );
-
-    expect(inputs.map((i) => i.playedAt)).toEqual([8000, 10_000]);
-  });
-
-  it("generates a fresh id per result via the provided generator", () => {
-    const results = [makeResult(), makeResult()];
-    const ids = ["id-1", "id-2"];
-    let call = 0;
-    const inputs = toTrialResultInputs(
-      results,
-      { runType: "level", levelNumber: 1, runId: "run-abc" },
-      NOW,
-      () => ids[call++],
-    );
-
-    expect(inputs.map((i) => i.id)).toEqual(["id-1", "id-2"]);
-  });
-
-  it("defaults the id generator to crypto.randomUUID", () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "22222222-2222-4222-8222-222222222222",
-    );
-
-    const [input] = toTrialResultInputs(
-      [makeResult()],
-      { runType: "level", levelNumber: 1, runId: "run-abc" },
-      NOW,
-    );
-
-    expect(input.id).toBe("22222222-2222-4222-8222-222222222222");
-    vi.restoreAllMocks();
+    expect(
+      toTrialResultInput(
+        makeResult({ keystrokes: [{ key: "7", t: 300 }] }),
+        policy,
+      ).keystrokes,
+    ).toEqual([{ key: "7", t: 300 }]);
   });
 });
 

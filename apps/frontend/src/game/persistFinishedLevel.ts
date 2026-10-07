@@ -1,8 +1,8 @@
-import { isBetterLevelRecord, toTrialResultInputs } from "engine";
+import { isBetterLevelRecord, toTrialResultInput } from "engine";
 import type { LevelStats } from "../api/Api";
 import { flushSettled } from "../local/syncEngine";
 import { enqueueRun, localLevelStats } from "../local/trials";
-import type { Finished } from "./index";
+import { policy, type Finished } from "./index";
 
 export type PersistFinishedLevelResult = {
   isNewRecord: boolean;
@@ -12,11 +12,12 @@ export type PersistFinishedLevelResult = {
 
 /**
  * Persists a finished Level into the local-first outbox — unconditionally,
- * for any session state and any network state. Trial inputs (ids + playedAt)
- * are minted here at the finish edge, where Date.now() is still the true
- * completion instant, then written to the durable store. The sync engine is
- * kicked to flush in the background; it owns session establishment and
- * retries. Nothing about rendering waits on the network.
+ * for any session state and any network state. Every Trial was already
+ * enqueued the moment it was scored (see persistScoredTrials), with the id
+ * and playedAt minted then; re-enqueueing here lands on the same rows, so
+ * it's only a safety net. The sync engine is kicked to flush in the
+ * background; it owns session establishment and retries. Nothing about
+ * rendering waits on the network.
  *
  * Returns two things:
  * - `isNewRecord`/`record`: an immediate, local comparison against
@@ -44,16 +45,11 @@ export function persistFinishedLevel(
   };
   const record = isNewRecord ? thisRun : (previousRecord ?? thisRun);
 
-  const inputs = toTrialResultInputs(
+  const recordPolicy = policy.recordPolicy(config, state.runId);
+  enqueueRun(
+    results.map((r) => toTrialResultInput(r, recordPolicy)),
     results,
-    {
-      runType: "level",
-      levelNumber: config.levelNumber,
-      runId: state.runId,
-    },
-    Date.now(),
   );
-  enqueueRun(inputs, results);
 
   const refreshed = flushSettled().then(
     () => localLevelStats()[String(config.levelNumber)] ?? record,

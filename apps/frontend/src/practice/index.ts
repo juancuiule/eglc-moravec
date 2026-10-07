@@ -1,4 +1,8 @@
-import { createOperation, type TrialResult } from "engine";
+import {
+  createOperation,
+  type RecordedTrialResult,
+  type TrialResultPolicy,
+} from "engine";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import {
   trialSessionActions,
@@ -23,7 +27,7 @@ export type PracticeStopped = {
   type: "stopped";
   config: PracticeConfig;
   runId: string;
-  results: TrialResult[];
+  results: RecordedTrialResult[];
 };
 
 // hintsRemaining stays number | undefined — genuinely undefined always,
@@ -45,6 +49,19 @@ export type PracticeStore = Omit<
  */
 export function practiceConfigKey(config: PracticeConfig): string {
   return config.mode === "focus" ? "focus" : config.categoryCodename;
+}
+
+// Focus trials stay in the practice family (levelNumber null) but carry
+// their own runType: the adaptively skewed category mix would bias the
+// operation distribution the research pipeline analyzes, so it's marked
+// for filtering rather than folded into uniform "practice" rows (#66).
+export function practiceRecordPolicy(
+  config: PracticeConfig,
+  runId: string,
+): TrialResultPolicy {
+  return config.mode === "focus"
+    ? { runType: "practice_focus", levelNumber: null, runId }
+    : { runType: "practice", levelNumber: null, runId };
 }
 
 export const policy: TrialSessionPolicy<
@@ -69,6 +86,7 @@ export const policy: TrialSessionPolicy<
     runId,
     results,
   }),
+  recordPolicy: practiceRecordPolicy,
 };
 
 export function createPracticeStore(): StoreApi<PracticeStore> {

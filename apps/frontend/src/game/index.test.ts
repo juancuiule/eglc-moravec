@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Addition, TRIALS_PER_LEVEL, type TrialResult } from "engine";
+import { Addition, TRIALS_PER_LEVEL, type RecordedTrialResult } from "engine";
 
 // ─── Level's own policy: pickNext (dedup), isComplete (cutoff),
 // buildTerminalState (scoring), initialHintsRemaining ──────────────────
@@ -44,8 +44,12 @@ function op(left: number, right: number) {
   return new Addition(left, right, additionCategory);
 }
 
-function evaluatedResult(overrides: Partial<TrialResult> = {}): TrialResult {
+function evaluatedResult(
+  overrides: Partial<RecordedTrialResult> = {},
+): RecordedTrialResult {
   return {
+    id: crypto.randomUUID(),
+    playedAt: 0,
     operation: op(1, 1),
     answer: 2,
     correct: true,

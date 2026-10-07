@@ -51,7 +51,7 @@ The best-ever **Level run** summary for a Level: stars, total time, and when it 
 _Avoid_: High score, record, best run.
 
 **Level run**:
-One playthrough of a Level from start to Finished, identified by a client-generated id threaded through every Trial in it. The backend keeps every run's Trial rows, not a separate Level-run row; it derives LevelStats from those rows when requested.
+One playthrough of a Level, identified by a client-generated id threaded through every Trial in it. Each Trial is written to the local outbox the moment it's scored, not when the run finishes — so a run abandoned mid-Level (a refresh to retry after a wrong answer, a closed tab) still leaves its Trials in history as an _abandoned_ run: fewer than 20 rows under its id. Only a _finished_ run (exactly 20) derives stars or LevelStats. The backend keeps every run's Trial rows, not a separate Level-run row; it derives LevelStats from those rows when requested.
 _Avoid_: Attempt, playthrough — as standalone terms; say "Level run".
 
 **PersistedTrial**:
@@ -77,7 +77,7 @@ The authentication flow: the player enters their email, receives a one-time nume
 _Avoid_: Magic link, passwordless login, sign-in.
 
 **Sync**:
-Reconciling a User's progress with the backend — active for any session, anonymous or logged in. A Level finish or Practice stop pushes the final answer, total timing, and a per-trial keystroke trace (`{key, t}` pairs recorded in `AnsweringPanel`, stored verbatim in `trial_results.keystrokes`) — research evidence only: the server never re-derives anything from it and pull responses never return it. LevelStats pulls read the User's remote best runs for the Levels page, Level access, and the post-finish record refresh. Level and Practice trials share one backend table (`trial_results`, discriminated by a `run_type` column) but stay isolated everywhere it matters: only Level Trial rows feed LevelStats or the Levels unlock view — a Practice Trial is only a raw synced Trial row.
+Reconciling a User's progress with the backend — active for any session, anonymous or logged in. Every scored Trial lands in the local outbox immediately (with its id and `playedAt` minted at scoring); the rows are pushed on the next flush — a Level finish or Practice stop, boot, or reconnect — not one request per Trial. Each row carries the final answer, total timing, and a per-trial keystroke trace (`{key, t}` pairs recorded in `AnsweringPanel`, stored verbatim in `trial_results.keystrokes`) — research evidence only: the server never re-derives anything from it and pull responses never return it. LevelStats pulls read the User's remote best runs for the Levels page, Level access, and the post-finish record refresh. Level and Practice trials share one backend table (`trial_results`, discriminated by a `run_type` column) but stay isolated everywhere it matters: only Level Trial rows feed LevelStats or the Levels unlock view — a Practice Trial is only a raw synced Trial row.
 _Avoid_: Backup, save, upload.
 
 **Share link**:

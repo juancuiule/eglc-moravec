@@ -2,7 +2,7 @@ import {
   LEVEL_COMPLETE_THRESHOLD,
   starsForScore,
   type Operation,
-  type TrialResult,
+  type RecordedTrialResult,
 } from "engine";
 import type { StoreApi } from "zustand/vanilla";
 import { createRandomOperation, type Level } from "../level";
@@ -25,7 +25,7 @@ export type Finished = {
   type: "finished";
   config: GameConfig;
   runId: string;
-  results: TrialResult[];
+  results: RecordedTrialResult[];
   correctCount: number;
   levelCompleted: boolean; // correctCount >= LEVEL_COMPLETE_THRESHOLD
   stars: 0 | 1 | 2 | 3;
@@ -83,6 +83,11 @@ export const policy: TrialSessionPolicy<GameConfig, Finished, SeenOperations> =
         stars: starsForScore(correctCount),
       };
     },
+    recordPolicy: (config, runId) => ({
+      runType: "level",
+      levelNumber: config.levelNumber,
+      runId,
+    }),
   };
 
 export function createGameStore(): StoreApi<GameStore> {
