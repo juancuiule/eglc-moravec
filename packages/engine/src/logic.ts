@@ -222,6 +222,10 @@ export type TrialForLevelRun = {
   runType: string;
 };
 
+// Only finished runs — exactly TRIALS_PER_LEVEL Trials — summarize. Each
+// Trial is persisted the moment it's scored, so an abandoned run (a refresh
+// or navigation mid-Level) leaves a partial group behind: it stays stored
+// as evidence, but must never earn stars or undercut a finished run's time.
 export function deriveLevelRuns(
   trials: readonly TrialForLevelRun[],
 ): LevelRunSummary[] {
@@ -230,7 +234,7 @@ export function deriveLevelRuns(
   return Array.from(byRun.entries()).flatMap(([levelRunId, runTrials]) => {
     const levelNumber = runTrials[0].levelNumber;
     if (
-      runTrials.length > TRIALS_PER_LEVEL ||
+      runTrials.length !== TRIALS_PER_LEVEL ||
       levelNumber === null ||
       !Number.isSafeInteger(levelNumber) ||
       levelNumber < 1 ||

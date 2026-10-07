@@ -47,7 +47,7 @@ A step-by-step decomposition an Operation can offer for its current Trial, stopp
 _Avoid_: Answer key, solution, walkthrough.
 
 **LevelStats**:
-The best-ever **Level run** summary for a Level: stars, total time, and when it was achieved. It is derived from Level Trial rows grouped by run id, then selected by more stars or, when stars tie, less time. Every run's Trial rows remain stored even when that run is not the best one (see Level run).
+The best-ever **Level run** summary for a Level: stars, total time, and when it was achieved. It is derived from Level Trial rows grouped by run id — only finished runs (exactly 20 Trials) count; an abandoned run's rows stay stored but never derive a summary — then selected by more stars or, when stars tie, less time. Every run's Trial rows remain stored even when that run is not the best one (see Level run).
 _Avoid_: High score, record, best run.
 
 **Level run**:

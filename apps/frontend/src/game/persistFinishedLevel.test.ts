@@ -45,8 +45,11 @@ function makeFinished(): Finished {
     type: "finished",
     config: { levelNumber: 4, level: LEVEL_FIXTURE, totalTrials: 20 },
     runId: crypto.randomUUID(),
-    results: [makeResult(1000), makeResult(1500)],
-    correctCount: 2,
+    // A full Level's worth — partial runs never derive a record.
+    results: Array.from({ length: 20 }, (_, i) =>
+      makeResult(i % 2 === 0 ? 1000 : 1500),
+    ),
+    correctCount: 20,
     levelCompleted: true,
     stars: 2,
   };
@@ -98,10 +101,10 @@ describe("persistFinishedLevel", () => {
     persistFinishedLevel(makeFinished(), undefined);
     const stats = localLevelStats();
     expect(stats["4"]).toBeDefined();
-    // stars derive from the trials themselves (2 correct → 0 stars), not the
-    // session's declared value — same rule the backend applies.
-    expect(stats["4"].stars).toBe(0);
-    expect(stats["4"].totalTime).toBe(2500);
+    // stars derive from the trials themselves (20 correct → 3 stars), not
+    // the session's declared value (2) — same rule the backend applies.
+    expect(stats["4"].stars).toBe(3);
+    expect(stats["4"].totalTime).toBe(25000);
     expect(allLocalTrials().every((t) => t.runType === "level")).toBe(true);
   });
 
@@ -109,8 +112,8 @@ describe("persistFinishedLevel", () => {
     const { refreshed } = persistFinishedLevel(makeFinished(), undefined);
     const fresh = await refreshed;
     expect(flushSettled).toHaveBeenCalled();
-    expect(fresh.stars).toBe(0);
-    expect(fresh.totalTime).toBe(2500);
+    expect(fresh.stars).toBe(3);
+    expect(fresh.totalTime).toBe(25000);
   });
 
   it("refreshed resolves to the record when the flush rejects", async () => {

@@ -7,6 +7,7 @@ import {
   deriveLevelRuns,
   toTrialResultInputs,
 } from "./logic.js";
+import { TRIALS_PER_LEVEL } from "./levelScoring.js";
 import { Addition } from "./operations/operation.js";
 import type { TrialResult } from "./trial/engine.js";
 
@@ -289,20 +290,37 @@ function evaluatedTrial(
   };
 }
 
+// A finished run: TRIALS_PER_LEVEL trials sharing the overrides.
+function fullRun(
+  overrides: Partial<ReturnType<typeof evaluateTrialResult>> = {},
+) {
+  return Array.from({ length: TRIALS_PER_LEVEL }, () =>
+    evaluatedTrial(overrides),
+  );
+}
+
 describe("deriveLevelRuns", () => {
   it("derives stars/totalTime/levelCompleted for a single run from its trial batch", () => {
     const trials = [
-      evaluatedTrial({ timeTaken: 1000 }),
-      evaluatedTrial({ timeTaken: 2000 }),
-      evaluatedTrial({ correct: false, timeTaken: 3000 }),
+      ...Array.from({ length: 14 }, () => evaluatedTrial({ timeTaken: 1000 })),
+      ...Array.from({ length: 6 }, () =>
+        evaluatedTrial({ correct: false, timeTaken: 2000 }),
+      ),
     ];
 
     const [summary] = deriveLevelRuns(trials);
     expect(summary.levelRunId).toBe("run-1");
     expect(summary.levelNumber).toBe(4);
-    expect(summary.totalTime).toBe(6000); // sums every trial, not just correct ones
-    expect(summary.stars).toBe(0); // 2 correct < LEVEL_COMPLETE_THRESHOLD (15)
+    expect(summary.totalTime).toBe(26000); // sums every trial, not just correct ones
+    expect(summary.stars).toBe(0); // 14 correct < LEVEL_COMPLETE_THRESHOLD (15)
     expect(summary.levelCompleted).toBe(false);
+  });
+
+  it("ignores an abandoned (partial) run, even one already past the star threshold", () => {
+    const trials = Array.from({ length: TRIALS_PER_LEVEL - 1 }, () =>
+      evaluatedTrial(),
+    );
+    expect(deriveLevelRuns(trials)).toEqual([]);
   });
 
   it("marks a run completed once correct trials reach the threshold", () => {
@@ -326,7 +344,7 @@ describe("deriveLevelRuns", () => {
       ...Array.from({ length: 20 }, () =>
         evaluatedTrial({ runId: "run-1", levelNumber: 1 }),
       ), // 20 correct → 3 stars
-      evaluatedTrial({ runId: "run-2", levelNumber: 2, correct: false }), // 0 correct → 0 stars
+      ...fullRun({ runId: "run-2", levelNumber: 2, correct: false }), // 0 correct → 0 stars
     ];
 
     const summaries = deriveLevelRuns(trials);
@@ -342,7 +360,7 @@ describe("deriveLevelRuns", () => {
 
   it("takes the latest trial's playedAt within a run", () => {
     const trials = [
-      evaluatedTrial({ playedAt: 1000 }),
+      ...fullRun({ playedAt: 1000 }).slice(2),
       evaluatedTrial({ playedAt: 3000 }),
       evaluatedTrial({ playedAt: 2000 }),
     ];
@@ -356,12 +374,12 @@ describe("deriveLevelRuns", () => {
   });
 
   it("ignores a run containing inconsistent level numbers", () => {
-    const trials = [evaluatedTrial(), evaluatedTrial({ levelNumber: 5 })];
+    const trials = [...fullRun().slice(1), evaluatedTrial({ levelNumber: 5 })];
     expect(deriveLevelRuns(trials)).toEqual([]);
   });
 
   it("derives a run for a level number above the seed catalog size — removed Levels stay analyzable", () => {
-    const trials = [evaluatedTrial({ levelNumber: 200 })];
+    const trials = fullRun({ levelNumber: 200 });
     expect(deriveLevelRuns(trials)).toEqual([
       expect.objectContaining({ levelNumber: 200 }),
     ]);
@@ -369,7 +387,7 @@ describe("deriveLevelRuns", () => {
 
   it("ignores a run containing inconsistent run types", () => {
     const trials = [
-      evaluatedTrial(),
+      ...fullRun().slice(1),
       evaluatedTrial({ runType: "practice", levelNumber: null }),
     ];
     expect(deriveLevelRuns(trials)).toEqual([]);
@@ -383,13 +401,14 @@ describe("deriveLevelRuns", () => {
     { playedAt: 1.5 },
     { playedAt: 8.64e15 + 1 },
   ])("ignores a run containing invalid persisted timing: %o", (overrides) => {
-    expect(deriveLevelRuns([evaluatedTrial(overrides)])).toEqual([]);
+    const trials = [...fullRun().slice(1), evaluatedTrial(overrides)];
+    expect(deriveLevelRuns(trials)).toEqual([]);
   });
 
   it("keeps valid runs when another grouped run is malformed", () => {
     const trials = [
       ...Array.from({ length: 21 }, () => evaluatedTrial()),
-      evaluatedTrial({ runId: "run-2", levelNumber: 5 }),
+      ...fullRun({ runId: "run-2", levelNumber: 5 }),
     ];
     expect(deriveLevelRuns(trials)).toEqual([
       expect.objectContaining({ levelRunId: "run-2", levelNumber: 5 }),
