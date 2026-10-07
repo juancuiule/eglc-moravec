@@ -31,6 +31,10 @@ rule and the code disagree, the code wins and this file is stale (fix it).
   padding — it sits at the screen's bottom on short pages
   and follows the panel on tall ones. Nothing in the frame is `fixed`
   except the `SyncChip` pill.
+- `html` reserves the scrollbar gutter (`scrollbar-gutter: stable`) so the
+  panel never shifts sideways between short and scrolling pages, and has
+  no rubber-band overscroll. Both live in `globals.css`'s base layer —
+  don't re-add them per page.
 - `bg-base` is the _recessed_ surface inside a panel (input wells, table
   rows, calculator keys). `bg-panel-accent` marks a panel surface asking
   for attention (unplayed level, hint card). Those are the only surfaces.
@@ -76,6 +80,10 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 - `font-sans` (Gotham) is the default interface face. `font-mono` (Overpass
   Mono) is for every number, math expression, and time.
 - Headings: `text-xl`/`text-2xl font-bold tracking-tight`.
+- Wrapping is global: headings `text-wrap: balance`, `p`/`li`
+  `text-wrap: pretty`. `font-synthesis: none` — only real Gotham/Overpass
+  faces render, so never use a weight or style that isn't loaded in
+  `layout.tsx`.
 - Buttons (`button()`, keypad, Submit) and level-row labels: `font-medium`
   (Gotham Medium, 500).
 - The only non-default size is `text-2xs` (0.625rem) for badge-sized
@@ -109,6 +117,9 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 - One entrance: `animate-fade-in` (180ms ease-out translate+scale) —
   stagger siblings via `animationDelay` ~50–100ms steps plus
   `animationFillMode: "backwards"` (FinishedScreen is the reference).
+- Continuously moving bars animate `transform`, never `width` (see the
+  timer bar in `AnsweringPanel`: a full-width fill slid with `translateX`
+  inside a clipping track).
 - Micro-interaction: `active:scale-96` + `transition duration-150` on
   buttons; `touch-manipulation` on every interactive element.
 - `prefers-reduced-motion` → opacity-only (baked into the utility).
@@ -122,6 +133,9 @@ border-*/ring-*` utilities. **No raw hex, no new tokens** without a
 - Toggles carry `aria-pressed`/`aria-expanded`; icon-only controls get
   `aria-label`; scrollable regions get a labeled `role` (e.g. `img` on the
   heatmap, `table`/`row`/`cell` on grid-laid lists).
+- Keyboard focus: one global `:focus-visible` ring (2px `accent` outline,
+  2px offset) in `globals.css`. Never `outline-none` a control and never
+  add per-component focus styles.
 - Touch targets ≥44px — use the `backLink` pseudo-element trick for
   icon-size controls.
 - Existing keyboard chords (Enter submit; N/R/M on FinishedScreen) must
