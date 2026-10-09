@@ -58,7 +58,7 @@ export function AnsweringPanel({
 
   const [answer, setAnswer] = useState("");
   const [pressedKey, setPressedKey] = useState<string | null>(null);
-  // The bar's width/color update imperatively at 10Hz — routing every tick
+  // The bar's position/color update imperatively at 10Hz — routing every tick
   // through state would re-render the whole keypad all trial long. React
   // state only carries the once-per-second digit.
   const [seconds, setSeconds] = useState(() => Math.ceil(solveTime / 1000));
@@ -103,7 +103,10 @@ export function AnsweringPanel({
         // Referencing the theme's own CSS variables (Tailwind v4 emits one
         // per @theme color) instead of repeating their hex values here.
         const ratio = left / solveTime;
-        bar.style.width = `${ratio * 100}%`;
+        // Slide the full-width fill left (clipped by the track) instead of
+        // shrinking its width: a transform skips layout on every tick, and
+        // unlike scaleX it keeps the fill's rounded end undistorted.
+        bar.style.transform = `translateX(${(ratio - 1) * 100}%)`;
         bar.style.backgroundColor =
           ratio > 0.5
             ? "var(--color-success)"
@@ -227,15 +230,15 @@ export function AnsweringPanel({
       >
         <div
           ref={barRef}
-          className="h-full rounded-full transition-[width] duration-100 ease-linear"
-          style={{ width: "100%", backgroundColor: "var(--color-success)" }}
+          className="h-full w-full rounded-full transition-transform duration-100 ease-linear"
+          style={{ backgroundColor: "var(--color-success)" }}
         />
       </div>
 
       {beforeOperation}
 
       {/* Operation */}
-      <div className="text-5xl font-gotham font-bold text-center tracking-tight py-1">
+      <div className="text-5xl font-bold text-center tracking-tight py-1">
         {operation.humanReadable()}
       </div>
 
