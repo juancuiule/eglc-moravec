@@ -13,7 +13,7 @@ import type { CategoryStats } from "../stats/computeStats";
  *
  * The skewed mix is why Focus trials sync with runType "practice_focus" —
  * the research pipeline can filter them out of distribution analyses (see
- * persistStoppedPractice).
+ * practiceRecordPolicy).
  */
 
 // Route segment for Focus — deliberately not a category codename, so

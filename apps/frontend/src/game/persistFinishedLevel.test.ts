@@ -8,15 +8,11 @@ const { flushSettled } = vi.hoisted(() => ({
 vi.mock("../local/syncEngine", () => ({ flushSettled, kickSync: vi.fn() }));
 
 import { persistFinishedLevel } from "./persistFinishedLevel";
-import {
-  allLocalTrials,
-  localLevelStats,
-  pendingInputs,
-} from "../local/trials";
+import { enqueueRun, pendingInputs } from "../local/trials";
 import { localStore, TRIALS_TABLE } from "../local/store";
-import { Addition, type RecordedTrialResult } from "engine";
+import { Addition, toTrialResultInput, type RecordedTrialResult } from "engine";
 import type { Level } from "../level";
-import type { Finished } from "./index";
+import { policy, type Finished } from "./index";
 import type { LevelStats } from "../api/Api";
 
 // A fixed fixture, not the real catalog's level 1 — tests shouldn't depend
@@ -45,7 +41,7 @@ function makeResult(timeTaken: number): RecordedTrialResult {
 function makeFinished(): Finished {
   return {
     type: "finished",
-    config: { levelNumber: 4, level: LEVEL_FIXTURE, totalTrials: 20 },
+    config: { levelNumber: 4, level: LEVEL_FIXTURE },
     runId: crypto.randomUUID(),
     // A full Level's worth — partial runs never derive a record.
     results: Array.from({ length: 20 }, (_, i) =>
@@ -55,6 +51,15 @@ function makeFinished(): Finished {
     levelCompleted: true,
     stars: 2,
   };
+}
+
+// What persistScoredTrials did as each Trial was scored.
+function enqueueScored(state: Finished): void {
+  const recordPolicy = policy.recordPolicy(state.config, state.runId);
+  enqueueRun(
+    state.results.map((r) => toTrialResultInput(r, recordPolicy)),
+    state.results,
+  );
 }
 
 describe("persistFinishedLevel", () => {
@@ -71,49 +76,21 @@ describe("persistFinishedLevel", () => {
     );
   });
 
-  it("enqueues fully-formed trial inputs into the outbox — ids and playedAt as minted at scoring", () => {
-    const state = makeFinished();
-    persistFinishedLevel(state, undefined);
-
-    const pending = pendingInputs();
-    expect(pending).toHaveLength(state.results.length);
-    state.results.forEach((result) => {
-      const input = pending.find((i) => i.id === result.id);
-      expect(input?.playedAt).toBe(result.playedAt);
-      expect(input?.runId).toBe(state.runId);
-      expect(input?.runType).toBe("level");
-      expect(input?.levelNumber).toBe(4);
-      expect(input?.categoryCodename).toBe(result.operation.categoryCodename());
-    });
-  });
-
-  it("re-enqueueing a run whose Trials were already saved as scored adds no rows", () => {
-    const state = makeFinished();
-    persistFinishedLevel(state, undefined);
-    persistFinishedLevel(state, undefined);
-    expect(pendingInputs()).toHaveLength(state.results.length);
-  });
-
-  it("enqueues even with no session — the engine owns session establishment", () => {
+  it("writes no rows — every Trial was saved as it was scored", () => {
+    // A mid-Level logout already parked these rows for the outgoing
+    // account; re-writing them here would push them under the next one.
     persistFinishedLevel(makeFinished(), undefined);
-    expect(pendingInputs().length).toBeGreaterThan(0);
-  });
-
-  it("local read model counts the just-finished run immediately, synced or not", () => {
-    persistFinishedLevel(makeFinished(), undefined);
-    const stats = localLevelStats();
-    expect(stats["4"]).toBeDefined();
-    // stars derive from the trials themselves (20 correct → 3 stars), not
-    // the session's declared value (2) — same rule the backend applies.
-    expect(stats["4"].stars).toBe(3);
-    expect(stats["4"].totalTime).toBe(25000);
-    expect(allLocalTrials().every((t) => t.runType === "level")).toBe(true);
+    expect(pendingInputs()).toEqual([]);
   });
 
   it("refreshed resolves to the locally-derived record once the flush settles", async () => {
-    const { refreshed } = persistFinishedLevel(makeFinished(), undefined);
+    const state = makeFinished();
+    enqueueScored(state);
+    const { refreshed } = persistFinishedLevel(state, undefined);
     const fresh = await refreshed;
     expect(flushSettled).toHaveBeenCalled();
+    // stars derive from the trials themselves (20 correct → 3 stars), not
+    // the session's declared value (2) — same rule the backend applies.
     expect(fresh.stars).toBe(3);
     expect(fresh.totalTime).toBe(25000);
   });

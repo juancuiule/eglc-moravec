@@ -24,7 +24,7 @@ const hintOperation = new Multiplication(20, 3, multiplicationCategory);
 function buildPlaying(overrides: Partial<Playing> = {}): Playing {
   return {
     type: "playing",
-    config: { levelNumber: 1, level: {}, totalTrials: 20 },
+    config: { levelNumber: 1, level: {} },
     runId: "run-1",
     results: [],
     currentOperation: hintOperation,

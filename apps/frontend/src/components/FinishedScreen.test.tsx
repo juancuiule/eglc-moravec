@@ -22,7 +22,7 @@ beforeEach(() => {
 
 const finishedState: Finished = {
   type: "finished",
-  config: { levelNumber: 3, level: { "1d+1d": 100 }, totalTrials: 20 },
+  config: { levelNumber: 3, level: { "1d+1d": 100 } },
   runId: "run-1",
   results: [],
   correctCount: 18,

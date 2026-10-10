@@ -1,8 +1,8 @@
-import { isBetterLevelRecord, toTrialResultInput } from "engine";
+import { isBetterLevelRecord } from "engine";
 import type { LevelStats } from "../api/Api";
 import { flushSettled } from "../local/syncEngine";
-import { enqueueRun, localLevelStats } from "../local/trials";
-import { policy, type Finished } from "./index";
+import { localLevelStats } from "../local/trials";
+import type { Finished } from "./index";
 
 export type PersistFinishedLevelResult = {
   isNewRecord: boolean;
@@ -11,13 +11,13 @@ export type PersistFinishedLevelResult = {
 };
 
 /**
- * Persists a finished Level into the local-first outbox — unconditionally,
- * for any session state and any network state. Every Trial was already
- * enqueued the moment it was scored (see persistScoredTrials), with the id
- * and playedAt minted then; re-enqueueing here lands on the same rows, so
- * it's only a safety net. The sync engine is kicked to flush in the
- * background; it owns session establishment and retries. Nothing about
- * rendering waits on the network.
+ * Settles a finished Level: judges the record and kicks the sync engine to
+ * flush the run in the background. Writes no rows — every Trial already
+ * reached the outbox the moment it was scored (see persistScoredTrials),
+ * under whichever session was live then. Re-writing them here would
+ * resurrect rows a mid-Level logout already parked or pushed for the
+ * outgoing account. The engine owns session establishment and retries;
+ * nothing about rendering waits on the network.
  *
  * Returns two things:
  * - `isNewRecord`/`record`: an immediate, local comparison against
@@ -44,12 +44,6 @@ export function persistFinishedLevel(
     completedAt: new Date().toISOString(),
   };
   const record = isNewRecord ? thisRun : (previousRecord ?? thisRun);
-
-  const recordPolicy = policy.recordPolicy(config, state.runId);
-  enqueueRun(
-    results.map((r) => toTrialResultInput(r, recordPolicy)),
-    results,
-  );
 
   const refreshed = flushSettled().then(
     () => localLevelStats()[String(config.levelNumber)] ?? record,

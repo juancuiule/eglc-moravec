@@ -11,7 +11,6 @@ function levelSetup() {
   store.getState().start({
     levelNumber: 3,
     level: { "1d+1d": 100 },
-    totalTrials: 20,
   });
   return store;
 }
@@ -79,5 +78,27 @@ describe("persistScoredTrials", () => {
     expect(pendingInputs()).toMatchObject([
       { runType: "practice_focus", levelNumber: null },
     ]);
+  });
+
+  it("tags category practice Trials as practice, with no levelNumber cell", () => {
+    const store = createPracticeStore();
+    persistScoredTrials(store, practiceRecordPolicy);
+    store.getState().start({ mode: "category", categoryCodename: "1d+1d" });
+    store.getState().timeUp(null);
+
+    const [[rowId, row]] = Object.entries(localStore.getTable(TRIALS_TABLE));
+    expect(row.levelNumber).toBeUndefined(); // absent cell
+    expect(pendingInputs()).toMatchObject([
+      { id: rowId, runType: "practice", levelNumber: null },
+    ]);
+  });
+
+  it("stopping Practice mid-review adds no second row for the reviewed Trial", () => {
+    const store = createPracticeStore();
+    persistScoredTrials(store, practiceRecordPolicy);
+    store.getState().start({ mode: "category", categoryCodename: "1d+1d" });
+    store.getState().timeUp(null);
+    store.getState().stop();
+    expect(pendingInputs()).toHaveLength(1);
   });
 });

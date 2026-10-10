@@ -1,6 +1,7 @@
 import {
   LEVEL_COMPLETE_THRESHOLD,
   starsForScore,
+  TRIALS_PER_LEVEL,
   type Operation,
   type RecordedTrialResult,
 } from "engine";
@@ -16,7 +17,6 @@ import {
 export type GameConfig = {
   levelNumber: number;
   level: Level;
-  totalTrials: number; // always TRIALS_PER_LEVEL for levelled play
 };
 
 export const HINTS_PER_LEVEL = 3;
@@ -70,7 +70,9 @@ export const policy: TrialSessionPolicy<GameConfig, Finished, SeenOperations> =
       nextSeen.add(operation.humanReadable());
       return { operation, pickState: nextSeen };
     },
-    isComplete: (results, config) => results.length >= config.totalTrials,
+    // The same count deriveLevelRuns requires — a finished Level is exactly
+    // the run that earns stars.
+    isComplete: (results) => results.length >= TRIALS_PER_LEVEL,
     buildTerminalState: (results, config, runId) => {
       const correctCount = results.filter((r) => r.correct).length;
       return {

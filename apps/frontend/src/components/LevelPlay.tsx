@@ -13,10 +13,11 @@ import {
   useSessionSeedStats,
 } from "@/local/hooks";
 import { cacheLevelMix } from "@/local/levels";
+import { kickSync } from "@/local/syncEngine";
 import { mergeLevelStats } from "@/local/trials";
 import { isLevelUnlocked } from "@/levels/isLevelUnlocked";
 import { watchStoreTransition } from "@/storeWatch";
-import { isBetterLevelRecord, TRIALS_PER_LEVEL } from "engine";
+import { isBetterLevelRecord } from "engine";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -115,12 +116,17 @@ export function LevelPlay({
       },
     );
 
-    // Leaving mid-run (even mid-review of the final Trial) strands nothing:
-    // every scored Trial is already in the outbox (persistScoredTrials), and
-    // a full set of 20 derives the run's record on its own.
     return () => {
       cancelled = true;
       unsubscribe();
+      // Leaving mid-run (even mid-review of the final Trial) strands
+      // nothing — every scored Trial is already in the outbox
+      // (persistScoredTrials), and a full set derives the run's record on
+      // its own. Only the push is missing without a finish to kick it.
+      const s = gameStore.getState().state;
+      if (s.type === "playing" && s.config.levelNumber === levelNumber) {
+        kickSync();
+      }
     };
   }, [levelNumber]);
 
@@ -137,7 +143,7 @@ export function LevelPlay({
     const state = gameStore.getState().state;
     if (state.type !== "idle") gameStore.getState().reset();
     setPreviousRecord(effectiveStats[String(levelNumber)]);
-    start({ levelNumber, level, totalTrials: TRIALS_PER_LEVEL });
+    start({ levelNumber, level });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `levelNumber`
     // changes reset the machine; `effectiveStats` is read fresh inside.
   }, [ready, levelNumber, level, start]);
@@ -157,10 +163,14 @@ export function LevelPlay({
 
   // A locally-better record ratchets the comparison baseline up (covers
   // offline-completed runs and, importantly, a pull-merge that lands
-  // mid-play from another device). Deps are the record's own fields —
-  // `localStats` is re-derived every render, so depending on it directly
+  // mid-play from another device). The run on screen is left out: its
+  // Trials reach the store as they're scored, so its own result would
+  // otherwise become the baseline before persistFinishedLevel judges it —
+  // and a tie is never a new record. Deps are the record's own fields —
+  // the stats are re-derived every render, so depending on them directly
   // would re-run the effect constantly.
-  const localRecord = localStats[String(levelNumber)];
+  const activeRunId = gameState.type === "idle" ? undefined : gameState.runId;
+  const localRecord = useLocalLevelStats(activeRunId)?.[String(levelNumber)];
   const localRecordKey = localRecord
     ? `${localRecord.stars}/${localRecord.totalTime}/${localRecord.completedAt}`
     : "";

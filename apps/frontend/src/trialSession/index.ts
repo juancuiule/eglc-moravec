@@ -87,7 +87,11 @@ export type TrialSessionStore<
   reset: () => void;
 };
 
-function isPlaying<TConfig, TTerminal extends { type: string }, TPickState>(
+export function isPlaying<
+  TConfig,
+  TTerminal extends { type: string },
+  TPickState,
+>(
   state: TrialSessionState<TConfig, TTerminal, TPickState>,
 ): state is Playing<TConfig, TPickState> {
   return state.type === "playing";

@@ -1,24 +1,17 @@
 import { toTrialResultInput, type TrialResultPolicy } from "engine";
+import type { StoreApi } from "zustand/vanilla";
 import { enqueueRun } from "../local/trials";
-import type { Playing } from "./index";
+import { isPlaying, type TrialSessionState } from "./index";
 
 // Any session store — Level's or Practice's — narrowed to what's read here.
-type SessionStore<TConfig> = {
-  subscribe: (
-    listener: (
-      store: { state: { type: string } },
-      prevStore: { state: { type: string } },
-    ) => void,
-  ) => () => void;
-};
+type SessionStore<TConfig> = Pick<
+  StoreApi<{ state: TrialSessionState<TConfig, { type: string }, unknown> }>,
+  "subscribe"
+>;
 
-function isPlaying<TConfig>(state: {
-  type: string;
-}): state is Playing<TConfig, unknown> {
-  return state.type === "playing";
-}
-
-function scoredResult(state: { type: string }) {
+function scoredResult<TConfig>(
+  state: TrialSessionState<TConfig, { type: string }, unknown>,
+) {
   return isPlaying(state) && state.playingState.type === "reviewing"
     ? state.playingState.result
     : null;
@@ -26,11 +19,11 @@ function scoredResult(state: { type: string }) {
 
 /**
  * Writes every Trial to the local-first outbox the moment it's scored —
- * not when the Level finishes or Practice stops. A player who refreshes
+ * the only place a session's Trials are written. A player who refreshes
  * after a wrong answer (to restart the Level clean) still leaves that
  * answer, and the whole abandoned run so far, in their history. Only
  * written locally: the rows ride the next flush (finish/stop, boot,
- * reconnect), so a Level doesn't cost a request per Trial.
+ * reconnect, leaving a Level), so a Level doesn't cost a request per Trial.
  *
  * Keyed on the scored result's identity, not on a "reviewing" edge alone,
  * so each Trial is enqueued exactly once.
@@ -41,8 +34,8 @@ export function persistScoredTrials<TConfig>(
 ): () => void {
   return store.subscribe(({ state }, { state: prevState }) => {
     const result = scoredResult(state);
-    if (result === null || result === scoredResult(prevState)) return;
-    if (!isPlaying<TConfig>(state)) return;
+    if (!isPlaying(state) || result === null) return;
+    if (result === scoredResult(prevState)) return;
     enqueueRun(
       [toTrialResultInput(result, recordPolicy(state.config, state.runId))],
       [result],
