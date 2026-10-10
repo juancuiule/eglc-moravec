@@ -1,8 +1,9 @@
 import {
   LEVEL_COMPLETE_THRESHOLD,
   starsForScore,
+  TRIALS_PER_LEVEL,
   type Operation,
-  type TrialResult,
+  type RecordedTrialResult,
 } from "engine";
 import type { StoreApi } from "zustand/vanilla";
 import { createRandomOperation, type Level } from "../level";
@@ -16,7 +17,6 @@ import {
 export type GameConfig = {
   levelNumber: number;
   level: Level;
-  totalTrials: number; // always TRIALS_PER_LEVEL for levelled play
 };
 
 export const HINTS_PER_LEVEL = 3;
@@ -25,7 +25,7 @@ export type Finished = {
   type: "finished";
   config: GameConfig;
   runId: string;
-  results: TrialResult[];
+  results: RecordedTrialResult[];
   correctCount: number;
   levelCompleted: boolean; // correctCount >= LEVEL_COMPLETE_THRESHOLD
   stars: 0 | 1 | 2 | 3;
@@ -70,7 +70,9 @@ export const policy: TrialSessionPolicy<GameConfig, Finished, SeenOperations> =
       nextSeen.add(operation.humanReadable());
       return { operation, pickState: nextSeen };
     },
-    isComplete: (results, config) => results.length >= config.totalTrials,
+    // The same count deriveLevelRuns requires — a finished Level is exactly
+    // the run that earns stars.
+    isComplete: (results) => results.length >= TRIALS_PER_LEVEL,
     buildTerminalState: (results, config, runId) => {
       const correctCount = results.filter((r) => r.correct).length;
       return {
@@ -83,6 +85,11 @@ export const policy: TrialSessionPolicy<GameConfig, Finished, SeenOperations> =
         stars: starsForScore(correctCount),
       };
     },
+    recordPolicy: (config, runId) => ({
+      runType: "level",
+      levelNumber: config.levelNumber,
+      runId,
+    }),
   };
 
 export function createGameStore(): StoreApi<GameStore> {

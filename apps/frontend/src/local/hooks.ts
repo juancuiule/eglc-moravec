@@ -68,13 +68,24 @@ export function useLocalTrials(): SyncedTrial[] | undefined {
 
 // The /sync/level-stats read model, derived locally. undefined until
 // hydrated — distinguishing "no records yet" from "still loading".
-export function useLocalLevelStats(): Record<string, LevelStats> | undefined {
+// `excludeRunId` leaves one run out of the derive — a run still on screen,
+// whose rows reach the store before its own record has been judged.
+export function useLocalLevelStats(
+  excludeRunId?: string,
+): Record<string, LevelStats> | undefined {
   const trials = useLocalTrials();
   // trials' identity is stable between writes now (the decoded cache), so
   // this derive only re-runs when the history actually changed.
   return useMemo(
-    () => (trials === undefined ? undefined : levelStatsFromTrials(trials)),
-    [trials],
+    () =>
+      trials === undefined
+        ? undefined
+        : levelStatsFromTrials(
+            excludeRunId === undefined
+              ? trials
+              : trials.filter((t) => t.runId !== excludeRunId),
+          ),
+    [trials, excludeRunId],
   );
 }
 

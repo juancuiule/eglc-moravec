@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Addition, TRIALS_PER_LEVEL, type TrialResult } from "engine";
+import { Addition, TRIALS_PER_LEVEL, type RecordedTrialResult } from "engine";
 
 // ─── Level's own policy: pickNext (dedup), isComplete (cutoff),
 // buildTerminalState (scoring), initialHintsRemaining ──────────────────
@@ -24,13 +24,9 @@ beforeEach(() => {
 const level1: Level = { "1d+1d": 50, "1dx1d": 50 };
 
 function makeConfig(
-  overrides: Partial<{ levelNumber: number; totalTrials: number }> = {},
+  overrides: Partial<{ levelNumber: number }> = {},
 ): GameConfig {
-  return {
-    levelNumber: overrides.levelNumber ?? 1,
-    level: level1,
-    totalTrials: overrides.totalTrials ?? TRIALS_PER_LEVEL,
-  };
+  return { levelNumber: overrides.levelNumber ?? 1, level: level1 };
 }
 
 const additionCategory = {
@@ -44,8 +40,12 @@ function op(left: number, right: number) {
   return new Addition(left, right, additionCategory);
 }
 
-function evaluatedResult(overrides: Partial<TrialResult> = {}): TrialResult {
+function evaluatedResult(
+  overrides: Partial<RecordedTrialResult> = {},
+): RecordedTrialResult {
   return {
+    id: crypto.randomUUID(),
+    playedAt: 0,
     operation: op(1, 1),
     answer: 2,
     correct: true,
@@ -63,15 +63,19 @@ describe("policy.initialHintsRemaining", () => {
 });
 
 describe("policy.isComplete", () => {
-  it("is false while results are fewer than totalTrials", () => {
-    const config = makeConfig({ totalTrials: 20 });
-    const results = Array.from({ length: 19 }, () => evaluatedResult());
+  it("is false while results are fewer than TRIALS_PER_LEVEL", () => {
+    const config = makeConfig();
+    const results = Array.from({ length: TRIALS_PER_LEVEL - 1 }, () =>
+      evaluatedResult(),
+    );
     expect(policy.isComplete(results, config)).toBe(false);
   });
 
-  it("is true once results reach totalTrials", () => {
-    const config = makeConfig({ totalTrials: 20 });
-    const results = Array.from({ length: 20 }, () => evaluatedResult());
+  it("is true once results reach TRIALS_PER_LEVEL", () => {
+    const config = makeConfig();
+    const results = Array.from({ length: TRIALS_PER_LEVEL }, () =>
+      evaluatedResult(),
+    );
     expect(policy.isComplete(results, config)).toBe(true);
   });
 });
@@ -153,16 +157,18 @@ describe("createGameStore", () => {
 
   it("plays a Level from start to finished, then starts fresh with a new runId", () => {
     const store = createGameStore();
-    store.getState().start(makeConfig({ totalTrials: 1 }));
+    store.getState().start(makeConfig());
 
-    const playing = store.getState().state;
-    if (playing.type !== "playing") throw new Error();
-    store.getState().submitAnswer(playing.currentOperation.result());
-    store.getState().advance();
+    Array.from({ length: TRIALS_PER_LEVEL }).forEach(() => {
+      const playing = store.getState().state;
+      if (playing.type !== "playing") throw new Error();
+      store.getState().submitAnswer(playing.currentOperation.result());
+      store.getState().advance();
+    });
 
     const finished = store.getState().state;
     if (finished.type !== "finished") throw new Error();
-    expect(finished.correctCount).toBe(1);
+    expect(finished.correctCount).toBe(TRIALS_PER_LEVEL);
 
     store.getState().start(finished.config);
     const replayed = store.getState().state;

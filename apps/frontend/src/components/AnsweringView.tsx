@@ -1,6 +1,6 @@
 "use client";
 
-import { canShowHint } from "engine";
+import { canShowHint, TRIALS_PER_LEVEL } from "engine";
 import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -55,7 +55,7 @@ export function AnsweringView({ state }: Props) {
           <span>
             {t("trial", {
               current: state.results.length + 1,
-              total: state.config.totalTrials,
+              total: TRIALS_PER_LEVEL,
             })}
           </span>
         </span>

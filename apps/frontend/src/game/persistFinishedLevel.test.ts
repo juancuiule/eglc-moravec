@@ -8,22 +8,18 @@ const { flushSettled } = vi.hoisted(() => ({
 vi.mock("../local/syncEngine", () => ({ flushSettled, kickSync: vi.fn() }));
 
 import { persistFinishedLevel } from "./persistFinishedLevel";
-import {
-  allLocalTrials,
-  localLevelStats,
-  pendingInputs,
-} from "../local/trials";
+import { enqueueRun, pendingInputs } from "../local/trials";
 import { localStore, TRIALS_TABLE } from "../local/store";
-import { Addition, type TrialResult } from "engine";
+import { Addition, toTrialResultInput, type RecordedTrialResult } from "engine";
 import type { Level } from "../level";
-import type { Finished } from "./index";
+import { policy, type Finished } from "./index";
 import type { LevelStats } from "../api/Api";
 
 // A fixed fixture, not the real catalog's level 1 — tests shouldn't depend
 // on production Level content (which now lives in the backend).
 const LEVEL_FIXTURE: Level = { "1d+1d": 50, "1dx1d": 50 };
 
-function makeResult(timeTaken: number): TrialResult {
+function makeResult(timeTaken: number): RecordedTrialResult {
   const op = Addition.create({
     type: "addition",
     codename: "1d+1d",
@@ -31,6 +27,8 @@ function makeResult(timeTaken: number): TrialResult {
     rDigits: 1,
   });
   return {
+    id: crypto.randomUUID(),
+    playedAt: 1_700_000_000_000,
     operation: op,
     answer: op.result(),
     correct: true,
@@ -43,13 +41,25 @@ function makeResult(timeTaken: number): TrialResult {
 function makeFinished(): Finished {
   return {
     type: "finished",
-    config: { levelNumber: 4, level: LEVEL_FIXTURE, totalTrials: 20 },
+    config: { levelNumber: 4, level: LEVEL_FIXTURE },
     runId: crypto.randomUUID(),
-    results: [makeResult(1000), makeResult(1500)],
-    correctCount: 2,
+    // A full Level's worth — partial runs never derive a record.
+    results: Array.from({ length: 20 }, (_, i) =>
+      makeResult(i % 2 === 0 ? 1000 : 1500),
+    ),
+    correctCount: 20,
     levelCompleted: true,
     stars: 2,
   };
+}
+
+// What persistScoredTrials did as each Trial was scored.
+function enqueueScored(state: Finished): void {
+  const recordPolicy = policy.recordPolicy(state.config, state.runId);
+  enqueueRun(
+    state.results.map((r) => toTrialResultInput(r, recordPolicy)),
+    state.results,
+  );
 }
 
 describe("persistFinishedLevel", () => {
@@ -66,51 +76,23 @@ describe("persistFinishedLevel", () => {
     );
   });
 
-  it("enqueues fully-formed trial inputs into the outbox — ids and playedAt frozen at finish time", () => {
-    const before = Date.now();
-    const state = makeFinished();
-    persistFinishedLevel(state, undefined);
-    const after = Date.now();
-
-    const pending = pendingInputs();
-    expect(pending).toHaveLength(state.results.length);
-    pending.forEach((input, i) => {
-      expect(input.id).toBeTruthy();
-      expect(input.runId).toBe(state.runId);
-      expect(input.runType).toBe("level");
-      expect(input.levelNumber).toBe(4);
-      expect(input.categoryCodename).toBe(
-        state.results[i].operation.categoryCodename(),
-      );
-      // playedAt is back-computed per-trial from the finish instant minus
-      // cumulative timeTaken — earlier trials legitimately predate `before`.
-      expect(input.playedAt).toBeLessThanOrEqual(after);
-      expect(input.playedAt).toBeGreaterThan(before - 60_000);
-    });
-  });
-
-  it("enqueues even with no session — the engine owns session establishment", () => {
+  it("writes no rows — every Trial was saved as it was scored", () => {
+    // A mid-Level logout already parked these rows for the outgoing
+    // account; re-writing them here would push them under the next one.
     persistFinishedLevel(makeFinished(), undefined);
-    expect(pendingInputs().length).toBeGreaterThan(0);
-  });
-
-  it("local read model counts the just-finished run immediately, synced or not", () => {
-    persistFinishedLevel(makeFinished(), undefined);
-    const stats = localLevelStats();
-    expect(stats["4"]).toBeDefined();
-    // stars derive from the trials themselves (2 correct → 0 stars), not the
-    // session's declared value — same rule the backend applies.
-    expect(stats["4"].stars).toBe(0);
-    expect(stats["4"].totalTime).toBe(2500);
-    expect(allLocalTrials().every((t) => t.runType === "level")).toBe(true);
+    expect(pendingInputs()).toEqual([]);
   });
 
   it("refreshed resolves to the locally-derived record once the flush settles", async () => {
-    const { refreshed } = persistFinishedLevel(makeFinished(), undefined);
+    const state = makeFinished();
+    enqueueScored(state);
+    const { refreshed } = persistFinishedLevel(state, undefined);
     const fresh = await refreshed;
     expect(flushSettled).toHaveBeenCalled();
-    expect(fresh.stars).toBe(0);
-    expect(fresh.totalTime).toBe(2500);
+    // stars derive from the trials themselves (20 correct → 3 stars), not
+    // the session's declared value (2) — same rule the backend applies.
+    expect(fresh.stars).toBe(3);
+    expect(fresh.totalTime).toBe(25000);
   });
 
   it("refreshed resolves to the record when the flush rejects", async () => {

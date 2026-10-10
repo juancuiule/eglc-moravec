@@ -1,12 +1,14 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   MAX_KEYSTROKES_PER_TRIAL,
   TrialResultSchema,
   TrialResultsSchema,
   evaluateTrialResult,
   deriveLevelRuns,
-  toTrialResultInputs,
+  toTrialResultInput,
+  type RecordedTrialResult,
 } from "./logic.js";
+import { TRIALS_PER_LEVEL } from "./levelScoring.js";
 import { Addition } from "./operations/operation.js";
 import type { TrialResult } from "./trial/engine.js";
 
@@ -289,20 +291,37 @@ function evaluatedTrial(
   };
 }
 
+// A finished run: TRIALS_PER_LEVEL trials sharing the overrides.
+function fullRun(
+  overrides: Partial<ReturnType<typeof evaluateTrialResult>> = {},
+) {
+  return Array.from({ length: TRIALS_PER_LEVEL }, () =>
+    evaluatedTrial(overrides),
+  );
+}
+
 describe("deriveLevelRuns", () => {
   it("derives stars/totalTime/levelCompleted for a single run from its trial batch", () => {
     const trials = [
-      evaluatedTrial({ timeTaken: 1000 }),
-      evaluatedTrial({ timeTaken: 2000 }),
-      evaluatedTrial({ correct: false, timeTaken: 3000 }),
+      ...Array.from({ length: 14 }, () => evaluatedTrial({ timeTaken: 1000 })),
+      ...Array.from({ length: 6 }, () =>
+        evaluatedTrial({ correct: false, timeTaken: 2000 }),
+      ),
     ];
 
     const [summary] = deriveLevelRuns(trials);
     expect(summary.levelRunId).toBe("run-1");
     expect(summary.levelNumber).toBe(4);
-    expect(summary.totalTime).toBe(6000); // sums every trial, not just correct ones
-    expect(summary.stars).toBe(0); // 2 correct < LEVEL_COMPLETE_THRESHOLD (15)
+    expect(summary.totalTime).toBe(26000); // sums every trial, not just correct ones
+    expect(summary.stars).toBe(0); // 14 correct < LEVEL_COMPLETE_THRESHOLD (15)
     expect(summary.levelCompleted).toBe(false);
+  });
+
+  it("ignores an abandoned (partial) run, even one already past the star threshold", () => {
+    const trials = Array.from({ length: TRIALS_PER_LEVEL - 1 }, () =>
+      evaluatedTrial(),
+    );
+    expect(deriveLevelRuns(trials)).toEqual([]);
   });
 
   it("marks a run completed once correct trials reach the threshold", () => {
@@ -326,7 +345,7 @@ describe("deriveLevelRuns", () => {
       ...Array.from({ length: 20 }, () =>
         evaluatedTrial({ runId: "run-1", levelNumber: 1 }),
       ), // 20 correct → 3 stars
-      evaluatedTrial({ runId: "run-2", levelNumber: 2, correct: false }), // 0 correct → 0 stars
+      ...fullRun({ runId: "run-2", levelNumber: 2, correct: false }), // 0 correct → 0 stars
     ];
 
     const summaries = deriveLevelRuns(trials);
@@ -342,7 +361,7 @@ describe("deriveLevelRuns", () => {
 
   it("takes the latest trial's playedAt within a run", () => {
     const trials = [
-      evaluatedTrial({ playedAt: 1000 }),
+      ...fullRun({ playedAt: 1000 }).slice(2),
       evaluatedTrial({ playedAt: 3000 }),
       evaluatedTrial({ playedAt: 2000 }),
     ];
@@ -356,12 +375,12 @@ describe("deriveLevelRuns", () => {
   });
 
   it("ignores a run containing inconsistent level numbers", () => {
-    const trials = [evaluatedTrial(), evaluatedTrial({ levelNumber: 5 })];
+    const trials = [...fullRun().slice(1), evaluatedTrial({ levelNumber: 5 })];
     expect(deriveLevelRuns(trials)).toEqual([]);
   });
 
   it("derives a run for a level number above the seed catalog size — removed Levels stay analyzable", () => {
-    const trials = [evaluatedTrial({ levelNumber: 200 })];
+    const trials = fullRun({ levelNumber: 200 });
     expect(deriveLevelRuns(trials)).toEqual([
       expect.objectContaining({ levelNumber: 200 }),
     ]);
@@ -369,7 +388,7 @@ describe("deriveLevelRuns", () => {
 
   it("ignores a run containing inconsistent run types", () => {
     const trials = [
-      evaluatedTrial(),
+      ...fullRun().slice(1),
       evaluatedTrial({ runType: "practice", levelNumber: null }),
     ];
     expect(deriveLevelRuns(trials)).toEqual([]);
@@ -383,13 +402,14 @@ describe("deriveLevelRuns", () => {
     { playedAt: 1.5 },
     { playedAt: 8.64e15 + 1 },
   ])("ignores a run containing invalid persisted timing: %o", (overrides) => {
-    expect(deriveLevelRuns([evaluatedTrial(overrides)])).toEqual([]);
+    const trials = [...fullRun().slice(1), evaluatedTrial(overrides)];
+    expect(deriveLevelRuns(trials)).toEqual([]);
   });
 
   it("keeps valid runs when another grouped run is malformed", () => {
     const trials = [
       ...Array.from({ length: 21 }, () => evaluatedTrial()),
-      evaluatedTrial({ runId: "run-2", levelNumber: 5 }),
+      ...fullRun({ runId: "run-2", levelNumber: 5 }),
     ];
     expect(deriveLevelRuns(trials)).toEqual([
       expect.objectContaining({ levelRunId: "run-2", levelNumber: 5 }),
@@ -401,10 +421,13 @@ describe("deriveLevelRuns", () => {
   });
 });
 
-describe("toTrialResultInputs", () => {
+describe("toTrialResultInput", () => {
   const NOW = new Date("2026-01-01T00:00:00.000Z").getTime();
+  const ID = "11111111-1111-4111-8111-111111111111";
 
-  function makeResult(overrides: Partial<TrialResult> = {}): TrialResult {
+  function makeResult(
+    overrides: Partial<RecordedTrialResult> = {},
+  ): RecordedTrialResult {
     const op = Addition.create({
       type: "addition",
       codename: "1d+1d",
@@ -412,6 +435,8 @@ describe("toTrialResultInputs", () => {
       rDigits: 1,
     });
     return {
+      id: ID,
+      playedAt: NOW,
       operation: op,
       answer: op.result(),
       correct: true,
@@ -422,17 +447,16 @@ describe("toTrialResultInputs", () => {
     };
   }
 
-  it("flattens a Level result into a wire-shaped input", () => {
+  it("flattens a Level result into a wire-shaped input, keeping its own id and playedAt", () => {
     const result = makeResult();
-    const [input] = toTrialResultInputs(
-      [result],
-      { runType: "level", levelNumber: 3, runId: "run-abc" },
-      NOW,
-      () => "11111111-1111-4111-8111-111111111111",
-    );
+    const input = toTrialResultInput(result, {
+      runType: "level",
+      levelNumber: 3,
+      runId: "run-abc",
+    });
 
     expect(input).toEqual({
-      id: "11111111-1111-4111-8111-111111111111",
+      id: ID,
       runType: "level",
       levelNumber: 3,
       categoryCodename: "1d+1d",
@@ -446,13 +470,11 @@ describe("toTrialResultInputs", () => {
   });
 
   it("flattens a Practice result with a null levelNumber", () => {
-    const result = makeResult({ timeTaken: 800 });
-    const [input] = toTrialResultInputs(
-      [result],
-      { runType: "practice", levelNumber: null, runId: "practice-run-abc" },
-      NOW,
-      () => "11111111-1111-4111-8111-111111111111",
-    );
+    const input = toTrialResultInput(makeResult({ timeTaken: 800 }), {
+      runType: "practice",
+      levelNumber: null,
+      runId: "practice-run-abc",
+    });
 
     expect(input.runType).toBe("practice");
     expect(input.levelNumber).toBeNull();
@@ -460,65 +482,32 @@ describe("toTrialResultInputs", () => {
   });
 
   it("flattens a Focus result as practice_focus with a null levelNumber", () => {
-    const result = makeResult({ timeTaken: 800 });
-    const [input] = toTrialResultInputs(
-      [result],
-      {
-        runType: "practice_focus",
-        levelNumber: null,
-        runId: "focus-run-abc",
-      },
-      NOW,
-      () => "11111111-1111-4111-8111-111111111111",
-    );
+    const input = toTrialResultInput(makeResult({ timeTaken: 800 }), {
+      runType: "practice_focus",
+      levelNumber: null,
+      runId: "focus-run-abc",
+    });
 
     expect(input.runType).toBe("practice_focus");
     expect(input.levelNumber).toBeNull();
     expect(input.runId).toBe("focus-run-abc");
   });
 
-  it("reconstructs playedAt by working backward from `now` across the batch", () => {
-    const results = [
-      makeResult({ timeTaken: 1000 }),
-      makeResult({ timeTaken: 2000 }),
-    ];
-    const inputs = toTrialResultInputs(
-      results,
-      { runType: "level", levelNumber: 1, runId: "run-abc" },
-      10_000,
-      () => crypto.randomUUID(),
+  it("serializes keystrokes only when the Trial recorded any", () => {
+    const policy = {
+      runType: "level" as const,
+      levelNumber: 1,
+      runId: "run-abc",
+    };
+    expect(toTrialResultInput(makeResult(), policy)).not.toHaveProperty(
+      "keystrokes",
     );
-
-    expect(inputs.map((i) => i.playedAt)).toEqual([8000, 10_000]);
-  });
-
-  it("generates a fresh id per result via the provided generator", () => {
-    const results = [makeResult(), makeResult()];
-    const ids = ["id-1", "id-2"];
-    let call = 0;
-    const inputs = toTrialResultInputs(
-      results,
-      { runType: "level", levelNumber: 1, runId: "run-abc" },
-      NOW,
-      () => ids[call++],
-    );
-
-    expect(inputs.map((i) => i.id)).toEqual(["id-1", "id-2"]);
-  });
-
-  it("defaults the id generator to crypto.randomUUID", () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "22222222-2222-4222-8222-222222222222",
-    );
-
-    const [input] = toTrialResultInputs(
-      [makeResult()],
-      { runType: "level", levelNumber: 1, runId: "run-abc" },
-      NOW,
-    );
-
-    expect(input.id).toBe("22222222-2222-4222-8222-222222222222");
-    vi.restoreAllMocks();
+    expect(
+      toTrialResultInput(
+        makeResult({ keystrokes: [{ key: "7", t: 300 }] }),
+        policy,
+      ).keystrokes,
+    ).toEqual([{ key: "7", t: 300 }]);
   });
 });
 

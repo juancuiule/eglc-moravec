@@ -3,7 +3,12 @@ import { test, vi, expect, describe, beforeEach } from "vitest";
 import { FinishedScreen } from "./FinishedScreen";
 import type { Finished } from "../game/index";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
-import { Trial, reconstructOperation } from "engine";
+import {
+  Trial,
+  reconstructOperation,
+  type RecordedTrialResult,
+  type TrialResult,
+} from "engine";
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
@@ -17,7 +22,7 @@ beforeEach(() => {
 
 const finishedState: Finished = {
   type: "finished",
-  config: { levelNumber: 3, level: { "1d+1d": 100 }, totalTrials: 20 },
+  config: { levelNumber: 3, level: { "1d+1d": 100 } },
   runId: "run-1",
   results: [],
   correctCount: 18,
@@ -146,28 +151,39 @@ test("no celebration message on a failed run, even if isNewRecord is somehow tru
   expect(screen.queryByText("New record!")).toBeNull();
 });
 
+// A scored Trial as the session hands it over — identity minted at scoring.
+function recorded(result: TrialResult): RecordedTrialResult {
+  return { ...result, id: crypto.randomUUID(), playedAt: 0 };
+}
+
 describe("per-trial review", () => {
   const withResults: Finished = {
     ...finishedState,
     results: [
-      Trial.build({
-        operation: reconstructOperation("1dx1d", [6, 7]),
-        answer: 42,
-        timeTaken: 2100,
-        hintShown: false,
-      }),
-      Trial.build({
-        operation: reconstructOperation("1dx1d", [6, 8]),
-        answer: 47,
-        timeTaken: 4200,
-        hintShown: true,
-      }),
-      Trial.build({
-        operation: reconstructOperation("(2d)^2", [12]),
-        answer: null,
-        timeTaken: 16000,
-        hintShown: false,
-      }),
+      recorded(
+        Trial.build({
+          operation: reconstructOperation("1dx1d", [6, 7]),
+          answer: 42,
+          timeTaken: 2100,
+          hintShown: false,
+        }),
+      ),
+      recorded(
+        Trial.build({
+          operation: reconstructOperation("1dx1d", [6, 8]),
+          answer: 47,
+          timeTaken: 4200,
+          hintShown: true,
+        }),
+      ),
+      recorded(
+        Trial.build({
+          operation: reconstructOperation("(2d)^2", [12]),
+          answer: null,
+          timeTaken: 16000,
+          hintShown: false,
+        }),
+      ),
     ],
   };
 

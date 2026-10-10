@@ -1,7 +1,7 @@
 "use client";
 
 import { authStore } from "@/auth/store";
-import { persistStoppedPractice } from "@/practice/persistStoppedPractice";
+import { kickSync } from "@/local/syncEngine";
 import { practiceConfigKey, type PracticeConfig } from "@/practice";
 import { practiceStore, usePractice } from "@/practice/store";
 import { watchStoreTransition } from "@/storeWatch";
@@ -20,14 +20,13 @@ export function PracticePlay({ config }: Props) {
   // same session — a new weights object must not bounce an in-progress run.
   const configKey = practiceConfigKey(config);
 
+  // Every Trial reached the outbox the moment it was scored (see
+  // persistScoredTrials) — stopping only kicks the flush that pushes them.
   useEffect(() => {
     return watchStoreTransition(
       practiceStore,
       (s) => s.state.type === "stopped",
-      (s) => {
-        if (s.state.type !== "stopped") return;
-        persistStoppedPractice(s.state);
-      },
+      kickSync,
     );
   }, []);
 

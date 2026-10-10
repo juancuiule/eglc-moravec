@@ -4,14 +4,16 @@ import {
   type Answering,
   type Keystroke,
   type Operation,
+  type RecordedTrialResult,
   type TrialResult,
+  type TrialResultPolicy,
 } from "engine";
 import { createStore } from "zustand/vanilla";
 import { randomId } from "../randomId";
 
 export type Reviewing = {
   type: "reviewing";
-  result: TrialResult;
+  result: RecordedTrialResult;
 };
 
 export type PlayingState = Answering | Reviewing;
@@ -22,7 +24,7 @@ export type Playing<TConfig, TPickState> = {
   type: "playing";
   config: TConfig;
   runId: string;
-  results: TrialResult[];
+  results: RecordedTrialResult[];
   currentOperation: Operation;
   pickState: TPickState;
   trialId: number; // monotonically increasing, used to reset UI between trials
@@ -59,12 +61,15 @@ export type TrialSessionPolicy<
     config: TConfig,
     pickState: TPickState,
   ) => { operation: Operation; pickState: TPickState };
-  isComplete: (results: TrialResult[], config: TConfig) => boolean;
+  isComplete: (results: RecordedTrialResult[], config: TConfig) => boolean;
   buildTerminalState: (
-    results: TrialResult[],
+    results: RecordedTrialResult[],
     config: TConfig,
     runId: string,
   ) => TTerminal;
+  // How this session's Trials are tagged when persisted — each one is
+  // written the moment it's scored (see persistScoredTrials).
+  recordPolicy: (config: TConfig, runId: string) => TrialResultPolicy;
 };
 
 export type TrialSessionStore<
@@ -82,7 +87,11 @@ export type TrialSessionStore<
   reset: () => void;
 };
 
-function isPlaying<TConfig, TTerminal extends { type: string }, TPickState>(
+export function isPlaying<
+  TConfig,
+  TTerminal extends { type: string },
+  TPickState,
+>(
   state: TrialSessionState<TConfig, TTerminal, TPickState>,
 ): state is Playing<TConfig, TPickState> {
   return state.type === "playing";
@@ -110,11 +119,14 @@ function startPlaying<TConfig, TTerminal extends { type: string }, TPickState>(
   };
 }
 
+// Identity is minted at the scoring instant, so the Trial can be persisted
+// right away — a refresh mid-Level can no longer erase answers already given.
 function toReviewing<TConfig, TPickState>(
   state: Playing<TConfig, TPickState>,
   result: TrialResult,
 ): Playing<TConfig, TPickState> {
-  return { ...state, playingState: { type: "reviewing", result } };
+  const recorded = { ...result, id: randomId(), playedAt: Date.now() };
+  return { ...state, playingState: { type: "reviewing", result: recorded } };
 }
 
 type Setter<

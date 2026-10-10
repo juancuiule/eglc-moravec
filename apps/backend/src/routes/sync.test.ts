@@ -328,7 +328,7 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    const res = await postResults(app, token, batchFor(4, 17, 0)); // 17 correct → 2 stars
+    const res = await postResults(app, token, batchFor(4, 17, 3)); // 17 correct → 2 stars
     expect(res.statusCode).toBe(200);
 
     const getRes = await app.inject({
@@ -339,7 +339,7 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
     expect(getRes.statusCode).toBe(200);
     expect(getRes.json().levelStats["4"]).toMatchObject({
       stars: 2,
-      totalTime: 17000,
+      totalTime: 20000,
     });
   });
 
@@ -348,7 +348,7 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
     const token = await loginAndGetToken(db, app);
 
     await postResults(app, token, batchFor(1, 20, 0)); // 3 stars
-    await postResults(app, token, batchFor(1, 15, 0)); // worse: 1 star
+    await postResults(app, token, batchFor(1, 15, 5)); // worse: 1 star
 
     const getRes = await app.inject({
       method: "GET",
@@ -365,7 +365,7 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
     const { db, app } = setup();
     const token = await loginAndGetToken(db, app);
 
-    await postResults(app, token, batchFor(1, 15, 0)); // 1 star
+    await postResults(app, token, batchFor(1, 15, 5)); // 1 star
     await postResults(app, token, batchFor(1, 20, 0)); // better: 3 stars
 
     const getRes = await app.inject({
@@ -384,11 +384,11 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
     const token = await loginAndGetToken(db, app);
 
     await postResults(app, token, batchFor(1, 20, 0)); // run 1: 3 stars
-    await postResults(app, token, batchFor(1, 15, 0)); // run 2: 1 star — worse, but still its own run
+    await postResults(app, token, batchFor(1, 15, 5)); // run 2: 1 star — worse, but still its own run
 
-    // Both runs' trials are in trial_results (20 + 15 rows for level 1)...
+    // Both runs' trials are in trial_results (20 + 20 rows for level 1)...
     const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
-    expect(rows).toHaveLength(35);
+    expect(rows).toHaveLength(40);
 
     // ...but the derived best-ever record still only reflects the better run.
     const getRes = await app.inject({
@@ -413,6 +413,22 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(getRes.statusCode).toBe(200);
+    expect(getRes.json()).toEqual({ levelStats: {} });
+  });
+
+  it("does not award stats to an abandoned run, but keeps its trials", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    await postResults(app, token, batchFor(1, 16, 0)); // past the threshold, never finished
+
+    const rows = getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET));
+    expect(rows).toHaveLength(16);
+    const getRes = await app.inject({
+      method: "GET",
+      url: "/sync/level-stats",
+      headers: { authorization: `Bearer ${token}` },
+    });
     expect(getRes.json()).toEqual({ levelStats: {} });
   });
 
@@ -479,7 +495,7 @@ describe("GET /sync/level-stats (derived from trial_results)", () => {
     };
 
     await postResults(app, token, [
-      ...batchFor(1, 15, 0, runId),
+      ...batchFor(1, 19, 0, runId),
       practiceInLevelRun,
     ]);
 

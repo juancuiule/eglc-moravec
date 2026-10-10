@@ -54,6 +54,11 @@ function makePolicy(
       runId,
       results,
     }),
+    recordPolicy: (_config, runId) => ({
+      runType: "practice",
+      levelNumber: null,
+      runId,
+    }),
     ...overrides,
   };
 }

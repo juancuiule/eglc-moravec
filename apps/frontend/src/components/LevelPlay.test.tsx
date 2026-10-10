@@ -490,3 +490,58 @@ test("a session wipe on an open level resets the record baseline — the next pl
   }
   expect(queryByText("New record!")).not.toBeNull();
 });
+
+test("a record-breaking run still earns the badge after its final Trial sat on the review screen", () => {
+  vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+  // A worse previous best (2 stars) — this perfect run beats it.
+  const seed: Record<string, LevelStats> = {
+    "1": { stars: 2, totalTime: 0, completedAt: "2025-01-01T00:00:00Z" },
+  };
+  const { queryByText } = renderWithQueryClient(
+    <LevelPlay
+      nextLevelNumber={2}
+      stats={seed}
+      levelNumber={1}
+      level={level1}
+    />,
+  );
+
+  for (let i = 0; i < TRIALS_PER_LEVEL; i++) {
+    const state = gameStore.getState().state;
+    if (state.type !== "playing") throw new Error("not playing");
+    // Scoring and advancing in separate acts — effects flush in between,
+    // as they do while the player looks at the review screen. The final
+    // Trial's row lands in the store before the run is judged.
+    act(() => {
+      gameStore.getState().submitAnswer(state.currentOperation.result());
+    });
+    act(() => {
+      gameStore.getState().advance();
+    });
+  }
+
+  expect(gameStore.getState().state.type).toBe("finished");
+  expect(queryByText("New record!")).not.toBeNull();
+});
+
+test("leaving mid-review of the final Trial pushes the run — no finish is needed", async () => {
+  const { unmount } = renderWithQueryClient(
+    <LevelPlay nextLevelNumber={2} stats={{}} levelNumber={1} level={level1} />,
+  );
+  for (let i = 0; i < TRIALS_PER_LEVEL - 1; i++) {
+    act(() => {
+      gameStore.getState().timeUp(null);
+      gameStore.getState().advance();
+    });
+  }
+  act(() => {
+    gameStore.getState().timeUp(null);
+  });
+  expect(Api.sync).not.toHaveBeenCalled();
+
+  unmount();
+
+  await waitFor(() => expect(Api.sync).toHaveBeenCalled());
+  const pushed = vi.mocked(Api.sync).mock.calls.flatMap(([, , batch]) => batch);
+  expect(pushed).toHaveLength(TRIALS_PER_LEVEL);
+});
