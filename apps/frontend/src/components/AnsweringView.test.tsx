@@ -24,7 +24,7 @@ const hintOperation = new Multiplication(20, 3, multiplicationCategory);
 function buildPlaying(overrides: Partial<Playing> = {}): Playing {
   return {
     type: "playing",
-    config: { levelNumber: 1, level: {}, totalTrials: 20 },
+    config: { levelNumber: 1, level: {} },
     runId: "run-1",
     results: [],
     currentOperation: hintOperation,
@@ -72,6 +72,8 @@ test("hint button is disabled while reviewing", () => {
         playingState: {
           type: "reviewing",
           result: {
+            id: "11111111-1111-4111-8111-111111111111",
+            playedAt: 0,
             operation: hintOperation,
             answer: 60,
             correct: true,

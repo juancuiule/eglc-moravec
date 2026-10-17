@@ -9,7 +9,6 @@ import {
   isSupportedCategoryCodename,
   operandsMatchCategory,
 } from "./operations/category";
-import { computePlayedAtTimestamps } from "./playedAt";
 import { Trial, type TrialResult } from "./trial/engine";
 import { groupBy } from "./utils";
 import * as z from "zod";
@@ -145,36 +144,36 @@ export type TrialResultPolicy =
   | { runType: "practice"; levelNumber: null; runId: string }
   | { runType: "practice_focus"; levelNumber: null; runId: string };
 
-export function toTrialResultInputs(
-  results: TrialResult[],
-  policy: TrialResultPolicy,
-  now: number,
-  generateId: () => string = () => crypto.randomUUID(),
-): TrialResultInput[] {
-  const playedAtTimestamps = computePlayedAtTimestamps(
-    results.map((r) => r.timeTaken),
-    now,
-  );
+// A scored TrialResult plus the identity it's persisted under. Both are
+// minted the instant the Trial is scored — not at the end of the run — so
+// every Trial reaches the outbox on its own, before the Level finishes, and
+// a re-enqueue later (at finish/stop) lands on the same row.
+export type RecordedTrialResult = TrialResult & {
+  id: string;
+  playedAt: number; // epoch ms the Trial was scored
+};
 
-  return results.map((r, i) => {
-    const trial = {
-      id: generateId(),
-      categoryCodename: r.operation.categoryCodename(),
-      operands: r.operation.operands(),
-      answer: r.answer,
-      timeTaken: r.timeTaken,
-      playedAt: playedAtTimestamps[i],
-      hintShown: r.hintShown,
-      runId: policy.runId,
-      // Optional evidence — only serialized when the session recorded any.
-      ...(r.keystrokes ? { keystrokes: r.keystrokes } : {}),
-    };
-    return policy.runType === "level"
-      ? { ...trial, runType: "level", levelNumber: policy.levelNumber }
-      : policy.runType === "practice_focus"
-        ? { ...trial, runType: "practice_focus", levelNumber: null }
-        : { ...trial, runType: "practice", levelNumber: null };
-  });
+export function toTrialResultInput(
+  r: RecordedTrialResult,
+  policy: TrialResultPolicy,
+): TrialResultInput {
+  const trial = {
+    id: r.id,
+    categoryCodename: r.operation.categoryCodename(),
+    operands: r.operation.operands(),
+    answer: r.answer,
+    timeTaken: r.timeTaken,
+    playedAt: r.playedAt,
+    hintShown: r.hintShown,
+    runId: policy.runId,
+    // Optional evidence — only serialized when the session recorded any.
+    ...(r.keystrokes ? { keystrokes: r.keystrokes } : {}),
+  };
+  return policy.runType === "level"
+    ? { ...trial, runType: "level", levelNumber: policy.levelNumber }
+    : policy.runType === "practice_focus"
+      ? { ...trial, runType: "practice_focus", levelNumber: null }
+      : { ...trial, runType: "practice", levelNumber: null };
 }
 
 export type EvaluatedTrialResult = TrialResultInput & {
@@ -222,6 +221,10 @@ export type TrialForLevelRun = {
   runType: string;
 };
 
+// Only finished runs — exactly TRIALS_PER_LEVEL Trials — summarize. Each
+// Trial is persisted the moment it's scored, so an abandoned run (a refresh
+// or navigation mid-Level) leaves a partial group behind: it stays stored
+// as evidence, but must never earn stars or undercut a finished run's time.
 export function deriveLevelRuns(
   trials: readonly TrialForLevelRun[],
 ): LevelRunSummary[] {
@@ -230,7 +233,7 @@ export function deriveLevelRuns(
   return Array.from(byRun.entries()).flatMap(([levelRunId, runTrials]) => {
     const levelNumber = runTrials[0].levelNumber;
     if (
-      runTrials.length > TRIALS_PER_LEVEL ||
+      runTrials.length !== TRIALS_PER_LEVEL ||
       levelNumber === null ||
       !Number.isSafeInteger(levelNumber) ||
       levelNumber < 1 ||

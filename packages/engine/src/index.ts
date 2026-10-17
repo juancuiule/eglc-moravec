@@ -43,7 +43,7 @@ export {
   TrialResultSchema,
   TrialResultsSchema,
   evaluateTrialResult,
-  toTrialResultInputs,
+  toTrialResultInput,
   deriveLevelStats,
   levelStatsToWire,
   type LevelStats,
@@ -53,6 +53,7 @@ export {
   type SyncedTrial,
   type TrialResultInput,
   type TrialResultPolicy,
+  type RecordedTrialResult,
   type EvaluatedTrialResult,
 } from "./logic";
 

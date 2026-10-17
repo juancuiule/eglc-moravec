@@ -2,13 +2,15 @@ import { act, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { PracticePlay } from "./PracticePlay";
 import { practiceStore } from "@/practice/store";
+import { localStore, TRIALS_TABLE } from "@/local/store";
+import { pendingInputs } from "@/local/trials";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
 
-const { persistStoppedPractice } = vi.hoisted(() => ({
-  persistStoppedPractice: vi.fn(),
-}));
-vi.mock("@/practice/persistStoppedPractice", () => ({
-  persistStoppedPractice,
+// Rows are written as each Trial is scored; stopping only kicks the push.
+const { kickSync } = vi.hoisted(() => ({ kickSync: vi.fn() }));
+vi.mock("@/local/syncEngine", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/local/syncEngine")>()),
+  kickSync,
 }));
 
 const router = { replace: vi.fn(), push: vi.fn() };
@@ -33,8 +35,10 @@ const localStorageMock = {
 beforeEach(() => {
   localStorageMock.clear();
   vi.stubGlobal("localStorage", localStorageMock);
+  localStore.delTable(TRIALS_TABLE);
+  localStore.setValue("hydrated", true);
   practiceStore.getState().reset();
-  persistStoppedPractice.mockClear();
+  kickSync.mockClear();
 });
 
 afterEach(() => {
@@ -74,9 +78,8 @@ test("stopping during Reviewing includes the scored trial once in the summary an
   if (stopped.type !== "stopped") throw new Error();
   expect(stopped.results).toHaveLength(1);
   expect(screen.getByText("1 of 1 correct")).toBeDefined();
-  expect(persistStoppedPractice).toHaveBeenCalledTimes(1);
-  expect(persistStoppedPractice.mock.calls[0]?.[0]).toBe(stopped);
-  expect(persistStoppedPractice.mock.calls[0]?.[0].results).toHaveLength(1);
+  expect(pendingInputs()).toMatchObject([{ id: stopped.results[0].id }]);
+  expect(kickSync).toHaveBeenCalledTimes(1);
 });
 
 test("switching to a different category mid-play abandons the in-progress run and starts fresh for the new category", () => {

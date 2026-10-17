@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TrialResult } from "engine";
+import type { RecordedTrialResult } from "engine";
 import { Addition } from "engine";
 import { createPracticeStore, policy, practiceConfigKey } from "./index";
 
 // ─── Practice's own policy: pickNext (no dedup), isComplete (always
 // false), buildTerminalState (unscored), initialHintsRemaining ─────────
 
-function evaluatedResult(overrides: Partial<TrialResult> = {}): TrialResult {
+function evaluatedResult(
+  overrides: Partial<RecordedTrialResult> = {},
+): RecordedTrialResult {
   const op = new Addition(1, 1, {
     type: "addition",
     codename: "1d+1d",
@@ -14,6 +16,8 @@ function evaluatedResult(overrides: Partial<TrialResult> = {}): TrialResult {
     rDigits: 1,
   });
   return {
+    id: crypto.randomUUID(),
+    playedAt: 0,
     operation: op,
     answer: 2,
     correct: true,
