@@ -1,24 +1,25 @@
 import {
   AdditionCategory,
+  categoryFromCodename,
   MultiplicationCategory,
   SquaringCategory,
 } from "./category";
 import { createRandomOperand, OperandOptions } from "./operand";
 import type { Hint } from "./hints/Hint";
-import { NoHint } from "./hints/NoHint";
-import { AdditionHint } from "./hints/AdditionHint";
-import { MultiplicationHint } from "./hints/MultiplicationHint";
-import { SquaringHint } from "./hints/SquaringHint";
+import { buildHint, type HintVariantId } from "./hints/variants";
 
 export abstract class Operation {
   static readonly restrictions: OperandOptions;
+  // Null when no variant was assigned; hint() then shows the type's first.
+  constructor(readonly hintVariant: HintVariantId | null = null) {}
   abstract solveTime(): number;
   abstract result(): number;
   abstract humanReadable(): string;
   abstract categoryCodename(): string;
   abstract operands(): number[];
   hint(): Hint {
-    return new NoHint();
+    const { type } = categoryFromCodename(this.categoryCodename());
+    return buildHint(type, this.hintVariant, this.operands());
   }
 }
 
@@ -27,8 +28,9 @@ export class Addition extends Operation {
     private leftOperand: number,
     private rightOperand: number,
     private category: AdditionCategory,
+    hintVariant: HintVariantId | null = null,
   ) {
-    super();
+    super(hintVariant);
   }
 
   static restrictions = {
@@ -37,12 +39,15 @@ export class Addition extends Operation {
     allow_multiples_of_ten: true,
   };
 
-  static create(category: AdditionCategory) {
+  static create(
+    category: AdditionCategory,
+    hintVariant: HintVariantId | null = null,
+  ) {
     const { lDigits, rDigits } = category;
     const leftOperand = createRandomOperand(lDigits, Addition.restrictions);
     const rightOperand = createRandomOperand(rDigits, Addition.restrictions);
 
-    return new Addition(leftOperand, rightOperand, category);
+    return new Addition(leftOperand, rightOperand, category, hintVariant);
   }
 
   solveTime(): number {
@@ -64,10 +69,6 @@ export class Addition extends Operation {
     return [this.leftOperand, this.rightOperand];
   }
 
-  hint(): Hint {
-    return new AdditionHint(this.leftOperand, this.rightOperand);
-  }
-
   humanReadable(): string {
     return `${this.leftOperand} + ${this.rightOperand}`;
   }
@@ -78,8 +79,9 @@ export class Multiplication extends Operation {
     private leftOperand: number,
     private rightOperand: number,
     private category: MultiplicationCategory,
+    hintVariant: HintVariantId | null = null,
   ) {
-    super();
+    super(hintVariant);
   }
 
   static restrictions = {
@@ -88,7 +90,10 @@ export class Multiplication extends Operation {
     allow_multiples_of_ten: false,
   };
 
-  static create(category: MultiplicationCategory) {
+  static create(
+    category: MultiplicationCategory,
+    hintVariant: HintVariantId | null = null,
+  ) {
     const { lDigits, rDigits } = category;
     const leftOperand = createRandomOperand(
       lDigits,
@@ -98,7 +103,7 @@ export class Multiplication extends Operation {
       rDigits,
       Multiplication.restrictions,
     );
-    return new Multiplication(leftOperand, rightOperand, category);
+    return new Multiplication(leftOperand, rightOperand, category, hintVariant);
   }
 
   solveTime(): number {
@@ -124,13 +129,6 @@ export class Multiplication extends Operation {
     return [this.leftOperand, this.rightOperand];
   }
 
-  hint(): Hint {
-    if (this.leftOperand < 10 && this.rightOperand < 10) {
-      return new NoHint();
-    }
-    return new MultiplicationHint(this.leftOperand, this.rightOperand);
-  }
-
   humanReadable(): string {
     return `${this.leftOperand} × ${this.rightOperand}`;
   }
@@ -140,8 +138,9 @@ export class Squaring extends Operation {
   constructor(
     private operand: number,
     private category: SquaringCategory,
+    hintVariant: HintVariantId | null = null,
   ) {
-    super();
+    super(hintVariant);
   }
 
   static restrictions = {
@@ -150,10 +149,13 @@ export class Squaring extends Operation {
     allow_multiples_of_ten: false,
   };
 
-  static create(category: SquaringCategory) {
+  static create(
+    category: SquaringCategory,
+    hintVariant: HintVariantId | null = null,
+  ) {
     const { digits } = category;
     const operand = createRandomOperand(digits, Squaring.restrictions);
-    return new Squaring(operand, category);
+    return new Squaring(operand, category, hintVariant);
   }
 
   solveTime(): number {
@@ -174,10 +176,6 @@ export class Squaring extends Operation {
 
   operands(): number[] {
     return [this.operand];
-  }
-
-  hint(): Hint {
-    return new SquaringHint(this.operand);
   }
 
   humanReadable(): string {

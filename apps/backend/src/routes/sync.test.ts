@@ -893,3 +893,78 @@ describe("POST /sync cursor pull", () => {
     },
   );
 });
+
+describe("POST /sync with hint variants", () => {
+  const syncCall = (app: FastifyInstance, token: string, trials: unknown[]) =>
+    app.inject({
+      method: "POST",
+      url: "/sync",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { cursor: 0, trials },
+    });
+  const addition = {
+    ...trial,
+    categoryCodename: "2d+2d",
+    operands: [47, 35],
+    answer: 82,
+  };
+  const storedVariant = (db: DatabaseSync, id: string) =>
+    (
+      db
+        .prepare("SELECT hint_variant FROM trial_results WHERE id = ?")
+        .get(id) as { hint_variant: string | null }
+    ).hint_variant;
+
+  it("stores the pushed variant and returns it on pull", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const tagged = {
+      ...addition,
+      id: randomUUID(),
+      hintVariant: "add-complement",
+    };
+
+    expect((await syncCall(app, token, [tagged])).statusCode).toBe(200);
+    expect(storedVariant(db, tagged.id)).toBe("add-complement");
+
+    const tokenB = await loginAndGetToken(db, app);
+    const pull = await syncCall(app, tokenB, []);
+    expect(pull.json().trials[0].hintVariant).toBe("add-complement");
+    const all = await app.inject({
+      method: "GET",
+      url: "/sync/trials",
+      headers: { authorization: `Bearer ${tokenB}` },
+    });
+    expect(all.json().trials[0].hintVariant).toBe("add-complement");
+  });
+
+  it("stores NULL for a row without a variant and omits it on pull", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const untagged = { ...addition, id: randomUUID() };
+
+    await syncCall(app, token, [untagged]);
+    expect(storedVariant(db, untagged.id)).toBeNull();
+
+    const tokenB = await loginAndGetToken(db, app);
+    const pull = await syncCall(app, tokenB, []);
+    expect(pull.json().trials[0]).not.toHaveProperty("hintVariant");
+  });
+
+  it.each(["add-dots", "sq-diff", "x".repeat(33)])(
+    "rejects hintVariant %s on an addition row without storing the batch",
+    async (hintVariant) => {
+      const { db, app } = setup();
+      const token = await loginAndGetToken(db, app);
+
+      const res = await syncCall(app, token, [
+        { ...addition, id: randomUUID(), hintVariant },
+      ]);
+
+      expect(res.statusCode).toBe(400);
+      expect(
+        getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+      ).toHaveLength(0);
+    },
+  );
+});

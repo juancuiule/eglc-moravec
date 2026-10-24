@@ -124,10 +124,22 @@ describe("policy.pickNext", () => {
     const { operation, pickState } = policy.pickNext(
       makeConfig(),
       new Set([seen.humanReadable()]),
+      "seed",
     );
 
     expect(operation.humanReadable()).toBe(fresh.humanReadable());
     expect(pickState.has(fresh.humanReadable())).toBe(true);
+  });
+
+  it("draws with the player's hint seed", () => {
+    vi.mocked(createRandomOperation).mockReturnValue(op(1, 1));
+
+    policy.pickNext(makeConfig(), new Set(), "player@example.com");
+
+    expect(createRandomOperation).toHaveBeenCalledWith(
+      level1,
+      "player@example.com",
+    );
   });
 
   it("falls back to a repeat after 50 attempts if nothing fresh turns up", () => {
@@ -137,6 +149,7 @@ describe("policy.pickNext", () => {
     const { operation } = policy.pickNext(
       makeConfig(),
       new Set([onlyOption.humanReadable()]),
+      "seed",
     );
 
     // Doesn't hang or throw — gives up dedup and returns the only option.

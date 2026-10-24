@@ -51,21 +51,25 @@ export type GameStore = Omit<
   "state" | "forceComplete"
 > & { state: GameState };
 
-function pickFreshOperation(level: Level, seen: SeenOperations): Operation {
+function pickFreshOperation(
+  level: Level,
+  seen: SeenOperations,
+  hintSeed: string,
+): Operation {
   for (let i = 0; i < 50; i++) {
-    const op = createRandomOperation(level);
+    const op = createRandomOperation(level, hintSeed);
     if (!seen.has(op.humanReadable())) return op;
   }
 
-  return createRandomOperation(level);
+  return createRandomOperation(level, hintSeed);
 }
 
 export const policy: TrialSessionPolicy<GameConfig, Finished, SeenOperations> =
   {
     initialHintsRemaining: () => HINTS_PER_LEVEL,
     initialPickState: () => new Set(),
-    pickNext: (config, seen) => {
-      const operation = pickFreshOperation(config.level, seen);
+    pickNext: (config, seen, hintSeed) => {
+      const operation = pickFreshOperation(config.level, seen, hintSeed);
       const nextSeen = new Set(seen);
       nextSeen.add(operation.humanReadable());
       return { operation, pickState: nextSeen };

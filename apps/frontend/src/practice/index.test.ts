@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RecordedTrialResult } from "engine";
-import { Addition } from "engine";
+import { Addition, assignHintVariant } from "engine";
 import { createPracticeStore, policy, practiceConfigKey } from "./index";
 
 // ─── Practice's own policy: pickNext (no dedup), isComplete (always
@@ -70,6 +70,7 @@ describe("policy.pickNext", () => {
     const { operation, pickState } = policy.pickNext(
       { mode: "category", categoryCodename: "1d+1d" },
       undefined,
+      "seed",
     );
     expect(operation.categoryCodename()).toBe("1d+1d");
     expect(pickState).toBeUndefined();
@@ -80,8 +81,20 @@ describe("policy.pickNext", () => {
     const { operation } = policy.pickNext(
       { mode: "focus", weights: { "2dx1d": 1 } },
       undefined,
+      "seed",
     );
     expect(operation.categoryCodename()).toBe("2dx1d");
+  });
+
+  it.each([
+    { mode: "category" as const, categoryCodename: "2d+2d" },
+    { mode: "focus" as const, weights: { "2d+2d": 1 } },
+  ])("$mode mode tags the draw with the seed's hint variant", (config) => {
+    for (const seed of ["seed-1", "seed-2", "seed-3", "seed-4"]) {
+      expect(
+        policy.pickNext(config, undefined, seed).operation.hintVariant,
+      ).toBe(assignHintVariant(seed, "addition"));
+    }
   });
 });
 

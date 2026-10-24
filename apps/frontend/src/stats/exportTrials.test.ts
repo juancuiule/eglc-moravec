@@ -31,9 +31,16 @@ describe("trialsToCsv", () => {
   it("emits a stable header and one row per trial", () => {
     const lines = trialsToCsv([trial, practiceTrial]).trimEnd().split("\n");
     expect(lines[0]).toBe(
-      "id,played_at,level_number,run_type,run_id,category_codename,operands,answer,correct,time_exceeded,time_taken_ms,hint_shown",
+      "id,played_at,level_number,run_type,run_id,category_codename,operands,answer,correct,time_exceeded,time_taken_ms,hint_shown,hint_variant",
     );
     expect(lines).toHaveLength(3);
+  });
+
+  it("writes the hint variant, or an empty cell when the row has none", () => {
+    const tagged = { ...trial, hintVariant: "add-complement" };
+    const rows = trialsToCsv([tagged, trial]).trimEnd().split("\n");
+    expect(rows[1].endsWith(",true,add-complement")).toBe(true);
+    expect(rows[2].endsWith(",true,")).toBe(true);
   });
 
   it("writes ISO timestamps, JSON-quoted operands, and empty cells for nulls", () => {

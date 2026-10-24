@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createOperation, type Operation } from "engine";
+import { authStore, hintSeed } from "../auth/store";
 import { CATEGORY_LABELS } from "../categoryLabels";
 import {
   TUTORIAL_EXAMPLES,
@@ -20,6 +21,12 @@ import { panel, backLink, linkButton } from "../styles";
 
 type Props = { topic: TutorialTopic };
 
+// Seeded like a Trial session, so the tutorial shows the player's own
+// Hint variant and never the other arm of the experiment.
+function drawExample(codename: string): Operation {
+  return createOperation(codename, hintSeed(authStore.getState().state));
+}
+
 export function TutorialDetail({ topic }: Props) {
   const t = useTranslations("Tutorials");
   const categories = useMemo(() => categoriesForTopic(topic), [topic]);
@@ -33,14 +40,14 @@ export function TutorialDetail({ topic }: Props) {
   // different one (React hydration mismatch on the expression text).
   const [operation, setOperation] = useState<Operation | null>(null);
   useEffect(() => {
-    if (defaultCategory) setOperation(createOperation(defaultCategory));
+    if (defaultCategory) setOperation(drawExample(defaultCategory));
     // The mounted topic's category list never changes.
   }, [defaultCategory]);
   const [revealed, setRevealed] = useState(false);
 
   function newExample(nextCodename: string = codename!) {
     setCodename(nextCodename);
-    setOperation(createOperation(nextCodename));
+    setOperation(drawExample(nextCodename));
     setRevealed(false);
   }
 

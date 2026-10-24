@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Addition, Multiplication, type TrialResult } from "engine";
+import { authStore } from "../auth/store";
 import { createTrialSessionStore, type TrialSessionPolicy } from "./index";
 
 // ─── A minimal fake policy — exercises the shared machine without either
@@ -85,6 +86,27 @@ describe("createTrialSessionStore", () => {
     expect(s.pickState).toBe(1); // pickNext called once, from initialPickState() = 0
     expect(s.hintsRemaining).toBe(2);
     expect(s.results).toEqual([]);
+  });
+
+  it("hands pickNext the player's hint seed, fixed for the whole run", () => {
+    const pickNext = vi.fn(
+      (_config: FakeConfig, pickState: number, _hintSeed: string) => ({
+        operation: additionOperation(),
+        pickState: pickState + 1,
+      }),
+    );
+    const session = createTrialSessionStore(makePolicy({ pickNext }));
+    authStore.getState().login({ token: "t", email: "player@example.com" });
+
+    session.getState().start({ totalTrials: 3 });
+    authStore.getState().invalidateSession();
+    session.getState().submitAnswer(1);
+    session.getState().advance();
+
+    expect(pickNext.mock.calls.map((call) => call[2])).toEqual([
+      "player@example.com",
+      "player@example.com",
+    ]);
   });
 
   it("start() is guarded — ignored while already playing", () => {

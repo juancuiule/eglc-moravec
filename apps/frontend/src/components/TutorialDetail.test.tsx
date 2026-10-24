@@ -1,9 +1,32 @@
 import { screen, fireEvent, render as rtlRender } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import esMessages from "../../messages/es/index";
-import { expect, test } from "vitest";
+import { assignHintVariant, type HintVariantId } from "engine";
+import { beforeEach, expect, test, vi } from "vitest";
 import { TutorialDetail } from "./TutorialDetail";
 import { renderWithIntl as render } from "@/testUtils/renderWithIntl";
+import { getOrCreateDeviceId } from "../storage/deviceId";
+
+vi.mock("../storage/deviceId", () => ({ getOrCreateDeviceId: vi.fn() }));
+
+function deviceAssigned(variant: HintVariantId): string {
+  const ids = Array.from({ length: 100 }, (_, i) => `device-${i}`);
+  return ids.find((id) => assignHintVariant(id, "addition") === variant)!;
+}
+
+beforeEach(() => {
+  vi.mocked(getOrCreateDeviceId).mockReturnValue(
+    deviceAssigned("add-decompose"),
+  );
+});
+
+function rerollUntilHint() {
+  // Some draws legitimately have no hint (a round operand); reroll past them.
+  for (let i = 0; i < 25 && screen.queryByTestId("hint-card") === null; i++) {
+    fireEvent.click(screen.getByRole("button", { name: "New example" }));
+  }
+  return screen.getByTestId("hint-card");
+}
 
 test("multiplication has a category selector and a live hint", () => {
   render(<TutorialDetail topic="multiplication" />);
@@ -51,13 +74,20 @@ test("show answer reveals the numeric result", () => {
 
 test("addition's live hint shows the tens-then-units decomposition", () => {
   render(<TutorialDetail topic="addition" />);
-  // ~1 in 9 random 2d+2d examples has a multiple-of-ten right operand, where
-  // there's legitimately no hint — reroll until a decomposable one comes up.
-  for (let i = 0; i < 25 && screen.queryByTestId("hint-card") === null; i++) {
+  expect(rerollUntilHint().textContent).toMatch(/\+ \d+ \+ \d/);
+});
+
+test("addition's live hint is the player's assigned variant", () => {
+  vi.mocked(getOrCreateDeviceId).mockReturnValue(
+    deviceAssigned("add-complement"),
+  );
+  render(<TutorialDetail topic="addition" />);
+  for (let i = 0; i < 10; i++) {
+    expect(rerollUntilHint().textContent).toMatch(
+      /= \(\d+ \+ \d\) \+ \(\d+ − \d\)/,
+    );
     fireEvent.click(screen.getByRole("button", { name: "New example" }));
   }
-  const hintCard = screen.getByTestId("hint-card");
-  expect(hintCard.textContent).toMatch(/\+ \d+ \+ \d/);
 });
 
 test("the Practice CTA is a real link to that category's practice page", () => {
