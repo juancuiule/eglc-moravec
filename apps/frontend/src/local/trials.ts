@@ -62,6 +62,7 @@ function trialCells(
     correct: boolean;
     timeExceeded: boolean;
     keystrokes?: Keystroke[];
+    hintVariant?: string;
   },
   synced: boolean,
 ): LocalTrialCell {
@@ -79,6 +80,7 @@ function trialCells(
     ...(t.answer !== null ? { answer: t.answer } : {}),
     ...(t.levelNumber !== null ? { levelNumber: t.levelNumber } : {}),
     ...(t.keystrokes ? { keystrokes: JSON.stringify(t.keystrokes) } : {}),
+    ...(t.hintVariant ? { hintVariant: t.hintVariant } : {}),
   };
 }
 
@@ -102,6 +104,9 @@ export function rowToSyncedTrial(
     timeTaken: Number(row.timeTaken ?? 0),
     hintShown: row.hintShown === true,
     playedAt: Number(row.playedAt ?? 0),
+    ...(typeof row.hintVariant === "string"
+      ? { hintVariant: row.hintVariant }
+      : {}),
   };
   // Built per runType variant — the wire union. A level row missing
   // levelNumber decodes to the -1 sentinel (same as rowToInput's), which
@@ -136,6 +141,7 @@ function rowToInput(
     operands: t.operands,
     answer: t.answer,
     hintShown: t.hintShown,
+    ...(t.hintVariant ? { hintVariant: t.hintVariant } : {}),
     ...(parseKeystrokes(row.keystrokes)
       ? { keystrokes: parseKeystrokes(row.keystrokes) }
       : {}),

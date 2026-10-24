@@ -313,3 +313,34 @@ describe("keystrokes round-trip (#68)", () => {
     expect(JSON.parse(String(row.keystrokes))).toEqual([{ key: "7", t: 100 }]);
   });
 });
+
+describe("hintVariant round-trip (#102)", () => {
+  const addition = {
+    categoryCodename: "2d+2d",
+    operands: [47, 35],
+    answer: 82,
+  };
+
+  it("keeps the variant on the queued row and its pending input", () => {
+    const input = makeInput({ ...addition, hintVariant: "add-complement" });
+    enqueueRun([input], [makeResult()]);
+
+    expect(pendingInputs()[0].hintVariant).toBe("add-complement");
+    expect(allLocalTrials()[0].hintVariant).toBe("add-complement");
+  });
+
+  it("leaves it absent on rows that never had one", () => {
+    enqueueRun([makeInput()], [makeResult()]);
+
+    expect(pendingInputs()[0]).not.toHaveProperty("hintVariant");
+    expect(allLocalTrials()[0]).not.toHaveProperty("hintVariant");
+  });
+
+  it("stores a pulled row's variant", () => {
+    mergeServerTrials([
+      makeSynced({ ...addition, hintVariant: "add-decompose" }),
+    ]);
+
+    expect(allLocalTrials()[0].hintVariant).toBe("add-decompose");
+  });
+});

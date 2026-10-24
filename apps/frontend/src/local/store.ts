@@ -29,6 +29,7 @@ export type LocalTrialCell = {
   correct: boolean;
   timeExceeded: boolean;
   keystrokes?: string;
+  hintVariant?: string;
 };
 
 // Deliberately schema-less: row shape is enforced at the enqueue seam by
