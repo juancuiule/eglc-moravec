@@ -71,11 +71,12 @@ export const policy: TrialSessionPolicy<
 > = {
   initialHintsRemaining: () => undefined,
   initialPickState: () => undefined,
-  pickNext: (config) => ({
+  pickNext: (config, _pickState, hintSeed) => ({
     operation: createOperation(
       config.mode === "focus"
         ? pickFocusCategory(config.weights)
         : config.categoryCodename,
+      hintSeed,
     ),
     pickState: undefined,
   }),

@@ -29,6 +29,7 @@ function buildPlaying(
     type: "playing",
     config: { mode: "category", categoryCodename: "2dx1d" },
     runId: "run-1",
+    hintSeed: "seed",
     results: [],
     currentOperation: hintOperation,
     pickState: undefined,

@@ -9,11 +9,14 @@ import {
 
 export type Level = Record<OperationCategory["codename"], number>;
 
-export function createRandomOperation(level: Level): Operation {
+export function createRandomOperation(
+  level: Level,
+  hintSeed: string,
+): Operation {
   const categories = getKeys(level);
   const probabilities = getValues(level);
 
   const randomCategory = math.pickRandomWeighted(categories, probabilities);
 
-  return createOperation(randomCategory);
+  return createOperation(randomCategory, hintSeed);
 }

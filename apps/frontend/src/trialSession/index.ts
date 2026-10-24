@@ -9,6 +9,7 @@ import {
   type TrialResultPolicy,
 } from "engine";
 import { createStore } from "zustand/vanilla";
+import { authStore, hintSeed } from "../auth/store";
 import { randomId } from "../randomId";
 
 export type Reviewing = {
@@ -24,6 +25,8 @@ export type Playing<TConfig, TPickState> = {
   type: "playing";
   config: TConfig;
   runId: string;
+  // Resolved once at start, so a login mid-run can't switch hint variants.
+  hintSeed: string;
   results: RecordedTrialResult[];
   currentOperation: Operation;
   pickState: TPickState;
@@ -60,6 +63,7 @@ export type TrialSessionPolicy<
   pickNext: (
     config: TConfig,
     pickState: TPickState,
+    hintSeed: string,
   ) => { operation: Operation; pickState: TPickState };
   isComplete: (results: RecordedTrialResult[], config: TConfig) => boolean;
   buildTerminalState: (
@@ -101,14 +105,17 @@ function startPlaying<TConfig, TTerminal extends { type: string }, TPickState>(
   policy: TrialSessionPolicy<TConfig, TTerminal, TPickState>,
   config: TConfig,
 ): Playing<TConfig, TPickState> {
+  const seed = hintSeed(authStore.getState().state);
   const { operation, pickState } = policy.pickNext(
     config,
     policy.initialPickState(config),
+    seed,
   );
   return {
     type: "playing",
     config,
     runId: randomId(),
+    hintSeed: seed,
     results: [],
     currentOperation: operation,
     pickState,
@@ -215,6 +222,7 @@ export function trialSessionActions<
         const { operation, pickState } = policy.pickNext(
           state.config,
           state.pickState,
+          state.hintSeed,
         );
         set({
           state: {

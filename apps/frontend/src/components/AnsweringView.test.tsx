@@ -26,6 +26,7 @@ function buildPlaying(overrides: Partial<Playing> = {}): Playing {
     type: "playing",
     config: { levelNumber: 1, level: {} },
     runId: "run-1",
+    hintSeed: "seed",
     results: [],
     currentOperation: hintOperation,
     pickState: new Set(),

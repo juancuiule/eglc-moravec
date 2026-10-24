@@ -18,7 +18,7 @@ vi.mock("../storage/deviceId", () => ({
   getOrCreateDeviceId: vi.fn(() => "device-1"),
 }));
 
-import { createAuthStore, authToken, setLogoutHook } from "./store";
+import { createAuthStore, authToken, hintSeed, setLogoutHook } from "./store";
 import { Api } from "../api/Api";
 import { loadSession, saveSession, clearSession } from "../storage/session";
 
@@ -29,6 +29,19 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
+
+describe("hintSeed", () => {
+  it("is the account email when logged in, the same on every device", () => {
+    expect(
+      hintSeed({ type: "logged-in", token: "t", email: " Player@Example.com" }),
+    ).toBe("player@example.com");
+  });
+
+  it("is the device id otherwise", () => {
+    expect(hintSeed({ type: "anonymous", token: "t" })).toBe("device-1");
+    expect(hintSeed({ type: "logged-out" })).toBe("device-1");
+  });
+});
 
 describe("createAuthStore", () => {
   beforeEach(() => {
