@@ -47,7 +47,7 @@ A step-by-step decomposition an Operation can offer for its current Trial, stopp
 _Avoid_: Answer key, solution, walkthrough.
 
 **Hint variant**:
-One registered strategy for an operation type's Hint (`add-decompose`, `add-complement`, `mult-decompose`, `sq-diff`), so hint strategies can be compared as a research experiment. Each player is assigned one variant per type for good: FNV-1a over a seed (the account email when logged in, the device id otherwise) that never leaves the device. A type with a single variant assigns nothing. Each Trial records the _assigned_ variant in `trial_results.hint_variant`, even when the draw has no Hint or the player never asks for one; `hint_shown` still records use. The registry's order and membership are part of the assignment, so changing them reassigns players.
+One registered strategy for an operation type's Hint (`add-decompose`, `add-complement`, `mult-decompose`, `sq-diff`), so hint strategies can be compared as a research experiment. Each player is assigned one variant per type for good: a hash of a seed (the account email when logged in, the device id otherwise), drawn independently per type. The seed itself is never included in sync payloads or Trial rows; only the assigned variant id is. A type with a single variant assigns nothing. The tutorial's live example uses the same seed, so a player only ever sees their own variant. Each Trial records the _assigned_ variant in `trial_results.hint_variant`, even when the draw has no Hint or the player never asks for one; `hint_shown` still records use. The registry's order and membership are part of the assignment, so changing them reassigns players.
 _Avoid_: Hint style, A/B bucket.
 
 **LevelStats**:

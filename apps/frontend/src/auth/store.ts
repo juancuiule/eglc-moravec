@@ -30,8 +30,8 @@ export function authToken(state: AuthState): string | null {
   return state.type === "logged-out" ? null : state.token;
 }
 
-// Picks the player's hint variants (engine's assignHintVariant). It never
-// leaves the device: only its hash is used, and only to pick a bucket.
+// Picks the player's hint variants (engine's assignHintVariant). The seed is
+// never part of a sync payload or a Trial row: only its hash picks a bucket.
 export function hintSeed(state: AuthState): string {
   return state.type === "logged-in"
     ? state.email.trim().toLowerCase()
