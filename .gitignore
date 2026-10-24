@@ -11,4 +11,5 @@ apps/backend/data
 __pycache__
 *.pyc
 *.egg-info
+.pytest_cache
 .ipynb_checkpoints

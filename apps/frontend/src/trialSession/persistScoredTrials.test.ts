@@ -101,4 +101,27 @@ describe("persistScoredTrials", () => {
     store.getState().stop();
     expect(pendingInputs()).toHaveLength(1);
   });
+
+  it("stamps each Trial with the UI locale active when it was scored", () => {
+    const store = levelSetup();
+    document.documentElement.lang = "es";
+    store.getState().submitAnswer(currentAnswer(store));
+    store.getState().advance();
+    document.documentElement.lang = "en";
+    store.getState().timeUp(null);
+
+    expect(
+      pendingInputs()
+        .sort((a, b) => a.playedAt - b.playedAt)
+        .map((t) => t.locale),
+    ).toEqual(["es", "en"]);
+  });
+
+  it("leaves the locale unset when the page has no supported one", () => {
+    const store = levelSetup();
+    document.documentElement.lang = "";
+    store.getState().timeUp(null);
+
+    expect(pendingInputs()[0]).not.toHaveProperty("locale");
+  });
 });

@@ -1,6 +1,7 @@
 import {
   SyncRequestSchema,
   deriveLevelStats,
+  isLocale,
   evaluateTrialResult,
   levelStatsToWire,
   type SyncedTrial,
@@ -27,6 +28,7 @@ function rowToSyncedTrial(r: TrialResultRow): SyncedTrial {
     playedAt: r.played_at,
     hintShown: Boolean(r.hint_shown),
     runId: r.run_id,
+    ...(isLocale(r.locale) ? { locale: r.locale } : {}),
   };
   // Practice rows (and Focus — same family, adaptive mix) store the
   // level_number=0 sentinel; the wire shape restores the domain's null —

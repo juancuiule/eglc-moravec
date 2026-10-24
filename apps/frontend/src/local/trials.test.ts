@@ -313,3 +313,23 @@ describe("keystrokes round-trip (#68)", () => {
     expect(JSON.parse(String(row.keystrokes))).toEqual([{ key: "7", t: 100 }]);
   });
 });
+
+describe("locale round-trip (#106)", () => {
+  it("keeps a pulled row's locale in the local read model", () => {
+    mergeServerTrials([
+      makeSynced({ locale: "es" }),
+      makeSynced({ id: crypto.randomUUID(), playedAt: 1_700_000_000_001 }),
+    ]);
+
+    expect(allLocalTrials().map((t) => t.locale)).toEqual(["es", undefined]);
+  });
+
+  it("drops a stored locale outside the supported set instead of the row", () => {
+    const input = makeInput({ locale: "en" });
+    enqueueRun([input], [makeResult()]);
+    localStore.setCell(TRIALS_TABLE, input.id, "locale", "fr");
+
+    expect(pendingInputs()).toHaveLength(1);
+    expect(pendingInputs()[0]).not.toHaveProperty("locale");
+  });
+});

@@ -139,6 +139,46 @@ describe("openDb", () => {
     expect(columns.filter((c) => c === "operands")).toHaveLength(1);
   });
 
+  it("adds a nullable trial_results.locale to a database created before it, leaving old rows NULL", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "pre-locale.sqlite");
+    const legacy = new DatabaseSync(dbPath);
+    legacy.exec(
+      `CREATE TABLE trial_results (
+         id TEXT PRIMARY KEY,
+         email_hash TEXT NOT NULL,
+         level_number INTEGER NOT NULL,
+         category_codename TEXT NOT NULL,
+         operands TEXT NOT NULL,
+         answer INTEGER,
+         correct INTEGER NOT NULL,
+         time_exceeded INTEGER NOT NULL,
+         time_taken INTEGER NOT NULL,
+         played_at INTEGER NOT NULL,
+         hint_shown INTEGER NOT NULL DEFAULT 0,
+         run_id TEXT NOT NULL DEFAULT '',
+         run_type TEXT NOT NULL DEFAULT 'level',
+         keystrokes TEXT
+       );
+       INSERT INTO trial_results
+         (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at)
+       VALUES ('old-trial', 'h', 1, '1d+1d', '[1,2]', 3, 1, 0, 900, 1)`,
+    );
+    legacy.close();
+
+    openDb(dbPath).close();
+    const db = openDb(dbPath);
+
+    expect(
+      columnNames(db, "trial_results").filter((c) => c === "locale"),
+    ).toHaveLength(1);
+    expect(
+      db
+        .prepare("SELECT locale FROM trial_results WHERE id = 'old-trial'")
+        .get(),
+    ).toEqual({ locale: null });
+  });
+
   it("cleans expired auth data on startup using the injected time", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
     const dbPath = join(tmpDir, "cleanup.sqlite");

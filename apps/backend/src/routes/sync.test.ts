@@ -893,3 +893,61 @@ describe("POST /sync cursor pull", () => {
     },
   );
 });
+
+describe("Trial locale (#106)", () => {
+  const push = (app: FastifyInstance, token: string, trials: unknown[]) =>
+    app.inject({
+      method: "POST",
+      url: "/sync",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { cursor: 0, trials },
+    });
+
+  it("stores a pushed locale and returns it on every pull", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+    const spanish = { ...trial, id: randomUUID(), locale: "es" };
+    const unknown = {
+      ...trial,
+      id: randomUUID(),
+      playedAt: trial.playedAt + 1,
+    };
+
+    expect((await push(app, token, [spanish, unknown])).statusCode).toBe(200);
+
+    expect(
+      db
+        .prepare("SELECT id, locale FROM trial_results ORDER BY played_at")
+        .all(),
+    ).toEqual([
+      { id: spanish.id, locale: "es" },
+      { id: unknown.id, locale: null },
+    ]);
+
+    const otherDevice = await loginAndGetToken(db, app);
+    const pulled = (await push(app, otherDevice, [])).json().trials;
+    expect(pulled[0].locale).toBe("es");
+    expect(pulled[1]).not.toHaveProperty("locale");
+
+    const listed = await app.inject({
+      method: "GET",
+      url: "/sync/trials",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(
+      listed.json().trials.map((t: { locale?: string }) => t.locale),
+    ).toEqual(["es", undefined]);
+  });
+
+  it("rejects an unsupported locale without storing anything", async () => {
+    const { db, app } = setup();
+    const token = await loginAndGetToken(db, app);
+
+    const res = await push(app, token, [{ ...trial, locale: "fr" }]);
+
+    expect(res.statusCode).toBe(400);
+    expect(
+      getTrialResultsForUser(db, hashEmail(EMAIL, TEST_SECRET)),
+    ).toHaveLength(0);
+  });
+});

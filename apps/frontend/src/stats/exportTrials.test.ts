@@ -31,7 +31,7 @@ describe("trialsToCsv", () => {
   it("emits a stable header and one row per trial", () => {
     const lines = trialsToCsv([trial, practiceTrial]).trimEnd().split("\n");
     expect(lines[0]).toBe(
-      "id,played_at,level_number,run_type,run_id,category_codename,operands,answer,correct,time_exceeded,time_taken_ms,hint_shown",
+      "id,played_at,level_number,run_type,run_id,category_codename,operands,answer,correct,time_exceeded,time_taken_ms,hint_shown,locale",
     );
     expect(lines).toHaveLength(3);
   });
@@ -44,6 +44,15 @@ describe("trialsToCsv", () => {
     expect(rows[2]).toContain("practice");
     // null level_number and null answer render as empty cells, never "null"
     expect(rows[2]).not.toContain("null");
+  });
+
+  it("ends each row with the Trial's locale, empty when unknown", () => {
+    const lines = trialsToCsv([{ ...trial, locale: "es" }, practiceTrial])
+      .trimEnd()
+      .split("\n");
+    expect(lines[0].endsWith(",hint_shown,locale")).toBe(true);
+    expect(lines[1].endsWith(",true,es")).toBe(true);
+    expect(lines[2].endsWith(",true,")).toBe(true);
   });
 });
 

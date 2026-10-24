@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   MAX_KEYSTROKES_PER_TRIAL,
+  SyncRequestSchema,
+  SyncedTrialSchema,
   TrialResultSchema,
   TrialResultsSchema,
   evaluateTrialResult,
@@ -509,6 +511,20 @@ describe("toTrialResultInput", () => {
       ).keystrokes,
     ).toEqual([{ key: "7", t: 300 }]);
   });
+
+  it("serializes the UI locale only when the Trial recorded one", () => {
+    const policy = {
+      runType: "level" as const,
+      levelNumber: 1,
+      runId: "run-abc",
+    };
+    expect(toTrialResultInput(makeResult(), policy)).not.toHaveProperty(
+      "locale",
+    );
+    expect(
+      toTrialResultInput(makeResult({ locale: "es" }), policy).locale,
+    ).toBe("es");
+  });
 });
 
 describe("keystrokes on TrialResultSchema (#68)", () => {
@@ -564,5 +580,71 @@ describe("keystrokes on TrialResultSchema (#68)", () => {
       keystrokes: [{ key: "1", t: -1 }],
     });
     expect(parsed.success).toBe(false);
+  });
+});
+
+describe("locale on the Trial schemas (#106)", () => {
+  const baseInput = {
+    id: "11111111-1111-4111-8111-111111111111",
+    runId: "22222222-2222-4222-8222-222222222222",
+    categoryCodename: "1d+1d",
+    timeTaken: 800,
+    playedAt: 1_700_000_000_000,
+    operands: [3, 4],
+    answer: 7,
+    hintShown: false,
+    runType: "level" as const,
+    levelNumber: 2,
+  };
+
+  it.each(["en", "es"])("accepts the supported locale %s", (locale) => {
+    const parsed = TrialResultSchema.safeParse({ ...baseInput, locale });
+    expect(parsed.success && parsed.data.locale).toBe(locale);
+  });
+
+  it("accepts its absence, so outbox rows written before #106 still flush", () => {
+    const parsed = TrialResultSchema.safeParse(baseInput);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.locale).toBeUndefined();
+  });
+
+  it.each(["fr", "", "ES", "es-AR", null, 1])(
+    "rejects the unsupported locale %j",
+    (locale) => {
+      expect(
+        TrialResultSchema.safeParse({ ...baseInput, locale }).success,
+      ).toBe(false);
+    },
+  );
+
+  it("carries the locale on pulled rows", () => {
+    const parsed = SyncedTrialSchema.safeParse({
+      ...baseInput,
+      correct: true,
+      timeExceeded: false,
+      locale: "en",
+    });
+    expect(parsed.success && parsed.data.locale).toBe("en");
+  });
+
+  it("keeps a pulled row whose locale this build doesn't know, dropping the locale", () => {
+    const pulled = {
+      ...baseInput,
+      correct: true,
+      timeExceeded: false,
+      locale: "pt",
+    };
+    const parsed = SyncedTrialSchema.safeParse(pulled);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.locale).toBeUndefined();
+    expect(
+      SyncRequestSchema.safeParse({ cursor: 0, trials: [baseInput] }).success,
+    ).toBe(true);
+    expect(
+      SyncRequestSchema.safeParse({
+        cursor: 0,
+        trials: [{ ...baseInput, locale: "pt" }],
+      }).success,
+    ).toBe(false);
   });
 });
