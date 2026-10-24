@@ -123,11 +123,18 @@ function ErrorsSection({ profile }: { profile: ErrorProfile }) {
                 className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-base px-3 py-2"
               >
                 <span className="sr-only">
-                  {t("errorEntry", {
-                    asked: e.asked,
-                    given: e.given,
-                    count: e.count,
-                  })}
+                  {e.neighborLabel === null
+                    ? t("errorEntry", {
+                        asked: e.asked,
+                        given: e.given,
+                        count: e.count,
+                      })
+                    : t("errorEntryNeighbor", {
+                        asked: e.asked,
+                        given: e.given,
+                        count: e.count,
+                        neighbor: e.neighborLabel,
+                      })}
                 </span>
                 <div aria-hidden="true" className="flex min-w-0 flex-col">
                   <span className="flex items-center gap-1.5 font-mono text-sm">
@@ -213,10 +220,18 @@ function RhymeSection({ rhyme }: { rhyme: RhymeEffect }) {
             role="row"
             className={`${rhymeGrid} rounded-lg bg-base py-2`}
           >
-            <span role="cell" className="truncate font-mono text-sm">
-              {t("rhymePair", {
+            <span role="cell" className="font-mono text-sm">
+              {t.rich("rhymePair", {
                 rhyme: `${p.pair[0]} × ${p.pair[1]}`,
                 control: `${p.pair[1]} × ${p.pair[0]}`,
+                order: (chunks) => (
+                  <span className="whitespace-nowrap">{chunks}</span>
+                ),
+                vs: (chunks) => (
+                  <span className="font-sans text-2xs text-muted-2">
+                    {chunks}
+                  </span>
+                ),
               })}
             </span>
             <RhymeCell arm={p.rhyme} />

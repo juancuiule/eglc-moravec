@@ -79,6 +79,60 @@ test("a rich history states the tie direction, the neighbor share and the rhyme 
       /100% of your multiplication mistakes are table neighbors/,
     ),
   ).toBeTruthy();
-  expect(screen.getByText("6 × 7: you answered 48, 5 times")).toBeTruthy();
+  expect(
+    screen.getByText(
+      "6 × 7: you answered 48, 5 times. That's a table neighbor: 6 × 8.",
+    ),
+  ).toBeTruthy();
   expect(screen.getByText(/faster for you on 2 of 2 pairs/)).toBeTruthy();
+});
+
+test("a screen reader hears whether a mistake is a table neighbor", () => {
+  renderWithIntl(
+    <ResearchInsightsSection
+      trials={[
+        trial({ operands: [6, 7], answer: 48, correct: false }),
+        trial({ operands: [3, 4], answer: 50, correct: false }),
+      ]}
+    />,
+  );
+
+  const items = screen.getAllByRole("listitem");
+  const neighbor = items.find((li) => li.textContent?.startsWith("6 × 7"));
+  const stray = items.find((li) => li.textContent?.startsWith("3 × 4"));
+  if (!neighbor || !stray) throw new Error("both mistakes are listed");
+  expect(neighbor.textContent).toContain(
+    "6 × 7: you answered 48, once. That's a table neighbor: 6 × 8.",
+  );
+  expect(stray.textContent).toContain("3 × 4: you answered 50, once");
+  expect(stray.textContent).not.toMatch(/neighbor/);
+});
+
+test("every rhyme pair names both orders in full, never cut off", () => {
+  renderWithIntl(
+    <ResearchInsightsSection
+      trials={[
+        ...many(3, { operands: [6, 4] }),
+        ...many(3, { operands: [4, 6] }),
+      ]}
+    />,
+  );
+
+  const table = screen.getByRole("table", {
+    name: "Average time by presentation order",
+  });
+  const cells = within(table)
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => within(row).getAllByRole("cell")[0]);
+  expect(cells.map((c) => c.textContent)).toEqual([
+    "6 × 4 vs 4 × 6",
+    "7 × 5 vs 5 × 7",
+    "9 × 5 vs 5 × 9",
+    "6 × 8 vs 8 × 6",
+  ]);
+  for (const cell of cells) {
+    expect(cell.closest(".truncate")).toBeNull();
+    expect(cell.querySelector(".truncate")).toBeNull();
+  }
 });
