@@ -20,7 +20,7 @@ type HintVariant = {
 // Order and membership are part of the assignment contract: changing either
 // reassigns players mid-experiment, so a new variant starts a new
 // experiment generation rather than joining this one.
-export const HINT_VARIANTS = {
+const registry = {
   addition: [
     { id: "add-decompose", build: ([l, r]) => new AdditionHint(l, r) },
     {
@@ -38,6 +38,9 @@ export const HINT_VARIANTS = {
   squaring: [{ id: "sq-diff", build: ([x]) => new SquaringHint(x) }],
 } as const satisfies Record<OperationType, readonly HintVariant[]>;
 
+for (const variants of Object.values(registry)) Object.freeze(variants);
+export const HINT_VARIANTS = Object.freeze(registry);
+
 export type HintVariantId = (typeof HINT_VARIANTS)[OperationType][number]["id"];
 
 const variantsOf = (type: OperationType): readonly HintVariant[] =>
@@ -52,9 +55,31 @@ function fnv1a(input: string): number {
   return hash;
 }
 
+// murmur3's fmix32. FNV-1a's low bits barely mix (its low bit is just the
+// parity of the input's odd bytes), so without this `% 2` gave every type
+// the same bucket.
+function avalanche(hash: number): number {
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x85ebca6b);
+  hash ^= hash >>> 13;
+  hash = Math.imul(hash, 0xc2b2ae35);
+  hash ^= hash >>> 16;
+  return hash >>> 0;
+}
+
+/** Which of `count` variants `seed` lands on for `type`, from the hash's high bits. */
+export function hintBucket(
+  seed: string,
+  type: OperationType,
+  count: number,
+): number {
+  const hash = avalanche(fnv1a(`${seed}:${type}:${count}`));
+  return Math.floor((hash / 2 ** 32) * count);
+}
+
 /**
  * The variant a player gets for every Operation of one type, for good.
- * `seed` must stay on the device: only its hash picks the bucket. Null when
+ * `seed` is never sent with Trial data: only its hash picks the bucket. Null when
  * the type has a single variant — there is no condition to record.
  */
 export function assignHintVariant(
@@ -63,8 +88,7 @@ export function assignHintVariant(
 ): HintVariantId | null {
   const variants = variantsOf(type);
   if (variants.length < 2) return null;
-  const bucket = fnv1a(`${seed}:${type}:${variants.length}`) % variants.length;
-  return variants[bucket].id as HintVariantId;
+  return variants[hintBucket(seed, type, variants.length)].id as HintVariantId;
 }
 
 export function isRegisteredHintVariant(

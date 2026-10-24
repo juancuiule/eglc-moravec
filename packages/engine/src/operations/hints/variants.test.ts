@@ -3,6 +3,7 @@ import type { OperationCategory } from "../category";
 import {
   assignHintVariant,
   HINT_VARIANTS,
+  hintBucket,
   isRegisteredHintVariant,
 } from "./variants";
 
@@ -191,7 +192,7 @@ describe("assignHintVariant", () => {
       ),
     ).toMatchInlineSnapshot(`
       [
-        "add-decompose",
+        "add-complement",
         "add-complement",
         "add-decompose",
       ]
@@ -211,6 +212,47 @@ describe("assignHintVariant", () => {
       null,
     );
     expect(assignHintVariant("player@example.com", "squaring")).toBe(null);
+  });
+});
+
+describe("hintBucket", () => {
+  const deviceIds = Array.from({ length: 5000 }, () => crypto.randomUUID());
+  const types: OperationType[] = ["addition", "multiplication", "squaring"];
+
+  it.each(types)("splits %s roughly evenly over two variants", (type) => {
+    const second = deviceIds.filter((id) => hintBucket(id, type, 2) === 1);
+    expect(second.length / deviceIds.length).toBeGreaterThan(0.47);
+    expect(second.length / deviceIds.length).toBeLessThan(0.53);
+  });
+
+  it.each([
+    ["addition", "multiplication"],
+    ["addition", "squaring"],
+    ["multiplication", "squaring"],
+  ] as const)(
+    "draws %s and %s independently, so one bucket says nothing about the other",
+    (a, b) => {
+      const agree = deviceIds.filter(
+        (id) => hintBucket(id, a, 2) === hintBucket(id, b, 2),
+      );
+      expect(agree.length / deviceIds.length).toBeGreaterThan(0.47);
+      expect(agree.length / deviceIds.length).toBeLessThan(0.53);
+    },
+  );
+});
+
+describe("HINT_VARIANTS", () => {
+  it("can't be changed at runtime", () => {
+    expect(() => {
+      (HINT_VARIANTS as Record<string, unknown>).squaring = [];
+    }).toThrow(TypeError);
+    expect(() => {
+      (HINT_VARIANTS.addition as unknown as unknown[]).reverse();
+    }).toThrow(TypeError);
+    expect(HINT_VARIANTS.addition.map((v) => v.id)).toEqual([
+      "add-decompose",
+      "add-complement",
+    ]);
   });
 });
 
