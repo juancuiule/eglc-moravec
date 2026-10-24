@@ -302,4 +302,47 @@ test("export stays hidden until trials exist", async () => {
   renderWithQueryClient();
   await screen.findByText(/complete some levels/);
   expect(screen.queryByRole("button", { name: "Download CSV" })).toBeNull();
+  expect(
+    screen.queryByRole("region", { name: "Your contribution to science" }),
+  ).toBeNull();
+});
+
+test("the science section counts every run type and sits above the export", async () => {
+  const base = {
+    runId: "22222222-2222-4222-8222-222222222222",
+    categoryCodename: "1dx1d",
+    operands: [6, 7],
+    answer: 42,
+    correct: true,
+    timeExceeded: false,
+    timeTaken: 2000,
+    playedAt: 1_700_000_000_000,
+    hintShown: false,
+  };
+  const trials: SyncedTrial[] = [
+    {
+      ...base,
+      id: "11111111-1111-4111-8111-111111111111",
+      levelNumber: 1,
+      runType: "level",
+    },
+    {
+      ...base,
+      id: "33333333-3333-4333-8333-333333333333",
+      levelNumber: null,
+      runType: "practice_focus",
+    },
+  ];
+  vi.mocked(Api.sync).mockResolvedValue({ cursor: 0, trials });
+
+  renderWithQueryClient();
+
+  const section = await screen.findByRole("region", {
+    name: "Your contribution to science",
+  });
+  expect(within(section).getByText("1 in levels · 1 in practice")).toBeTruthy();
+  expect(
+    section.compareDocumentPosition(screen.getByText("Your data")) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });

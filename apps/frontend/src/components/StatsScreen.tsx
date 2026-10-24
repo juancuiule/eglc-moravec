@@ -20,6 +20,7 @@ import {
   trialsToJson,
 } from "../stats/exportTrials";
 import { CategoryStatsDetail } from "./CategoryStatsDetail";
+import { ResearchInsightsSection } from "./ResearchInsightsSection";
 import { CATEGORY_LABELS } from "../categoryLabels";
 import { formatSeconds } from "../formatTime";
 import { useLocalTrials } from "../local/hooks";
@@ -352,6 +353,10 @@ export function StatsScreen() {
             );
           })}
         </div>
+      )}
+
+      {!isLoading && (allTrials?.length ?? 0) > 0 && (
+        <ResearchInsightsSection trials={allTrials!} />
       )}
 
       {!isLoading && (allTrials?.length ?? 0) > 0 && (
