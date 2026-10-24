@@ -109,10 +109,12 @@ export type SyncResponse = { cursor: number; trials: SyncedTrial[] };
 // already renders them — so an unknown codename is accepted as-is. A
 // codename that IS still supported keeps its operand rules: today's rules
 // are the only ones we can check, and a supported-category row that breaks
-// them is malformed, not historical.
+// them is malformed, not historical. Likewise a locale added by a newer
+// build reads as unknown here rather than dropping the whole row.
 const SyncedTrialFields = {
   ...TrialResultFields,
   categoryCodename: z.string().min(1),
+  locale: z.enum(LOCALES).optional().catch(undefined),
   correct: z.boolean(),
   timeExceeded: z.boolean(),
 };

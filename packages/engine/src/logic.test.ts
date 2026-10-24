@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   MAX_KEYSTROKES_PER_TRIAL,
+  SyncRequestSchema,
   SyncedTrialSchema,
   TrialResultSchema,
   TrialResultsSchema,
@@ -624,5 +625,26 @@ describe("locale on the Trial schemas (#106)", () => {
       locale: "en",
     });
     expect(parsed.success && parsed.data.locale).toBe("en");
+  });
+
+  it("keeps a pulled row whose locale this build doesn't know, dropping the locale", () => {
+    const pulled = {
+      ...baseInput,
+      correct: true,
+      timeExceeded: false,
+      locale: "pt",
+    };
+    const parsed = SyncedTrialSchema.safeParse(pulled);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.locale).toBeUndefined();
+    expect(
+      SyncRequestSchema.safeParse({ cursor: 0, trials: [baseInput] }).success,
+    ).toBe(true);
+    expect(
+      SyncRequestSchema.safeParse({
+        cursor: 0,
+        trials: [{ ...baseInput, locale: "pt" }],
+      }).success,
+    ).toBe(false);
   });
 });
