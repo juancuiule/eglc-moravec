@@ -87,6 +87,13 @@ const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [
     column: "keystrokes",
     ddl: "ALTER TABLE trial_results ADD COLUMN keystrokes TEXT",
   },
+  {
+    // #106 — the UI locale the Trial was played in. NULL means unknown,
+    // which is every row synced before the column existed.
+    table: "trial_results",
+    column: "locale",
+    ddl: "ALTER TABLE trial_results ADD COLUMN locale TEXT",
+  },
 ];
 
 const INDEX_STATEMENTS: readonly string[] = [
