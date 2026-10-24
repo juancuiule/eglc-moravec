@@ -67,3 +67,5 @@ export {
 } from "./levelScoring";
 
 export { getKeys, getValues, groupBy, math } from "./utils";
+
+export { isLocale, LOCALES, type Locale } from "./locale";

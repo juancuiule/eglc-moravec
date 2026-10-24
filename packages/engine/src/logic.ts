@@ -11,6 +11,7 @@ import {
 } from "./operations/category";
 import { Trial, type TrialResult } from "./trial/engine";
 import { groupBy } from "./utils";
+import { LOCALES, type Locale } from "./locale";
 import * as z from "zod";
 
 export const MAX_SYNC_TRIALS = 1000;
@@ -43,6 +44,9 @@ const TrialResultFields = {
     )
     .max(MAX_KEYSTROKES_PER_TRIAL)
     .optional(),
+  // The UI locale the Trial was played in (#106). Optional for the same
+  // reason as keystrokes; absent means unknown.
+  locale: z.enum(LOCALES).optional(),
 };
 
 export const TrialResultSchema = z
@@ -151,6 +155,7 @@ export type TrialResultPolicy =
 export type RecordedTrialResult = TrialResult & {
   id: string;
   playedAt: number; // epoch ms the Trial was scored
+  locale?: Locale;
 };
 
 export function toTrialResultInput(
@@ -168,6 +173,7 @@ export function toTrialResultInput(
     runId: policy.runId,
     // Optional evidence — only serialized when the session recorded any.
     ...(r.keystrokes ? { keystrokes: r.keystrokes } : {}),
+    ...(r.locale ? { locale: r.locale } : {}),
   };
   return policy.runType === "level"
     ? { ...trial, runType: "level", levelNumber: policy.levelNumber }
