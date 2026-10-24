@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createOperation, reconstructOperation } from "./index";
 import { Addition, Multiplication, Squaring } from "./operation";
+import { assignHintVariant } from "./hints/variants";
 
 describe("createOperation", () => {
   it("creates an Addition for an addition codename", () => {
@@ -68,5 +69,50 @@ describe("reconstructOperation", () => {
 
   it("throws for an unknown codename", () => {
     expect(() => reconstructOperation("not-a-codename", [1, 2])).toThrow();
+  });
+});
+
+describe("createOperation with a hint seed", () => {
+  const seeds = Array.from({ length: 50 }, (_, i) => `seed-${i}`);
+  const seedFor = (variant: string) =>
+    seeds.find((s) => assignHintVariant(s, "addition") === variant)!;
+
+  it("tags an addition with the seed's assigned variant", () => {
+    for (const variant of ["add-decompose", "add-complement"]) {
+      expect(createOperation("2d+2d", seedFor(variant)).hintVariant).toBe(
+        variant,
+      );
+      expect(createOperation("1d+1d", seedFor(variant)).hintVariant).toBe(
+        variant,
+      );
+    }
+  });
+
+  it("shows the assigned variant's steps", () => {
+    const seed = seedFor("add-complement");
+    let op = createOperation("2d+2d", seed);
+    while (!op.hint().hasHint()) op = createOperation("2d+2d", seed);
+    const [left, right] = op.operands();
+    const make = 10 - (left % 10);
+    expect(op.hint().getSteps()).toEqual([
+      `${left} + ${right}`,
+      `= (${left} + ${make}) + (${right} − ${make})`,
+      `= ${left + make} + ${right - make}`,
+    ]);
+  });
+
+  it("tags nothing for single-variant types or without a seed", () => {
+    expect(createOperation("2dx1d", "seed-0").hintVariant).toBeNull();
+    expect(createOperation("(2d)^2", "seed-0").hintVariant).toBeNull();
+    expect(createOperation("2d+2d").hintVariant).toBeNull();
+    expect(reconstructOperation("2d+2d", [47, 35]).hintVariant).toBeNull();
+  });
+
+  it("shows the first variant's steps when untagged", () => {
+    expect(reconstructOperation("2d+2d", [47, 35]).hint().getSteps()).toEqual([
+      "47 + 35",
+      "= 47 + 30 + 5",
+      "= 77 + 5",
+    ]);
   });
 });

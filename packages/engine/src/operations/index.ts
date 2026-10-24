@@ -1,19 +1,27 @@
 import { categoryFromCodename, operandsMatchCategory } from "./category";
+import { assignHintVariant } from "./hints/variants";
 import { Addition, Multiplication, Operation, Squaring } from "./operation";
 
-export function createOperation(codename: string): Operation {
+// `hintSeed` identifies the player (see assignHintVariant); without it the
+// Operation records no hint variant.
+export function createOperation(
+  codename: string,
+  hintSeed?: string,
+): Operation {
   const category = categoryFromCodename(codename);
   if (!category) {
     throw new Error(`Unknown operation codename: ${codename}`);
   }
+  const hintVariant =
+    hintSeed === undefined ? null : assignHintVariant(hintSeed, category.type);
 
   switch (category.type) {
     case "addition":
-      return Addition.create(category);
+      return Addition.create(category, hintVariant);
     case "multiplication":
-      return Multiplication.create(category);
+      return Multiplication.create(category, hintVariant);
     case "squaring":
-      return Squaring.create(category);
+      return Squaring.create(category, hintVariant);
   }
 }
 

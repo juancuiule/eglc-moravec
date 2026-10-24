@@ -9,6 +9,7 @@ import {
   isSupportedCategoryCodename,
   operandsMatchCategory,
 } from "./operations/category";
+import { isRegisteredHintVariant } from "./operations/hints/variants";
 import { Trial, type TrialResult } from "./trial/engine";
 import { groupBy } from "./utils";
 import * as z from "zod";
@@ -43,6 +44,9 @@ const TrialResultFields = {
     )
     .max(MAX_KEYSTROKES_PER_TRIAL)
     .optional(),
+  // The hint variant assigned to the player, whether or not they used it.
+  // Optional so outbox rows written before #102 still validate and flush.
+  hintVariant: z.string().min(1).max(32).optional(),
 };
 
 export const TrialResultSchema = z
@@ -74,6 +78,12 @@ export const TrialResultSchema = z
   ])
   .refine(({ categoryCodename, operands }) =>
     operandsMatchCategory(categoryCodename, operands),
+  )
+  .refine(
+    ({ categoryCodename, hintVariant }) =>
+      hintVariant === undefined ||
+      isRegisteredHintVariant(categoryCodename, hintVariant),
+    { path: ["hintVariant"] },
   );
 
 export const TrialResultsSchema = z.object({
@@ -168,6 +178,9 @@ export function toTrialResultInput(
     runId: policy.runId,
     // Optional evidence — only serialized when the session recorded any.
     ...(r.keystrokes ? { keystrokes: r.keystrokes } : {}),
+    ...(r.operation.hintVariant
+      ? { hintVariant: r.operation.hintVariant }
+      : {}),
   };
   return policy.runType === "level"
     ? { ...trial, runType: "level", levelNumber: policy.levelNumber }

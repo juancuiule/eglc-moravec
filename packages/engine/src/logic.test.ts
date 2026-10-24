@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   MAX_KEYSTROKES_PER_TRIAL,
+  SyncedTrialSchema,
   TrialResultSchema,
   TrialResultsSchema,
   evaluateTrialResult,
@@ -564,5 +565,79 @@ describe("keystrokes on TrialResultSchema (#68)", () => {
       keystrokes: [{ key: "1", t: -1 }],
     });
     expect(parsed.success).toBe(false);
+  });
+});
+
+describe("hintVariant on the wire", () => {
+  const baseInput = {
+    id: "11111111-1111-4111-8111-111111111111",
+    runId: "22222222-2222-4222-8222-222222222222",
+    categoryCodename: "2d+2d",
+    timeTaken: 800,
+    playedAt: 1_700_000_000_000,
+    operands: [47, 35],
+    answer: 82,
+    hintShown: true,
+    runType: "level" as const,
+    levelNumber: 2,
+  };
+
+  it("accepts a variant registered for the row's category, and its absence", () => {
+    expect(
+      TrialResultSchema.safeParse({
+        ...baseInput,
+        hintVariant: "add-complement",
+      }).data?.hintVariant,
+    ).toBe("add-complement");
+    expect(TrialResultSchema.safeParse(baseInput).success).toBe(true);
+  });
+
+  it.each(["add-dots", "sq-diff", "", "x".repeat(33)])(
+    "rejects hintVariant %j on an addition row",
+    (hintVariant) => {
+      expect(
+        TrialResultSchema.safeParse({ ...baseInput, hintVariant }).success,
+      ).toBe(false);
+    },
+  );
+
+  it("accepts a retired variant id on pull", () => {
+    const pulled = {
+      ...baseInput,
+      hintVariant: "add-retired",
+      correct: true,
+      timeExceeded: false,
+    };
+    expect(SyncedTrialSchema.safeParse(pulled).success).toBe(true);
+  });
+
+  it("serializes the Operation's hint variant only when it has one", () => {
+    const policy = { runType: "level" as const, levelNumber: 1, runId: "r" };
+    const result = (operation: Addition): RecordedTrialResult => ({
+      id: "11111111-1111-4111-8111-111111111111",
+      playedAt: 0,
+      operation,
+      answer: 82,
+      correct: true,
+      timeExceeded: false,
+      timeTaken: 1200,
+      hintShown: false,
+    });
+    const category = {
+      type: "addition" as const,
+      codename: "2d+2d" as const,
+      lDigits: 2,
+      rDigits: 2,
+    };
+
+    expect(
+      toTrialResultInput(
+        result(new Addition(47, 35, category, "add-complement")),
+        policy,
+      ).hintVariant,
+    ).toBe("add-complement");
+    expect(
+      toTrialResultInput(result(new Addition(47, 35, category)), policy),
+    ).not.toHaveProperty("hintVariant");
   });
 });

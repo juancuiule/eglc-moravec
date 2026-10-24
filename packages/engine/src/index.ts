@@ -20,6 +20,12 @@ export {
 
 export type { Hint } from "./operations/hints/Hint";
 export { AdditionHint } from "./operations/hints/AdditionHint";
+export { ComplementAdditionHint } from "./operations/hints/ComplementAdditionHint";
+export {
+  assignHintVariant,
+  isRegisteredHintVariant,
+  type HintVariantId,
+} from "./operations/hints/variants";
 export { MultiplicationHint } from "./operations/hints/MultiplicationHint";
 export { NoHint } from "./operations/hints/NoHint";
 export { SquaringHint } from "./operations/hints/SquaringHint";
