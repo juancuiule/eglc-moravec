@@ -17,6 +17,7 @@ const COLUMNS = [
   "time_exceeded",
   "time_taken_ms",
   "hint_shown",
+  "locale",
 ] as const;
 
 function csvCell(value: string | number | boolean | null): string {
@@ -38,6 +39,7 @@ function rowOf(t: SyncedTrial): string {
     t.timeExceeded,
     t.timeTaken,
     t.hintShown,
+    t.locale ?? null,
   ]
     .map(csvCell)
     .join(",");

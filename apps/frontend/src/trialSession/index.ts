@@ -9,6 +9,7 @@ import {
   type TrialResultPolicy,
 } from "engine";
 import { createStore } from "zustand/vanilla";
+import { documentLocale } from "../i18n/locale";
 import { randomId } from "../randomId";
 
 export type Reviewing = {
@@ -125,7 +126,13 @@ function toReviewing<TConfig, TPickState>(
   state: Playing<TConfig, TPickState>,
   result: TrialResult,
 ): Playing<TConfig, TPickState> {
-  const recorded = { ...result, id: randomId(), playedAt: Date.now() };
+  const locale = documentLocale();
+  const recorded = {
+    ...result,
+    id: randomId(),
+    playedAt: Date.now(),
+    ...(locale ? { locale } : {}),
+  };
   return { ...state, playingState: { type: "reviewing", result: recorded } };
 }
 

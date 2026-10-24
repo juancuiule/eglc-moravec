@@ -1,13 +1,19 @@
-export const locales = ["en", "es"] as const;
-export type Locale = (typeof locales)[number];
+import { isLocale, LOCALES, type Locale } from "engine";
+
+export { isLocale, type Locale };
+export const locales = LOCALES;
 export const defaultLocale: Locale = "en";
 
 /** Separate from SESSION_COOKIE (src/storage/session.ts) — locale is a
  * display preference, not auth state, and persists independently of login. */
 export const LOCALE_COOKIE = "moravec_locale";
 
-export function isLocale(value: string | undefined | null): value is Locale {
-  return !!value && (locales as readonly string[]).includes(value);
+/** The locale the current page renders in, read from the `<html lang>` the
+ * root layout sets. Undefined outside a browser. */
+export function documentLocale(): Locale | undefined {
+  if (typeof document === "undefined") return undefined;
+  const { lang } = document.documentElement;
+  return isLocale(lang) ? lang : undefined;
 }
 
 /** Picks a supported locale from a raw `Accept-Language` header, used only

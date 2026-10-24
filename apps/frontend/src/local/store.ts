@@ -11,6 +11,7 @@ import { createIndexedDbPersister } from "tinybase/persisters/persister-indexed-
 //     Pulled rows never carry it (server-side storage only), so a merge
 //     can be the only writer that leaves it absent — enqueue preserves the
 //     locally recorded copy on the same id.
+//   - `locale` is absent when unknown (Trials scored before #106).
 // `synced` marks whether the backend has acknowledged the row.
 // `correct`/`timeExceeded` are display copies — filled from the local
 // evaluation at finish time so stats/unlocks work offline, then overwritten
@@ -29,6 +30,7 @@ export type LocalTrialCell = {
   correct: boolean;
   timeExceeded: boolean;
   keystrokes?: string;
+  locale?: string;
 };
 
 // Deliberately schema-less: row shape is enforced at the enqueue seam by
