@@ -42,12 +42,16 @@ def _addition_rt_ms(op1: int, op2: int, rng: np.random.Generator) -> float:
     return max(300.0, rng.normal(rt, 180))
 
 
-def _multiplication_rt_ms(op1: int, op2: int, rng: np.random.Generator) -> float:
-    """Size effect (paper: ~35.0 ms/unit of product) plus tie, five, and rhyme discounts."""
+def _multiplication_rt_ms(op1: int, op2: int, locale: str, rng: np.random.Generator) -> float:
+    """Size effect (paper: ~35.0 ms/unit of product) plus tie, five, and rhyme discounts.
+
+    The rhyme discount applies only to "es" players, the hypothesis in
+    features.EXPECTED_RHYME_EFFECT.
+    """
     product = op1 * op2
     is_tie = op1 == op2
     has_five = op1 == 5 or op2 == 5
-    rhymed = (op1, op2) in RHYME_ORDERED_PAIRS
+    rhymed = locale == "es" and (op1, op2) in RHYME_ORDERED_PAIRS
     rt = (
         1100
         + 35.0 * product
@@ -87,6 +91,7 @@ def generate_synthetic_trials(n_users: int, trials_per_user: int, seed: int) -> 
     rows = []
     for user_index in range(n_users):
         email_hash = _fake_email_hash(user_index)
+        locale = "es" if user_index % 2 == 0 else "en"
         played_at = pd.Timestamp("2026-08-01") + pd.Timedelta(days=int(rng.integers(0, 30)))
         pair_cycle = rng.permutation(len(_ONE_DIGIT_PAIRS))
 
@@ -106,7 +111,7 @@ def generate_synthetic_trials(n_users: int, trials_per_user: int, seed: int) -> 
 
             if category == "1dx1d":
                 correct, answer = _multiplication_error_and_answer(op1, op2, rng)
-                time_taken = _multiplication_rt_ms(op1, op2, rng)
+                time_taken = _multiplication_rt_ms(op1, op2, locale, rng)
             elif category == "1d+1d":
                 correct = bool(rng.random() > 0.05)
                 answer = (op1 + op2) if correct else (op1 + op2) + int(rng.choice([-2, -1, 1, 2]))
@@ -133,6 +138,7 @@ def generate_synthetic_trials(n_users: int, trials_per_user: int, seed: int) -> 
                     "hint_shown": False,
                     "run_id": str(uuid.uuid4()),
                     "run_type": "level",
+                    "locale": locale,
                 }
             )
 

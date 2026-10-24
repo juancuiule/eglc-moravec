@@ -26,6 +26,15 @@ RHYME_ORDERED_PAIRS = [(6, 4), (7, 5), (9, 5), (6, 8)]
 # within-pair control for the phonological hypothesis.
 RHYME_CONTROL_ORDERED_PAIRS = [(op2, op1) for op1, op2 in RHYME_ORDERED_PAIRS]
 
+# The stated hypothesis per UI locale (#106). The pairs rhyme only in Spanish,
+# so a phonological explanation predicts a rhymed-order speedup in "es" and
+# none in "en"; plain order familiarity would predict it in both. A new locale
+# gets an entry here before its data is read.
+EXPECTED_RHYME_EFFECT = {
+    "es": "rhymed order faster",
+    "en": "no difference",
+}
+
 
 def add_operation_fields(df: pd.DataFrame) -> pd.DataFrame:
     """op1, op2, operation name, and is_tie, from `operands` + `category_codename`."""
@@ -71,6 +80,36 @@ def add_rhyme_fields(df: pd.DataFrame) -> pd.DataFrame:
         lambda r: (r["op1"], r["op2"]) in RHYME_ORDERED_PAIRS, axis=1
     )
     return df
+
+
+def add_locale_field(df: pd.DataFrame) -> pd.DataFrame:
+    """locale, the UI language the Trial was played in; "unknown" for rows synced before #106."""
+    df = df.copy()
+    df["locale"] = df["locale"].fillna("unknown") if "locale" in df.columns else "unknown"
+    return df
+
+
+def rhyme_order_effect_by_locale(df: pd.DataFrame) -> pd.DataFrame:
+    """Mean RT of the four rhyme pairs in each presentation order, one row per locale.
+
+    effect_ms is rhymed-order RT minus reversed-order RT, so negative means the
+    rhymed order is faster. Pass the already filtered frame (correct
+    multiplication trials, outliers dropped) after add_all_derived_fields.
+    """
+    rows = {}
+    for locale, group in df[df["is_rhyme_pair"]].groupby("locale"):
+        in_order = group["presented_in_rhyme_order"]
+        rhymed = group.loc[in_order, "time_taken"]
+        reversed_ = group.loc[~in_order, "time_taken"]
+        rows[locale] = {
+            "n_rhymed": len(rhymed),
+            "n_reversed": len(reversed_),
+            "rt_rhymed": rhymed.mean(),
+            "rt_reversed": reversed_.mean(),
+            "effect_ms": rhymed.mean() - reversed_.mean(),
+            "expected": EXPECTED_RHYME_EFFECT.get(locale),
+        }
+    return pd.DataFrame.from_dict(rows, orient="index").rename_axis("locale")
 
 
 def classify_multiplication_error(op1: int, op2: int, answer: int) -> dict[str, bool]:
@@ -173,6 +212,7 @@ def add_all_derived_fields(df: pd.DataFrame) -> pd.DataFrame:
     df = add_arithmetic_regressors(df)
     df = add_order_fields(df)
     df = add_rhyme_fields(df)
+    df = add_locale_field(df)
     df = add_keystroke_fields(df)
     df = add_error_classification(df)
     return df

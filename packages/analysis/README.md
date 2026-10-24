@@ -17,6 +17,8 @@ uv run jupyter lab notebooks/
 
 Pick the **moravec-analysis** kernel when a notebook asks.
 
+Run the tests with `uv run pytest`.
+
 ## Layout
 
 - `src/moravec_analysis/data.py` — loads `trial_results` / `users` / `levels` straight from `apps/backend/data/moravec.sqlite` into pandas DataFrames.
@@ -29,6 +31,18 @@ Pick the **moravec-analysis** kernel when a notebook asks.
   - `03_five_effect.ipynb` — paper Fig 5 / 6, Section 5.2.2.
   - `04_order_and_rhyme_effect.ipynb` — paper Fig 9, Section 6 (the app's headline new-results section).
   - `05_error_effects.ipynb` — paper Fig 7 / 8 / Table 3.
+
+## Rhyme effect by locale
+
+The four rhyme pairs (6x4, 7x5, 9x5, 6x8) rhyme only in Spanish. Each Trial records the UI locale it was played in (`trial_results.locale`, since #106), and `features.rhyme_order_effect_by_locale` splits the rhymed-order effect by it. Rows synced before the column existed read as `unknown`.
+
+| Locale    | Expected effect                                                       |
+| --------- | --------------------------------------------------------------------- |
+| `es`      | Rhymed order faster, by more than the general max-first order effect. |
+| `en`      | No difference between the two orders beyond the general order effect. |
+| `unknown` | No hypothesis. A mix of both locales.                                 |
+
+An effect in `es` alone supports the phonological explanation. An effect in both points to plain order familiarity. The UI locale is a proxy for the language a player counts in, so a Spanish speaker on the English UI adds noise to `en`. Add a new locale to `features.EXPECTED_RHYME_EFFECT` and to this table, with its expected effect, before you read its data.
 
 ## Known simplifications vs. the paper
 
