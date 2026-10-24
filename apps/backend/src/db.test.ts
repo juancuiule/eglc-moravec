@@ -55,6 +55,44 @@ describe("openDb", () => {
     );
   });
 
+  it("creates trial_results with hint_variant on a fresh database", () => {
+    const db = openDb(":memory:");
+    expect(columnNames(db, "trial_results")).toContain("hint_variant");
+  });
+
+  it("adds hint_variant to a database created before it, leaving old rows NULL", () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "moravec-db-test-"));
+    const dbPath = join(tmpDir, "pre-hint-variant.sqlite");
+    const existingDb = new DatabaseSync(dbPath);
+    existingDb.exec(
+      `CREATE TABLE trial_results (
+         id TEXT PRIMARY KEY, email_hash TEXT NOT NULL,
+         level_number INTEGER NOT NULL, category_codename TEXT NOT NULL,
+         operands TEXT NOT NULL, answer INTEGER, correct INTEGER NOT NULL,
+         time_exceeded INTEGER NOT NULL, time_taken INTEGER NOT NULL,
+         played_at INTEGER NOT NULL, hint_shown INTEGER NOT NULL DEFAULT 0,
+         run_id TEXT NOT NULL DEFAULT '', run_type TEXT NOT NULL DEFAULT 'level',
+         keystrokes TEXT
+       );
+       INSERT INTO trial_results
+         (id, email_hash, level_number, category_codename, operands, correct, time_exceeded, time_taken, played_at)
+       VALUES ('old', 'h', 3, '2d+2d', '[47,35]', 1, 0, 900, 1)`,
+    );
+    existingDb.close();
+
+    openDb(dbPath).close();
+    const db = openDb(dbPath);
+
+    expect(
+      columnNames(db, "trial_results").filter((c) => c === "hint_variant"),
+    ).toHaveLength(1);
+    expect(
+      db
+        .prepare("SELECT hint_variant FROM trial_results WHERE id = 'old'")
+        .get(),
+    ).toEqual({ hint_variant: null });
+  });
+
   it("creates trial_results.id as a client-generated TEXT primary key, not an autoincrement integer", () => {
     const db = openDb(":memory:");
     const [idColumn] = db.prepare("PRAGMA table_info(trial_results)").all() as {

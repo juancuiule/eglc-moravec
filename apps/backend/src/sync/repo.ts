@@ -8,8 +8,8 @@ export function insertTrialResults(
 ): void {
   const insertTrial = db.prepare(
     `INSERT OR IGNORE INTO trial_results
-       (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at, hint_shown, run_id, run_type, keystrokes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at, hint_shown, run_id, run_type, keystrokes, hint_variant)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   // One transaction for the whole batch — without it each .run() is its own
   // autocommitted write, i.e. an fsync per row on the Pi's SD card.
@@ -31,6 +31,7 @@ export function insertTrialResults(
         t.runId,
         t.runType,
         t.keystrokes ? JSON.stringify(t.keystrokes) : null,
+        t.hintVariant ?? null,
       );
     });
     db.exec("COMMIT");
@@ -57,6 +58,7 @@ const PULL_COLUMNS = [
   "hint_shown",
   "run_id",
   "run_type",
+  "hint_variant",
 ];
 
 // POST /sync's whole effect in one transaction: push batch + sync_log
@@ -76,8 +78,8 @@ export function syncTrials(
 ): { cursor: number; rows: TrialResultRow[] } {
   const insertTrial = db.prepare(
     `INSERT OR IGNORE INTO trial_results
-       (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at, hint_shown, run_id, run_type, keystrokes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, email_hash, level_number, category_codename, operands, answer, correct, time_exceeded, time_taken, played_at, hint_shown, run_id, run_type, keystrokes, hint_variant)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insertLog = db.prepare(
     `INSERT INTO sync_log (email_hash, trial_id, created_at) VALUES (?, ?, ?)`,
@@ -101,6 +103,7 @@ export function syncTrials(
         t.runId,
         t.runType,
         t.keystrokes ? JSON.stringify(t.keystrokes) : null,
+        t.hintVariant ?? null,
       );
       // A retried push of a known id changes nothing — and must not grow
       // the log, or the device sees its own data as "new" forever.
@@ -153,6 +156,7 @@ export type TrialResultRow = {
   hint_shown: number;
   run_id: string;
   run_type: string;
+  hint_variant: string | null;
 };
 
 export function getTrialResultsForUser(

@@ -39,7 +39,8 @@ const SCHEMA_STATEMENTS: readonly string[] = [
      played_at INTEGER NOT NULL,
      hint_shown INTEGER NOT NULL DEFAULT 0,
      run_id TEXT NOT NULL DEFAULT '',
-     run_type TEXT NOT NULL DEFAULT 'level'
+     run_type TEXT NOT NULL DEFAULT 'level',
+     hint_variant TEXT
    )`,
   `CREATE TABLE IF NOT EXISTS levels (
      level_number INTEGER PRIMARY KEY,
@@ -86,6 +87,13 @@ const COLUMN_MIGRATIONS: readonly ColumnMigration[] = [
     table: "trial_results",
     column: "keystrokes",
     ddl: "ALTER TABLE trial_results ADD COLUMN keystrokes TEXT",
+  },
+  {
+    // #102 — the hint variant assigned to the player, stored as sent and
+    // returned on pulls. NULL for older rows and single-variant types.
+    table: "trial_results",
+    column: "hint_variant",
+    ddl: "ALTER TABLE trial_results ADD COLUMN hint_variant TEXT",
   },
 ];
 

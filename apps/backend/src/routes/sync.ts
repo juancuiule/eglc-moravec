@@ -27,6 +27,7 @@ function rowToSyncedTrial(r: TrialResultRow): SyncedTrial {
     playedAt: r.played_at,
     hintShown: Boolean(r.hint_shown),
     runId: r.run_id,
+    ...(r.hint_variant !== null ? { hintVariant: r.hint_variant } : {}),
   };
   // Practice rows (and Focus — same family, adaptive mix) store the
   // level_number=0 sentinel; the wire shape restores the domain's null —
